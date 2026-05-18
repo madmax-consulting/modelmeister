@@ -14,8 +14,8 @@
     <conv:StageToTextConverter x:Key="StageText" />
   </UserControl.Resources>
 
-  <c:PageShell Eyebrow="COMPARE"
-               Subtitle="Pick two environments to compare side-by-side"
+  <c:PageShell Eyebrow="{Binding #LayoutRoot.Eyebrow}"
+               Subtitle="{Binding #LayoutRoot.Subtitle}"
                Status="{Binding Status}"
                IsBusy="{Binding Busy}">
 
@@ -73,15 +73,14 @@
             </ComboBox.ItemTemplate>
           </ComboBox>
 
-          <Button Grid.Column="3" Content="Compare" Margin="14,0,0,0"
+          <Button Grid.Column="3" Content="Refresh" Margin="14,0,0,0"
                   Command="{Binding CompareCommand}" Classes="primary"
-                  IsEnabled="{Binding !Busy}" />
+                  IsEnabled="{Binding !Busy}"
+                  ToolTip.Tip="Re-run the compare against both environments" />
           <Button Grid.Column="4" Content="Save CSV" Margin="6,0,0,0"
                   Command="{Binding SaveCsvCommand}" Classes="ghost"
                   IsEnabled="{Binding HasRows}" />
-          <Button Grid.Column="5" Content="Copy md" Margin="6,0,0,0"
-                  Command="{Binding CopyMarkdownCommand}" Classes="ghost"
-                  IsEnabled="{Binding HasRows}" />
+          <!-- Copy md removed: the same data is available via Save CSV and direct row inspection. -->
 
           <!-- Page-specific extra actions (e.g. Extensions' Push L→R / R→L). -->
           <ItemsControl Grid.Column="6" ItemsSource="{Binding ExtraActions}" Margin="6,0,0,0">
@@ -100,14 +99,16 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
-          <TextBlock Grid.Column="7" Text="{Binding Summary}" Classes="dim"
-                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                     HorizontalAlignment="Right" />
+          <!-- Summary status text removed: the per-bucket bar chart below already shows differences,
+               only-left, only-right, changed counts. Status line at the bottom of the page covers
+               the in-flight messages. -->
+          <TextBlock Grid.Column="7" Text="" />
         </Grid>
       </Border>
 
-      <!-- Row 1: body slot — the host page's DataGrid is dropped here as Content. -->
-      <Border Grid.Row="1" Classes="card" Margin="0,12,0,0">
+      <!-- Row 1: body slot — the host page's DataGrid is dropped here as Content. Right padding
+           keeps the rightmost DataGrid column from being clipped against the card edge. -->
+      <Border Grid.Row="1" Classes="card" Margin="0,12,0,0" Padding="0,0,8,0">
         <ContentPresenter Content="{Binding #LayoutRoot.Body}" />
       </Border>
 

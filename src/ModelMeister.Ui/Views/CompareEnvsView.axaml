@@ -14,7 +14,8 @@
     <conv:StageToTextConverter x:Key="StageText" />
   </UserControl.Resources>
 
-  <views:CompareLayoutView>
+  <views:CompareLayoutView Eyebrow="MODEL · COMPARE"
+                           Subtitle="Compare model concepts across two environments">
     <views:CompareLayoutView.Body>
       <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"

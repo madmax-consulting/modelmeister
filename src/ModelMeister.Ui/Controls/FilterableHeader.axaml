@@ -10,7 +10,10 @@
                       Foreground="{DynamicResource TextSec}" />
     </Border>
     <Border Padding="6,0,6,4">
-      <Grid ColumnDefinitions="*,Auto">
+      <!-- Reserve fixed width for the Clear button column even when it's hidden so typing into
+           the filter doesn't cause the textbox to suddenly shrink and the cursor jump left when
+           the first character appears. -->
+      <Grid ColumnDefinitions="*,22">
         <TextBox Grid.Column="0" Text="{Binding #Root.FilterText, Mode=TwoWay}"
                  Watermark="Filter…" MinHeight="22" Padding="6,2" FontSize="11" />
         <Button Grid.Column="1" Classes="ghost icon" Margin="2,0,0,0"

@@ -12,8 +12,9 @@
     <conv:KindToOperationConverter x:Key="KindToOp" />
   </UserControl.Resources>
 
-  <c:PageShell Eyebrow="COMPARE"
+  <c:PageShell Eyebrow="MODEL · COMPARE"
                Subtitle="Diff the loaded model against the connected environment"
+               Status="{Binding StatusMessage}"
                IsBusy="{Binding Busy}">
 
     <Grid ColumnDefinitions="2*,3*">

@@ -14,7 +14,8 @@
     <conv:StageToTextConverter x:Key="StageText" />
   </UserControl.Resources>
 
-  <views:CompareLayoutView>
+  <views:CompareLayoutView Eyebrow="CVL · COMPARE"
+                           Subtitle="Compare CVL definitions and values across two environments">
     <views:CompareLayoutView.Body>
       <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"

@@ -14,6 +14,7 @@
 
   <c:PageShell Eyebrow="MODEL"
                Subtitle="Load a model project and validate it before comparing against an environment"
+               Status="{Binding StatusMessage}"
                IsBusy="{Binding Busy}">
 
     <DockPanel LastChildFill="True">

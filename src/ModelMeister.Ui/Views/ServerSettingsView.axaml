@@ -13,18 +13,11 @@
     <conv:StageToTextConverter x:Key="StageText" />
   </UserControl.Resources>
 
-  <DockPanel LastChildFill="True">
-
-    <!-- Uniform action set on top (Refresh / Backup / Excel) -->
-    <Border DockPanel.Dock="Top" Padding="2,4,2,8">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="dim" VerticalAlignment="Center" />
-        <c:PageActions Grid.Column="1" DataContext="{Binding}" />
-      </Grid>
-    </Border>
-
-    <views:CompareLayoutView>
-      <views:CompareLayoutView.Body>
+  <!-- The CompareLayoutView already supplies a full PageShell (eyebrow/subtitle/status). Wrapping it
+       in another DockPanel + status strip would stack two headers; let the layout own the chrome. -->
+  <views:CompareLayoutView Eyebrow="SERVER SETTINGS · COMPARE"
+                           Subtitle="Compare server settings across two environments — promote per-key">
+    <views:CompareLayoutView.Body>
         <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
                   AutoGenerateColumns="False" SelectionMode="Single"
                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
@@ -147,7 +140,6 @@
             </DataGridTemplateColumn>
           </DataGrid.Columns>
         </DataGrid>
-      </views:CompareLayoutView.Body>
-    </views:CompareLayoutView>
-  </DockPanel>
+    </views:CompareLayoutView.Body>
+  </views:CompareLayoutView>
 </UserControl>

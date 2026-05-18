@@ -24,6 +24,31 @@ public partial class CompareLayoutView : UserControl
         set => SetValue(BodyProperty, value);
     }
 
+    /// <summary>
+    /// Page-specific eyebrow label (e.g. "USERS · COMPARE", "SERVER SETTINGS · COMPARE"). Each
+    /// compare page should set this so the top-of-page label matches the page the user navigated to,
+    /// instead of every compare page showing a generic "COMPARE".
+    /// </summary>
+    public static readonly StyledProperty<string?> EyebrowProperty =
+        AvaloniaProperty.Register<CompareLayoutView, string?>(nameof(Eyebrow), defaultValue: "COMPARE");
+
+    public string? Eyebrow
+    {
+        get => GetValue(EyebrowProperty);
+        set => SetValue(EyebrowProperty, value);
+    }
+
+    /// <summary>Optional subtitle override; defaults to the generic compare-page hint.</summary>
+    public static readonly StyledProperty<string?> SubtitleProperty =
+        AvaloniaProperty.Register<CompareLayoutView, string?>(nameof(Subtitle),
+            defaultValue: "Pick two environments to compare side-by-side");
+
+    public string? Subtitle
+    {
+        get => GetValue(SubtitleProperty);
+        set => SetValue(SubtitleProperty, value);
+    }
+
     public CompareLayoutView()
     {
         InitializeComponent();

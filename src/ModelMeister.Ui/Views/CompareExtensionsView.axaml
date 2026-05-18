@@ -7,7 +7,8 @@
              x:DataType="vm:CompareExtensionsViewModel"
              x:Name="Root">
 
-  <views:CompareLayoutView>
+  <views:CompareLayoutView Eyebrow="EXTENSIONS · COMPARE"
+                           Subtitle="Compare extensions and their settings across two environments">
     <views:CompareLayoutView.Body>
       <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
                 SelectedItem="{Binding Selected, Mode=TwoWay}"
