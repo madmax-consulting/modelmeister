@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>modelmeister</AssemblyName>
+    <RootNamespace>ModelMeister.Cli</RootNamespace>
+    <Description>modelmeister CLI — scaffold, diff, apply, validate, export, interactive.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ModelMeister.Model\ModelMeister.Model.csproj" />
+    <ProjectReference Include="..\ModelMeister.Inriver\ModelMeister.Inriver.csproj" />
+    <ProjectReference Include="..\ModelMeister.Scaffolder\ModelMeister.Scaffolder.csproj" />
+    <ProjectReference Include="..\ModelMeister.Loading\ModelMeister.Loading.csproj" />
+    <ProjectReference Include="..\ModelMeister.Excel\ModelMeister.Excel.csproj" />
+    <ProjectReference Include="..\ModelMeister.Rest\ModelMeister.Rest.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="Spectre.Console" />
+  </ItemGroup>
+
+</Project>

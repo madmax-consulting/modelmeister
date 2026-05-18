@@ -1,0 +1,112 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        xmlns:conv="using:ModelMeister.Ui.Converters"
+        mc:Ignorable="d"
+        x:Class="ModelMeister.Ui.Views.EnvEditorDialog"
+        x:DataType="vm:EnvEditorViewModel"
+        Title="Environment"
+        Width="600" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource AppBackground}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Window.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter  x:Key="StageText" />
+    <conv:BoolToBrushConverter  x:Key="OkBrush" />
+  </Window.Resources>
+
+  <ScrollViewer>
+    <StackPanel Margin="28,24,28,24" Spacing="16">
+
+      <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+        <Grid Width="40" Height="40">
+          <Border CornerRadius="11" Background="{DynamicResource AccentGlowFill}"
+                  BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1" />
+          <Path Data="{DynamicResource IcoEnvironments}" Width="20" Height="20" Stretch="Uniform"
+                Stroke="{DynamicResource Accent}" StrokeThickness="1.5"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+        <StackPanel Spacing="2">
+          <TextBlock Text="ENVIRONMENT" Classes="eyebrow" />
+          <TextBlock Text="Connection details" FontSize="18" FontWeight="Bold" />
+        </StackPanel>
+      </StackPanel>
+
+      <Border Classes="divider" />
+
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="0" Spacing="6">
+          <TextBlock Text="FRIENDLY NAME" Classes="label" />
+          <TextBox Text="{Binding Name, Mode=TwoWay}" Watermark="e.g. Dev / Test / Production" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="6" MinWidth="160" Margin="14,0,0,0">
+          <TextBlock Text="STAGE" Classes="label" />
+          <ComboBox ItemsSource="{Binding Stages}" SelectedItem="{Binding Stage, Mode=TwoWay}" />
+        </StackPanel>
+      </Grid>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="REMOTING URL" Classes="label" />
+        <TextBox Text="{Binding Url, Mode=TwoWay}" Classes="mono"
+                 Watermark="https://remoting.productmarketingcloud.com" />
+      </StackPanel>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="REMOTING API KEY" Classes="label" />
+        <TextBox Text="{Binding ApiKey, Mode=TwoWay}" PasswordChar="●" Classes="mono" />
+      </StackPanel>
+
+      <Border Classes="cardSubtle">
+        <StackPanel Spacing="10">
+          <TextBlock Text="REST API (OPTIONAL — UNLOCKS USER CREATE + EXTENSIONS)" Classes="eyebrow" />
+          <StackPanel Spacing="6">
+            <TextBlock Text="REST BASE URL" Classes="label" />
+            <TextBox Text="{Binding RestBaseUrl, Mode=TwoWay}" Classes="mono"
+                     Watermark="https://apieuw.productmarketingcloud.com" />
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="REST API KEY" Classes="label" />
+            <TextBox Text="{Binding RestApiKey, Mode=TwoWay}" PasswordChar="●" Classes="mono" />
+          </StackPanel>
+          <TextBlock Foreground="{DynamicResource TextSec}" FontSize="11"
+                     Text="Leave blank if you only use the Remoting key — model diff/apply work without it. The REST key needs the APIManageUsers permission to create users." />
+        </StackPanel>
+      </Border>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="NOTES (OPTIONAL)" Classes="label" />
+        <TextBox Text="{Binding Notes, Mode=TwoWay}" AcceptsReturn="True" Height="64" />
+      </StackPanel>
+
+      <CheckBox Content="Auto-connect to this environment on startup"
+                IsChecked="{Binding IsDefault, Mode=TwoWay}" />
+
+      <TextBlock Text="{Binding Validation}" Foreground="{DynamicResource Danger}" FontSize="12"
+                 IsVisible="{Binding Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+      <!-- Test connection inline result -->
+      <Border Classes="cardSubtle" IsVisible="{Binding TestResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <ProgressBar IsIndeterminate="True" IsVisible="{Binding Testing}" Width="80" Height="4" />
+          <Ellipse Width="8" Height="8"
+                   IsVisible="{Binding !Testing}"
+                   Fill="{Binding TestSucceeded, Converter={StaticResource OkBrush}}" />
+          <TextBlock Text="{Binding TestResult}" Classes="mono" Foreground="{DynamicResource TextSec}" />
+        </StackPanel>
+      </Border>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,8,0,0">
+        <Button Content="Test connection" Command="{Binding TestCommand}" Classes="ghost" IsEnabled="{Binding !Testing}" />
+        <Border Width="1" Background="{DynamicResource Border}" Margin="6,4" />
+        <Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
+        <Button Content="Save"   Command="{Binding SaveCommand}" Classes="primary" IsDefault="True" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

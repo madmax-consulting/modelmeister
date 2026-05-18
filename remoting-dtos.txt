@@ -1,0 +1,145 @@
+==== inRiver.Remoting.Objects.EntityType ====
+  PROP String Id
+  PROP LocaleString Name
+  PROP Boolean IsLinkEntityType
+  PROP List`1 FieldTypes
+  PROP List`1 LinkTypes
+  PROP List`1 FieldViews
+  PROP List`1 FieldSets
+  PROP String GetDisplayNameFieldTypeId
+  PROP String GetDisplayDescriptionFieldTypeId
+
+==== inRiver.Remoting.Objects.FieldType ====
+  PROP String Id
+  PROP LocaleString Name
+  PROP LocaleString Description
+  PROP String EntityTypeId
+  PROP String DataType
+  PROP Boolean Mandatory
+  PROP Boolean Unique
+  PROP Int32 Index
+  PROP String CategoryId
+  PROP String DefaultValue
+  PROP List`1 Units
+  PROP Boolean Hidden
+  PROP Boolean ReadOnly
+  PROP Boolean IsDisplayName
+  PROP Boolean IsDisplayDescription
+  PROP Dictionary`2 Settings
+  PROP Boolean ExcludeFromDefaultView
+  PROP String CVLId
+  PROP Boolean Multivalue
+  PROP Boolean TrackChanges
+  PROP Boolean ExpressionSupport
+
+==== inRiver.Remoting.Objects.CVL ====
+  PROP String Id
+  PROP String DataType
+  PROP String ParentId
+  PROP Boolean CustomValueList
+
+==== inRiver.Remoting.Objects.CVLValue ====
+  PROP Int32 Id
+  PROP String CVLId
+  PROP String Key
+  PROP Boolean Deactivated
+  PROP Object Value
+  PROP Int32 Index
+  PROP String ParentKey
+  PROP DateTime DateCreated
+  PROP DateTime LastModified
+
+==== inRiver.Remoting.Objects.LinkType ====
+  PROP String Id
+  PROP String SourceEntityTypeId
+  PROP LocaleString SourceName
+  PROP String TargetEntityTypeId
+  PROP LocaleString TargetName
+  PROP String LinkEntityTypeId
+  PROP Int32 Index
+
+==== inRiver.Remoting.Objects.Category ====
+  PROP String Id
+  PROP LocaleString Name
+  PROP Int32 Index
+
+==== inRiver.Remoting.Objects.FieldSet ====
+  PROP String Id
+  PROP LocaleString Name
+  PROP LocaleString Description
+  PROP String EntityTypeId
+  PROP List`1 FieldTypes
+
+==== inRiver.Remoting.Objects.FieldView ====
+  PROP String Id
+  PROP LocaleString Name
+  PROP LocaleString Description
+  PROP String EntityTypeId
+  PROP List`1 FieldTypes
+
+==== inRiver.Remoting.Objects.Role ====
+  PROP Int32 Id
+  PROP String Name
+  PROP String Description
+  PROP List`1 Permissions
+
+==== inRiver.Remoting.Objects.Permission ====
+  PROP Int32 Id
+  PROP String Name
+  PROP String Description
+
+==== inRiver.Remoting.Objects.RestrictedFieldPermission ====
+  PROP Int32 Id
+  PROP String EntityTypeId
+  PROP String FieldTypeId
+  PROP String CategoryId
+  PROP String RestrictionType
+  PROP Int32 RoleId
+
+==== inRiver.Remoting.Objects.CompletenessDefinition ====
+  PROP Int32 Id
+  PROP LocaleString Name
+  PROP String EntityTypeId
+  PROP List`1 GroupIds
+
+==== inRiver.Remoting.Objects.CompletenessGroup ====
+  PROP Int32 Id
+  PROP LocaleString Name
+  PROP Int32 Weight
+  PROP Int32 SortOrder
+  PROP List`1 RuleIds
+  PROP Int32 CompletenessDefinitionId
+
+==== inRiver.Remoting.Objects.CompletenessBusinessRule ====
+  PROP Int32 Id
+  PROP LocaleString Name
+  PROP Int32 Weight
+  PROP Int32 SortOrder
+  PROP String Type
+  PROP List`1 RuleSettings
+  PROP List`1 GroupIds
+
+==== inRiver.Remoting.Objects.CompletenessRuleSetting ====
+  PROP Int32 Id
+  PROP Int32 BusinessRuleId
+  PROP String Type
+  PROP String Key
+  PROP String Value
+
+==== inRiver.Remoting.Objects.CompletenessCritera ====
+  PROP String Name
+  PROP String Type
+  PROP List`1 SettingsKeys
+
+==== inRiver.Remoting.Objects.CompletenessAction ====
+  PROP Int32 Id
+  PROP Int32 CompletenessDefinitionId
+  PROP Int32 CompletenessRuleId
+  PROP String ActionTrigger
+  PROP String TaskName
+  PROP String TaskDescription
+  PROP String TaskAssignedTo
+  PROP String TaskCreatedBy
+  PROP Int32 CompletenessGroupId
+  PROP String ActionType
+

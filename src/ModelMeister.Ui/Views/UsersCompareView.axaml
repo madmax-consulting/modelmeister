@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:views="using:ModelMeister.Ui.Views"
+             x:Class="ModelMeister.Ui.Views.UsersCompareView"
+             x:DataType="vm:UsersCompareViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter x:Key="StageText" />
+  </UserControl.Resources>
+
+  <views:CompareLayoutView>
+    <views:CompareLayoutView.Body>
+      <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
+                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                ColumnHeaderHeight="62" Classes="filterable">
+        <DataGrid.Columns>
+          <DataGridTextColumn Binding="{Binding State}" Width="110">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Username}" Width="220">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Username" Path="Username" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Email}" Width="240">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Email" Path="Email" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Roles}" Width="220">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Roles" Path="Roles" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Detail}" Width="*">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Detail" Path="Detail" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+
+          <!-- Per-row promote buttons. Direction is shown as source→target stage pills. Buttons
+               for unsupported directions (e.g. R→L on an only-right row, which would mean delete)
+               are hidden via the row's CanPromote* flags. -->
+          <DataGridTemplateColumn Header="" Width="180">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:UserCompareRow">
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0">
+                  <Button Classes="ghost" Padding="4,2"
+                          IsVisible="{Binding CanPromoteLeftToRight}"
+                          ToolTip.Tip="Apply left user (create/sync roles) to right environment"
+                          Command="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).ApplyLeftToRightCommand}"
+                          CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                      <TextBlock Text="→" VerticalAlignment="Center" />
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="ghost" Padding="4,2"
+                          IsVisible="{Binding CanPromoteRightToLeft}"
+                          ToolTip.Tip="Apply right user (create/sync roles) to left environment"
+                          Command="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).ApplyRightToLeftCommand}"
+                          CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                      <TextBlock Text="→" VerticalAlignment="Center" />
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:UsersCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+    </views:CompareLayoutView.Body>
+  </views:CompareLayoutView>
+</UserControl>

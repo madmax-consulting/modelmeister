@@ -1,0 +1,392 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.ModelView"
+             x:DataType="vm:ModelViewModel"
+             DragDrop.AllowDrop="True">
+
+  <UserControl.Resources>
+    <conv:SeverityToBrushConverter x:Key="SevBrush" />
+  </UserControl.Resources>
+
+  <c:PageShell Eyebrow="MODEL"
+               Subtitle="Load a model project and validate it before comparing against an environment"
+               IsBusy="{Binding Busy}">
+
+    <DockPanel LastChildFill="True">
+
+      <!-- Input card -->
+      <Border DockPanel.Dock="Top" Classes="card">
+        <StackPanel Spacing="14">
+          <TextBlock Text="SOURCE" Classes="h3" />
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+            <TextBox Grid.Column="0" Text="{Binding ModelPath, Mode=TwoWay}"
+                     Classes="mono"
+                     Watermark="Path to .csproj or .dll … (or drop a file here)" />
+            <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseCommand}" Margin="8,0,0,0" />
+            <Button Grid.Column="2" Name="RecentsButton" Margin="8,0,0,0" Classes="ghost"
+                    IsEnabled="{Binding RecentModelPaths.Count, Converter={x:Static svc:Eq.GtZero}}"
+                    Click="OnRecentsClick"
+                    ToolTip.Tip="Recent models">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Data="{DynamicResource IcoHistory}" Width="13" Height="13" Stretch="Uniform"
+                      Stroke="{DynamicResource TextSec}" StrokeThickness="1.5"
+                      StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+                <TextBlock Text="Recents" />
+                <Path Data="{DynamicResource IcoChevDown}" Width="10" Height="10" Stretch="Uniform"
+                      Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+              </StackPanel>
+            </Button>
+            <Button Grid.Column="3" Command="{Binding LoadCommand}" Classes="primary" Margin="8,0,0,0">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Path Data="{DynamicResource IcoPlay}" Width="11" Height="11" Stretch="Uniform"
+                      Fill="{DynamicResource AccentButtonForeground}" />
+                <TextBlock Text="Load + validate" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- Metrics row -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,*,*" IsVisible="{Binding HasModel}" Margin="0,0,0,18">
+
+        <Border Grid.Column="0" Classes="card" Margin="0,0,8,0">
+          <StackPanel Spacing="6">
+            <TextBlock Text="VALIDATION" Classes="h3" />
+            <StackPanel Orientation="Horizontal" Spacing="22" Margin="0,4,0,0">
+              <StackPanel Classes="stat">
+                <TextBlock Text="Errors" Classes="label" />
+                <TextBlock Text="{Binding ErrorCount}" Classes="metric"
+                           Foreground="{DynamicResource Danger}" />
+              </StackPanel>
+              <StackPanel Classes="stat">
+                <TextBlock Text="Warnings" Classes="label" />
+                <TextBlock Text="{Binding WarningCount}" Classes="metric"
+                           Foreground="{DynamicResource Warn}" />
+              </StackPanel>
+              <StackPanel Classes="stat">
+                <TextBlock Text="Info" Classes="label" />
+                <TextBlock Text="{Binding InfoCount}" Classes="metric"
+                           Foreground="{DynamicResource Info}" />
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Grid.ColumnSpan="2" Classes="card" Margin="8,0,0,0">
+          <StackPanel Spacing="10">
+            <TextBlock Text="CONCEPT COUNTS" Classes="h3" />
+            <ItemsControl ItemsSource="{Binding Counts}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ConceptCount">
+                  <!-- Each chip is a toggle filter: clicking it opens the items table below. -->
+                  <ToggleButton Classes="filter" Margin="0,0,8,8"
+                                IsEnabled="{Binding Count, Converter={x:Static svc:Eq.GtZero}}"
+                                IsChecked="{Binding Converter={x:Static svc:Eq.Compare}, ConverterParameter={Binding $parent[UserControl].((vm:ModelViewModel)DataContext).SelectedConcept}, Mode=OneWay}"
+                                Command="{Binding $parent[UserControl].((vm:ModelViewModel)DataContext).SelectConceptCommand}"
+                                CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" />
+                      <TextBlock Text="{Binding Count}" FontWeight="Bold"
+                                 Foreground="{DynamicResource Accent}" />
+                    </StackPanel>
+                  </ToggleButton>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+      </Grid>
+
+      <!-- Concept items table: visible when a chip is selected. Per-Kind grid switches via IsVisible. -->
+      <Border DockPanel.Dock="Top" Classes="card flush" Padding="0" Margin="0,0,0,18"
+              IsVisible="{Binding SelectedConcept, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <DockPanel LastChildFill="True">
+          <Border DockPanel.Dock="Top" Padding="14,10"
+                  BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SelectedConcept.Name}" Classes="h3" />
+                <TextBlock Text="{Binding SelectedConcept.Count, StringFormat='({0})'}"
+                           Classes="dim" VerticalAlignment="Center" />
+              </StackPanel>
+              <Button Grid.Column="1" Classes="ghost icon" Command="{Binding CloseConceptCommand}"
+                      ToolTip.Tip="Close">
+                <Path Data="{DynamicResource IcoX}" Width="11" Height="11" Stretch="Uniform"
+                      Stroke="{DynamicResource TextSec}" StrokeThickness="1.7" Fill="Transparent" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <Panel>
+
+            <!-- FIELDS: full column set (Entity, Field, Datatype, Mandatory, ReadOnly, MultiValue, TrackChanges, Index, CvlId, Category) -->
+            <DataGrid ItemsSource="{Binding FieldRows}"
+                      IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Fields}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      BorderThickness="0" MaxHeight="360" ColumnHeaderHeight="62">
+              <DataGrid.Columns>
+                <DataGridTextColumn Width="160" Binding="{Binding EntityTypeId}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Entity type" Path="EntityTypeId" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="180" Binding="{Binding FieldId}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Field" Path="FieldId" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="110" Binding="{Binding DataType}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Datatype" Path="DataType" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridCheckBoxColumn Header="Mandatory"   Width="90"  Binding="{Binding Mandatory}" />
+                <DataGridCheckBoxColumn Header="ReadOnly"    Width="90"  Binding="{Binding ReadOnly}" />
+                <DataGridCheckBoxColumn Header="MultiValue"  Width="90"  Binding="{Binding MultiValue}" />
+                <DataGridCheckBoxColumn Header="Unique"      Width="70"  Binding="{Binding Unique}" />
+                <DataGridCheckBoxColumn Header="Hidden"      Width="70"  Binding="{Binding Hidden}" />
+                <DataGridCheckBoxColumn Header="TrackChanges"     Width="100" Binding="{Binding TrackChanges}" />
+                <DataGridCheckBoxColumn Header="ExcludeFromDefaultView" Width="140" Binding="{Binding ExcludeFromDefaultView}" />
+                <DataGridTextColumn     Header="Index"       Width="70"  Binding="{Binding Index}" />
+                <DataGridTextColumn Width="140" Binding="{Binding CvlId}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="CVL" Path="CvlId" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="140" Binding="{Binding Category}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Category" Path="Category" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Default" Width="*" Binding="{Binding DefaultValue}" />
+              </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- CVLs: CVL / DataType / ValueCount / Parent / Custom; selecting a row reveals values below -->
+            <DockPanel IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Cvls}">
+              <DataGrid DockPanel.Dock="Top"
+                        ItemsSource="{Binding ModelCvlRows}"
+                        SelectedItem="{Binding SelectedModelCvlRow, Mode=TwoWay}"
+                        AutoGenerateColumns="False" IsReadOnly="True"
+                        BorderThickness="0" MaxHeight="260" ColumnHeaderHeight="62">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Width="240" Binding="{Binding CvlId}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="CVL" Path="CvlId" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Width="120" Binding="{Binding DataType}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Data type" Path="DataType" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Header="Value count" Width="110" Binding="{Binding ValueCount}" />
+                  <DataGridTextColumn Width="180" Binding="{Binding ParentCvlId}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Parent CVL" Path="ParentCvlId" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridCheckBoxColumn Header="Custom" Width="80" Binding="{Binding CustomValueList}" />
+                </DataGrid.Columns>
+              </DataGrid>
+              <Border DockPanel.Dock="Top" Padding="14,8,14,4"
+                      BorderBrush="{DynamicResource BorderFaint}" BorderThickness="0,1,0,0"
+                      IsVisible="{Binding SelectedModelCvlRow, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Text="VALUES" Classes="h3" />
+                  <TextBlock Text="{Binding SelectedModelCvlRow.CvlId}" Classes="dim" VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+              <DataGrid ItemsSource="{Binding SelectedCvlValues}"
+                        IsVisible="{Binding SelectedModelCvlRow, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        AutoGenerateColumns="False" IsReadOnly="True"
+                        BorderThickness="0" MaxHeight="240" ColumnHeaderHeight="62">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Width="180" Binding="{Binding Key}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Width="*" Binding="{Binding Value}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Value" Path="Value" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Header="Parent" Width="160" Binding="{Binding Parent}" />
+                  <DataGridTextColumn Header="Index" Width="80" Binding="{Binding Index}" />
+                  <DataGridCheckBoxColumn Header="Deactivated" Width="100" Binding="{Binding Deactivated}" />
+                </DataGrid.Columns>
+              </DataGrid>
+            </DockPanel>
+
+            <!-- LINK TYPES: Source / Target as separate columns -->
+            <DataGrid ItemsSource="{Binding LinkTypeRows}"
+                      IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=LinkTypes}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      BorderThickness="0" MaxHeight="360" ColumnHeaderHeight="62">
+              <DataGrid.Columns>
+                <DataGridTextColumn Width="220" Binding="{Binding LinkTypeId}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Link type" Path="LinkTypeId" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="180" Binding="{Binding Source}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Source" Path="Source" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="180" Binding="{Binding Target}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Target" Path="Target" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Link entity" Width="160" Binding="{Binding LinkEntity}" />
+                <DataGridTextColumn Header="Index" Width="80" Binding="{Binding Index}" />
+              </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- ROLES: name + permissions list -->
+            <DataGrid ItemsSource="{Binding RoleRows}"
+                      IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Roles}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      BorderThickness="0" MaxHeight="360" ColumnHeaderHeight="62">
+              <DataGrid.Columns>
+                <DataGridTextColumn Width="200" Binding="{Binding Name}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Role" Path="Name" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="# perms" Width="90" Binding="{Binding PermissionCount}" />
+                <DataGridTextColumn Width="*" Binding="{Binding Permissions}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Permissions" Path="Permissions" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Fallback (Categories, Fieldsets, Languages, Completeness, EntityTypes): generic two-column -->
+            <DataGrid ItemsSource="{Binding SelectedConcept.Items}"
+                      IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static conv:KindIsGenericConverter.Instance}}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      BorderThickness="0" MaxHeight="320" ColumnHeaderHeight="62">
+              <DataGrid.Columns>
+                <DataGridTextColumn Width="*" Binding="{Binding Primary}">
+                  <DataGridTextColumn.Header>
+                    <c:FilterableHeader Path="Primary"
+                                        Title="{Binding $parent[UserControl].((vm:ModelViewModel)DataContext).SelectedConcept.PrimaryHeader}" />
+                  </DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="2*" Binding="{Binding Secondary}">
+                  <DataGridTextColumn.Header>
+                    <c:FilterableHeader Path="Secondary"
+                                        Title="{Binding $parent[UserControl].((vm:ModelViewModel)DataContext).SelectedConcept.SecondaryHeader}" />
+                  </DataGridTextColumn.Header>
+                </DataGridTextColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+
+          </Panel>
+        </DockPanel>
+      </Border>
+
+      <!-- Issues -->
+      <DockPanel IsVisible="{Binding ShowIssuesSection}">
+
+        <!-- Filter chip strip -->
+        <Border DockPanel.Dock="Top" Classes="cardSubtle" Padding="12,8" Margin="0,0,0,10">
+          <StackPanel Orientation="Horizontal" Spacing="8" >
+            <TextBlock Text="FILTER" Classes="h3" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <ToggleButton Classes="filter"
+                          IsChecked="{Binding SelectedSeverityFilter, ConverterParameter=Error, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}"
+                          Command="{Binding FilterBySeverityCommand}"
+                          CommandParameter="Error">
+              <TextBlock Text="{Binding ErrorCount, StringFormat='Errors · {0}'}" />
+            </ToggleButton>
+            <ToggleButton Classes="filter"
+                          IsChecked="{Binding SelectedSeverityFilter, ConverterParameter=Warning, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}"
+                          Command="{Binding FilterBySeverityCommand}"
+                          CommandParameter="Warning">
+              <TextBlock Text="{Binding WarningCount, StringFormat='Warnings · {0}'}" />
+            </ToggleButton>
+            <!-- Separator + per-code histogram only when there are codes to filter on. -->
+            <Border Width="1" Background="{DynamicResource Border}" Margin="6,4"
+                    IsVisible="{Binding CodeHistogram.Count, Converter={x:Static svc:Eq.GtZero}}" />
+            <ItemsControl ItemsSource="{Binding CodeHistogram}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:CodeHistogramRow">
+                  <ToggleButton Classes="filter"
+                                IsChecked="{Binding Code, Converter={x:Static svc:Eq.Compare}, ConverterParameter={Binding $parent[UserControl].((vm:ModelViewModel)DataContext).SelectedCodeFilter}, Mode=OneWay}"
+                                Command="{Binding $parent[UserControl].((vm:ModelViewModel)DataContext).FilterByCodeCommand}"
+                                CommandParameter="{Binding Code}">
+                    <TextBlock Text="{Binding Header}" />
+                  </ToggleButton>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <!-- Separator + Clear button only when at least one filter is active. -->
+            <Border Width="1" Background="{DynamicResource Border}" Margin="6,4"
+                    IsVisible="{Binding HasActiveFilter}" />
+            <Button Classes="ghost" Command="{Binding ClearFiltersCommand}" Content="Clear filters"
+                    IsVisible="{Binding HasActiveFilter}"
+                    ToolTip.Tip="Show all issues (clear severity and code filters)" />
+          </StackPanel>
+        </Border>
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+          <StackPanel Grid.Column="0" Spacing="2">
+            <TextBlock Text="VALIDATION ISSUES" Classes="h3" />
+            <TextBlock Text="Click a row + Open declaration to jump straight to the source line." Classes="dim" />
+          </StackPanel>
+          <Button Grid.Column="1"
+                  Command="{Binding OpenIssueCommand}"
+                  IsEnabled="{Binding SelectedIssue, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Data="{DynamicResource IcoArrowRight}" Width="11" Height="11" Stretch="Uniform"
+                    Stroke="{DynamicResource TextPri}" StrokeThickness="1.7" Fill="Transparent" />
+              <TextBlock Text="Open declaration" />
+            </StackPanel>
+          </Button>
+        </Grid>
+
+        <Border Classes="card flush" Padding="0">
+          <DataGrid Name="IssuesGrid"
+                    ItemsSource="{Binding Issues}"
+                    SelectedItem="{Binding SelectedIssue, Mode=TwoWay}"
+                    AutoGenerateColumns="False" IsReadOnly="True"
+                    BorderThickness="0" ColumnHeaderHeight="62"
+                    DoubleTapped="OnIssueDoubleTapped">
+            <DataGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Open declaration" Command="{Binding OpenIssueCommand}" />
+                <Separator />
+                <MenuItem Header="Copy message"     Command="{Binding CopyIssueMessageCommand}" />
+                <MenuItem Header="Copy code"        Command="{Binding CopyIssueCodeCommand}" />
+                <MenuItem Header="Copy source"      Command="{Binding CopyIssueSourceCommand}" />
+              </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.Columns>
+              <DataGridTemplateColumn Width="110" SortMemberPath="Severity">
+                <DataGridTemplateColumn.Header><c:FilterableHeader Title="Severity" Path="Severity" /></DataGridTemplateColumn.Header>
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate x:DataType="vm:ValidationRow">
+                    <Border Classes="pill"
+                            Background="Transparent"
+                            BorderBrush="{Binding Severity, Converter={StaticResource SevBrush}}"
+                            BorderThickness="1"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Margin="0,7,0,0">
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6"
+                                 Fill="{Binding Severity, Converter={StaticResource SevBrush}}" />
+                        <TextBlock Text="{Binding Severity}"
+                                   Foreground="{Binding Severity, Converter={StaticResource SevBrush}}" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Width="90" Binding="{Binding Code}">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="Code" Path="Code" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
+              <DataGridTextColumn Width="*" Binding="{Binding Message}">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="Message" Path="Message" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
+              <DataGridTextColumn Width="380" Binding="{Binding Source}">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="Source" Path="Source" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+        </Border>
+      </DockPanel>
+    </DockPanel>
+
+  </c:PageShell>
+</UserControl>

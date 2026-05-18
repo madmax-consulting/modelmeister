@@ -1,0 +1,66 @@
+name: Diff model vs environment
+
+# Runs on PR. Diffs the proposed model against a non-production environment
+# and posts the diff as a comment + step summary. Fails if changes are detected
+# (use that to require explicit approval before merging).
+#
+# Secrets required: INRIVER_TEST_URL, INRIVER_TEST_API_KEY
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'examples/**'
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    env:
+      INRIVER_URL: ${{ secrets.INRIVER_TEST_URL }}
+      INRIVER_API_KEY: ${{ secrets.INRIVER_TEST_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build CLI
+        run: dotnet build ModelMeister.sln --configuration Release --nologo
+
+      - name: Diff (JSON for CI gating)
+        id: diff
+        run: |
+          dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
+            diff \
+            --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
+            --url "$INRIVER_URL" \
+            --format json --out diff.json \
+            --no-color --fail-on-changes
+        continue-on-error: true
+
+      - name: Render diff in step summary
+        if: always()
+        run: |
+          dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
+            diff \
+            --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
+            --url "$INRIVER_URL" \
+            --format text --no-color > diff.txt || true
+          echo "## Model diff vs $INRIVER_URL" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat diff.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diff-output
+          path: |
+            diff.json
+            diff.txt
+
+      - name: Fail if changes pending
+        if: steps.diff.outcome == 'failure'
+        run: |
+          echo "::warning::Model changes pending — review the diff before merging."
+          exit 1

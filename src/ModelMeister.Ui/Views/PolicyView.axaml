@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.PolicyView"
+             x:DataType="vm:PolicyViewModel">
+
+  <c:PageShell Eyebrow="MERGE POLICY"
+               Subtitle="Choose what diff operations are permitted when applying changes to inriver">
+
+    <DockPanel LastChildFill="True">
+
+      <!-- Policy card -->
+      <Border DockPanel.Dock="Top" Classes="card">
+        <StackPanel Spacing="10">
+
+          <Grid ColumnDefinitions="Auto,*">
+            <CheckBox Grid.Column="0" Content="Overwrite names &amp; descriptions"
+                      IsChecked="{Binding OverwriteNamesAndDescriptions, Mode=TwoWay}" />
+            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                       Text="When code differs from inriver, push the code-side display strings (Name, Description)." />
+          </Grid>
+
+          <Grid ColumnDefinitions="Auto,*">
+            <CheckBox Grid.Column="0" Content="Overwrite CVL values"
+                      IsChecked="{Binding OverwriteCvlValues, Mode=TwoWay}" />
+            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                       Text="Allow updates to the label/index of existing CVL values." />
+          </Grid>
+
+          <Grid ColumnDefinitions="Auto,*">
+            <CheckBox Grid.Column="0" Content="Allow deletes"
+                      IsChecked="{Binding AllowDeletes, Mode=TwoWay}" />
+            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                       Text="Allow Delete / Deactivate operations on concepts that exist in inriver but not in code." />
+          </Grid>
+
+          <Grid ColumnDefinitions="Auto,*">
+            <CheckBox Grid.Column="0" Content="Allow datatype change (dangerous)"
+                      IsChecked="{Binding AllowDatatypeChange, Mode=TwoWay}" />
+            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                       Text="Allow a field's datatype to change. Inriver may drop or coerce existing values." />
+          </Grid>
+
+          <Grid ColumnDefinitions="Auto,*">
+            <CheckBox Grid.Column="0" Content="Allow CVL value rename"
+                      IsChecked="{Binding AllowCvlValueRename, Mode=TwoWay}" />
+            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                       Text="Permit renaming an existing CVL value's key (migrate references). Most setups do not need this." />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- Footer: current policy summary -->
+      <Border DockPanel.Dock="Top" Classes="card">
+        <StackPanel Spacing="4">
+          <TextBlock Text="CURRENT POLICY" Classes="h3" />
+          <TextBlock Text="{Binding Summary}" Classes="subtle" />
+        </StackPanel>
+      </Border>
+
+      <!-- Spacer -->
+      <Grid />
+    </DockPanel>
+
+  </c:PageShell>
+</UserControl>

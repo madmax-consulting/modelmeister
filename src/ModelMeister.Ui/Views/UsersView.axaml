@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.UsersView"
+             x:DataType="vm:UsersViewModel">
+
+  <c:PageShell Subtitle="Inspect the live environment's user list — export/import via the icons above"
+               Status="{Binding Status}"
+               IsBusy="{Binding Busy}">
+    <c:PageShell.Actions>
+      <c:PageActions DataContext="{Binding}" />
+    </c:PageShell.Actions>
+
+    <Border Classes="card flush" Padding="0">
+      <Grid>
+        <!-- Empty state: when no users (typically because we're not connected) -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Spacing="6" Margin="0,40"
+                    IsVisible="{Binding Users.Count, Converter={x:Static svc:Eq.IsZero}}">
+          <TextBlock Text="No users to show" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
+          <TextBlock Text="Connect to an environment to see its users." Classes="subtle" HorizontalAlignment="Center" />
+        </StackPanel>
+      <DataGrid Name="UsersGrid"
+                ItemsSource="{Binding Users}" IsReadOnly="True"
+                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                BorderThickness="0"
+                ColumnHeaderHeight="62">
+        <DataGrid.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="Copy username"
+                      Command="{Binding CopyUsernameCommand}"
+                      CommandParameter="{Binding #UsersGrid.SelectedItem}" />
+            <MenuItem Header="Copy email"
+                      Command="{Binding CopyEmailCommand}"
+                      CommandParameter="{Binding #UsersGrid.SelectedItem}" />
+            <MenuItem Header="Copy roles"
+                      Command="{Binding CopyRolesCommand}"
+                      CommandParameter="{Binding #UsersGrid.SelectedItem}" />
+          </ContextMenu>
+        </DataGrid.ContextMenu>
+        <DataGrid.Columns>
+          <DataGridTextColumn Binding="{Binding Username}" Width="180">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Username" Path="Username" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding FirstName}" Width="120">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Name" Path="FirstName" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding LastName}" Width="120">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Last" Path="LastName" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Email}" Width="220">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Email" Path="Email" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Roles, Converter={x:Static StringConverters.IsNullOrEmpty}}" Width="*">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Roles" Path="Roles" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+      </Grid>
+    </Border>
+
+  </c:PageShell>
+</UserControl>

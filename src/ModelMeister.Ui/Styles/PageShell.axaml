@@ -1,0 +1,74 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:ModelMeister.Ui.Controls">
+
+  <!-- ============================================================
+       PageShell: uniform page chrome.
+
+       Visual contract:
+         Row 0  Header (auto height) ............... eyebrow + title + subtitle on the left,
+                                                     Actions on the right
+         Row 1  Content (fills) ................... ContentPresenter, anchor never moves
+         Row 2  Status bar (24px reserved) ......... busy progress sliver + status text;
+                                                     row height is fixed so toggling busy state
+                                                     never shifts the content above
+
+       Every feature page wraps its content in <c:PageShell ...> rather than building chrome
+       from scratch. See PLAN: "The page contract (universal)".
+       ============================================================ -->
+
+  <Style Selector="c|PageShell">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid RowDefinitions="Auto,*,24">
+
+          <!-- ===== Header (reserved 36px so content anchor never moves between pages) ===== -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10" MinHeight="36">
+            <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="{TemplateBinding Eyebrow}"
+                         Classes="eyebrow"
+                         IsVisible="{TemplateBinding Eyebrow, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="{TemplateBinding Title}"
+                           Classes="h2"
+                           Margin="0"
+                           VerticalAlignment="Bottom"
+                           IsVisible="{TemplateBinding Title, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Text="{TemplateBinding Subtitle}"
+                           Classes="subtle"
+                           VerticalAlignment="Center"
+                           IsVisible="{TemplateBinding Subtitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              </StackPanel>
+            </StackPanel>
+
+            <ContentPresenter Grid.Column="1"
+                              Content="{TemplateBinding Actions}"
+                              VerticalAlignment="Center" />
+          </Grid>
+
+          <!-- ===== Content ===== -->
+          <ContentPresenter Grid.Row="1"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}" />
+
+          <!-- ===== Status row (reserved 24px) ===== -->
+          <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="2,4,0,0">
+            <ProgressBar Grid.Column="0"
+                         IsIndeterminate="True"
+                         Width="120" Height="3"
+                         VerticalAlignment="Center"
+                         IsVisible="{TemplateBinding IsBusy}" />
+            <TextBlock Grid.Column="1"
+                       Text="{TemplateBinding Status}"
+                       Foreground="{DynamicResource TextSec}"
+                       FontSize="12"
+                       VerticalAlignment="Center"
+                       Margin="10,0,0,0" />
+          </Grid>
+
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+</Styles>

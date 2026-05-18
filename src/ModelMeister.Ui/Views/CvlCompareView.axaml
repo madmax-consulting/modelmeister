@@ -1,0 +1,146 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:views="using:ModelMeister.Ui.Views"
+             x:Class="ModelMeister.Ui.Views.CvlCompareView"
+             x:DataType="vm:CvlCompareViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter x:Key="StageText" />
+  </UserControl.Resources>
+
+  <views:CompareLayoutView>
+    <views:CompareLayoutView.Body>
+      <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
+                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                ColumnHeaderHeight="62" Classes="filterable">
+        <DataGrid.Columns>
+          <DataGridTextColumn Binding="{Binding Bucket}" Width="90">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Scope" Path="Bucket" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding CvlId}" Width="200">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="CVL" Path="CvlId" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Key}" Width="160">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Property}" Width="140">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Property" Path="Property" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="LeftValue">
+            <DataGridTemplateColumn.Header>
+              <c:FilterableHeader Path="LeftValue">
+                <c:FilterableHeader.Title>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding #Root.((vm:CvlCompareViewModel)DataContext).LeftColumnHeader}" />
+                    <Border Classes="pill"
+                            Background="{Binding #Root.((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding #Root.((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="5,0">
+                      <TextBlock Text="{Binding #Root.((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding #Root.((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </c:FilterableHeader.Title>
+              </c:FilterableHeader>
+            </DataGridTemplateColumn.Header>
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:CvlCompareRow">
+                <TextBlock Text="{Binding LeftValue}" VerticalAlignment="Center" Margin="8,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="RightValue">
+            <DataGridTemplateColumn.Header>
+              <c:FilterableHeader Path="RightValue">
+                <c:FilterableHeader.Title>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding #Root.((vm:CvlCompareViewModel)DataContext).RightColumnHeader}" />
+                    <Border Classes="pill"
+                            Background="{Binding #Root.((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding #Root.((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="5,0">
+                      <TextBlock Text="{Binding #Root.((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding #Root.((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </c:FilterableHeader.Title>
+              </c:FilterableHeader>
+            </DataGridTemplateColumn.Header>
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:CvlCompareRow">
+                <TextBlock Text="{Binding RightValue}" VerticalAlignment="Center" Margin="8,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+
+          <!-- Per-row promote buttons. CVL-bucket rows sync the whole CVL via CvlSync; Value-bucket
+               rows touch a single value after a parent-CVL existence pre-check. -->
+          <DataGridTemplateColumn Header="" Width="180">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:CvlCompareRow">
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0">
+                  <Button Classes="ghost" Padding="4,2"
+                          ToolTip.Tip="Apply left to right (whole CVL or single value depending on row)"
+                          Command="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).ApplyLeftToRightCommand}"
+                          CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                      <TextBlock Text="→" VerticalAlignment="Center" />
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="ghost" Padding="4,2"
+                          ToolTip.Tip="Apply right to left (whole CVL or single value depending on row)"
+                          Command="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).ApplyRightToLeftCommand}"
+                          CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                      <TextBlock Text="→" VerticalAlignment="Center" />
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:CvlCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+    </views:CompareLayoutView.Body>
+  </views:CompareLayoutView>
+</UserControl>

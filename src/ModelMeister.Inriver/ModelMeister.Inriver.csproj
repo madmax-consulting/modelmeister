@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Inriver Remoting client + diff/apply engine.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ModelMeister.Model\ModelMeister.Model.csproj" />
+    <ProjectReference Include="..\ModelMeister.Rest\ModelMeister.Rest.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="inRiver.Remoting.iPMC" />
+    <PackageReference Include="Polly" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+
+</Project>

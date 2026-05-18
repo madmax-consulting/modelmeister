@@ -1,0 +1,153 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:views="using:ModelMeister.Ui.Views"
+             x:Class="ModelMeister.Ui.Views.ServerSettingsView"
+             x:DataType="vm:ServerSettingsViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter x:Key="StageText" />
+  </UserControl.Resources>
+
+  <DockPanel LastChildFill="True">
+
+    <!-- Uniform action set on top (Refresh / Backup / Excel) -->
+    <Border DockPanel.Dock="Top" Padding="2,4,2,8">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="dim" VerticalAlignment="Center" />
+        <c:PageActions Grid.Column="1" DataContext="{Binding}" />
+      </Grid>
+    </Border>
+
+    <views:CompareLayoutView>
+      <views:CompareLayoutView.Body>
+        <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
+                  AutoGenerateColumns="False" SelectionMode="Single"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                  ColumnHeaderHeight="62" Classes="filterable">
+          <DataGrid.Columns>
+            <DataGridTextColumn Binding="{Binding State}" Width="100">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding Key}" Width="280">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+
+            <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="LeftDisplay">
+              <DataGridTemplateColumn.Header>
+                <c:FilterableHeader Path="LeftDisplay">
+                  <c:FilterableHeader.Title>
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).LeftColumnHeader}" />
+                      <Border Classes="pill"
+                              Background="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="5,0">
+                        <TextBlock Text="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                    </StackPanel>
+                  </c:FilterableHeader.Title>
+                </c:FilterableHeader>
+              </DataGridTemplateColumn.Header>
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:ServerSettingRow">
+                  <TextBlock Text="{Binding LeftDisplay}" VerticalAlignment="Center" Margin="8,0" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+
+            <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="RightDisplay">
+              <DataGridTemplateColumn.Header>
+                <c:FilterableHeader Path="RightDisplay">
+                  <c:FilterableHeader.Title>
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).RightColumnHeader}" />
+                      <Border Classes="pill"
+                              Background="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="5,0">
+                        <TextBlock Text="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                    </StackPanel>
+                  </c:FilterableHeader.Title>
+                </c:FilterableHeader>
+              </DataGridTemplateColumn.Header>
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:ServerSettingRow">
+                  <TextBlock Text="{Binding RightDisplay}" VerticalAlignment="Center" Margin="8,0" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+
+            <!-- Per-row apply buttons — unique to ServerSettings. Direction is shown as
+                 source→target stage pills (e.g. [DEV]→[PROD]) instead of generic L/R. -->
+            <DataGridTemplateColumn Header="" Width="180">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:ServerSettingRow">
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0">
+                    <Button Classes="ghost" Padding="4,2"
+                            ToolTip.Tip="Apply left value to right environment"
+                            Command="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).ApplyLeftToRightCommand}"
+                            CommandParameter="{Binding}">
+                      <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                        <Border Classes="pill"
+                                Background="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                                BorderBrush="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                BorderThickness="1" Padding="4,0">
+                          <TextBlock Text="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                     Foreground="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                     FontSize="9" FontWeight="SemiBold" />
+                        </Border>
+                        <TextBlock Text="→" VerticalAlignment="Center" />
+                        <Border Classes="pill"
+                                Background="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                                BorderBrush="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                BorderThickness="1" Padding="4,0">
+                          <TextBlock Text="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                     Foreground="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                     FontSize="9" FontWeight="SemiBold" />
+                        </Border>
+                      </StackPanel>
+                    </Button>
+                    <Button Classes="ghost" Padding="4,2"
+                            ToolTip.Tip="Apply right value to left environment"
+                            Command="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).ApplyRightToLeftCommand}"
+                            CommandParameter="{Binding}">
+                      <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                        <Border Classes="pill"
+                                Background="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                                BorderBrush="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                BorderThickness="1" Padding="4,0">
+                          <TextBlock Text="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                     Foreground="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                     FontSize="9" FontWeight="SemiBold" />
+                        </Border>
+                        <TextBlock Text="→" VerticalAlignment="Center" />
+                        <Border Classes="pill"
+                                Background="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                                BorderBrush="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                BorderThickness="1" Padding="4,0">
+                          <TextBlock Text="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                     Foreground="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                     FontSize="9" FontWeight="SemiBold" />
+                        </Border>
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </views:CompareLayoutView.Body>
+    </views:CompareLayoutView>
+  </DockPanel>
+</UserControl>

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ModelMeister.Loading</RootNamespace>
+    <Description>Loads a customer ModelMeister model from a csproj/DLL into an isolated AssemblyLoadContext.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ModelMeister.Model\ModelMeister.Model.csproj" />
+  </ItemGroup>
+
+</Project>

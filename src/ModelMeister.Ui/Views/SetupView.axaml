@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.SetupView"
+             x:DataType="vm:SetupViewModel">
+
+  <c:PageShell Eyebrow="SETUP"
+               Subtitle="App preferences, default behavior, and storage locations">
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="12" MaxWidth="720">
+
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="APPEARANCE" Classes="eyebrow" />
+            <TextBlock Text="Theme" FontWeight="SemiBold" />
+            <TextBlock Text="Switch between dark and light theme. The choice is persisted across sessions."
+                       Classes="dim" TextWrapping="Wrap" />
+            <Button Content="Toggle theme" Command="{Binding ToggleThemeCommand}" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="6">
+            <TextBlock Text="DEFAULTS" Classes="eyebrow" />
+            <TextBlock Text="Default environment" FontWeight="SemiBold" />
+            <TextBlock Text="Set from the Environments hub (Vault → Set as default). The app auto-connects to the default environment at startup if its secret is on file."
+                       Classes="dim" TextWrapping="Wrap" />
+            <TextBlock Text="Default model project" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="The most recently loaded model project is restored on startup. Manage recents from the Model hub → Load page."
+                       Classes="dim" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="6">
+            <TextBlock Text="STORAGE" Classes="eyebrow" />
+            <TextBlock Text="Backup folder" FontWeight="SemiBold" />
+            <TextBlock Classes="mono" Text="%APPDATA%\ModelMeister\backups" />
+            <TextBlock Text="Every backup the app produces (scoped or full) lives here. Browse them from the Backup &amp; Restore hub."
+                       Classes="dim" TextWrapping="Wrap" />
+            <TextBlock Text="Encrypted vault location" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Classes="mono" Text="%APPDATA%\ModelMeister\environments.dat" />
+            <TextBlock Text="Environment definitions and secrets are encrypted per-user via Windows DPAPI."
+                       Classes="dim" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="6">
+            <TextBlock Text="ABOUT" Classes="eyebrow" />
+            <TextBlock Text="ModelMeister" FontWeight="SemiBold" />
+            <TextBlock Text="inriver PIM model management as code." Classes="dim" />
+            <TextBlock Text="Validation codes reference:" Classes="dim" Margin="0,8,0,0" />
+            <TextBlock Classes="mono" Text="new/docs/validation-codes.md" />
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
+
+  </c:PageShell>
+</UserControl>

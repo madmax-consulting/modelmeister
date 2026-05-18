@@ -1,0 +1,31 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="DiffAddBrush"     Color="#1F8B4C" />
+          <SolidColorBrush x:Key="DiffUpdateBrush"  Color="#C97B0A" />
+          <SolidColorBrush x:Key="DiffDeleteBrush"  Color="#C0392B" />
+          <SolidColorBrush x:Key="DiffWarnBrush"    Color="#E07A00" />
+          <SolidColorBrush x:Key="DiffNeutralBrush" Color="#6B7280" />
+          <SolidColorBrush x:Key="DiffAddBg"        Color="#E8F5EC" />
+          <SolidColorBrush x:Key="DiffUpdateBg"     Color="#FBEFDD" />
+          <SolidColorBrush x:Key="DiffDeleteBg"     Color="#FBE9E7" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <!-- Tuned to the amber/copper palette: add=teal-green (cool counterpart),
+               update=warm amber, delete=coral, warn=peach -->
+          <SolidColorBrush x:Key="DiffAddBrush"     Color="#3FCF8E" />
+          <SolidColorBrush x:Key="DiffUpdateBrush"  Color="#E8A24A" />
+          <SolidColorBrush x:Key="DiffDeleteBrush"  Color="#F47174" />
+          <SolidColorBrush x:Key="DiffWarnBrush"    Color="#FFB454" />
+          <SolidColorBrush x:Key="DiffNeutralBrush" Color="#7B8494" />
+          <SolidColorBrush x:Key="DiffAddBg"        Color="#142A20" />
+          <SolidColorBrush x:Key="DiffUpdateBg"     Color="#2E1F0E" />
+          <SolidColorBrush x:Key="DiffDeleteBg"     Color="#2A1316" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Styles.Resources>
+</Styles>

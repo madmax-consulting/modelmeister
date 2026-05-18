@@ -1,0 +1,337 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:ModelMeister.Ui"
+             x:Class="ModelMeister.Ui.App">
+
+  <Application.DataTemplates>
+    <local:ViewLocator />
+  </Application.DataTemplates>
+
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <StyleInclude Source="avares://ModelMeister.Ui/Styles/Diff.axaml" />
+    <StyleInclude Source="avares://ModelMeister.Ui/Styles/App.axaml" />
+    <StyleInclude Source="avares://ModelMeister.Ui/Styles/PageShell.axaml" />
+  </Application.Styles>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <FontFamily x:Key="UiFont">resm:Avalonia.Fonts.Inter#Inter, $Default</FontFamily>
+      <FontFamily x:Key="MonoFont">Cascadia Mono, JetBrains Mono, Consolas, Menlo, monospace</FontFamily>
+
+      <ResourceDictionary.ThemeDictionaries>
+
+        <!-- ====================== LIGHT THEME ====================== -->
+        <ResourceDictionary x:Key="Light">
+
+          <!-- Surfaces (white-on-paper, slightly differentiated layers) -->
+          <Color x:Key="Surface0Color">#F4F6FA</Color>
+          <Color x:Key="Surface1Color">#FFFFFF</Color>
+          <Color x:Key="Surface2Color">#FFFFFF</Color>
+          <Color x:Key="Surface3Color">#F1F3F7</Color>
+          <Color x:Key="SurfaceHiColor">#E8ECF2</Color>
+
+          <SolidColorBrush x:Key="Surface0"  Color="{StaticResource Surface0Color}" />
+          <SolidColorBrush x:Key="Surface1"  Color="{StaticResource Surface1Color}" />
+          <SolidColorBrush x:Key="Surface2"  Color="{StaticResource Surface2Color}" />
+          <SolidColorBrush x:Key="Surface3"  Color="{StaticResource Surface3Color}" />
+          <SolidColorBrush x:Key="SurfaceHi" Color="{StaticResource SurfaceHiColor}" />
+
+          <SolidColorBrush x:Key="Border"        Color="#D6DBE5" />
+          <SolidColorBrush x:Key="BorderStrong"  Color="#B6BECC" />
+          <SolidColorBrush x:Key="BorderFaint"   Color="#E8ECF2" />
+
+          <SolidColorBrush x:Key="TextPri" Color="#0F1419" />
+          <SolidColorBrush x:Key="TextSec" Color="#4A5263" />
+          <SolidColorBrush x:Key="TextDim" Color="#8A93A4" />
+
+          <Color x:Key="AccentColor">#C97B0A</Color>
+          <Color x:Key="AccentBrightColor">#E8A24A</Color>
+          <Color x:Key="AccentDeepColor">#8C520A</Color>
+          <Color x:Key="AccentGlowColor">#33E8A24A</Color>
+
+          <SolidColorBrush x:Key="Accent"        Color="{StaticResource AccentColor}" />
+          <SolidColorBrush x:Key="AccentBright"  Color="{StaticResource AccentBrightColor}" />
+          <SolidColorBrush x:Key="AccentDeep"    Color="{StaticResource AccentDeepColor}" />
+          <SolidColorBrush x:Key="AccentSoft"    Color="#26E8A24A" />
+          <SolidColorBrush x:Key="AccentHoverBg" Color="#1FE8A24A" />
+          <SolidColorBrush x:Key="AccentSelected"      Color="#33E8A24A" />
+          <SolidColorBrush x:Key="AccentSelectedHover" Color="#44E8A24A" />
+          <SolidColorBrush x:Key="AccentRing"    Color="#66E8A24A" />
+
+          <SolidColorBrush x:Key="StageProdBrush"        Color="#C0392B" />
+          <SolidColorBrush x:Key="StageProdSoftBrush"    Color="#FBE9E7" />
+          <SolidColorBrush x:Key="StageTestBrush"        Color="#C97B0A" />
+          <SolidColorBrush x:Key="StageTestSoftBrush"    Color="#FBEFDD" />
+          <SolidColorBrush x:Key="StageDevBrush"         Color="#1F6FE8" />
+          <SolidColorBrush x:Key="StageDevSoftBrush"     Color="#E4EDFB" />
+          <SolidColorBrush x:Key="StageUnspecBrush"      Color="#6B7280" />
+          <SolidColorBrush x:Key="StageUnspecSoftBrush"  Color="#E8ECF2" />
+
+          <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#F5C277" Offset="0" />
+            <GradientStop Color="#E8A24A" Offset="0.55" />
+            <GradientStop Color="#B26A1F" Offset="1" />
+          </LinearGradientBrush>
+
+          <LinearGradientBrush x:Key="AccentGlowFill" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#33F5C277" Offset="0" />
+            <GradientStop Color="#11E8A24A" Offset="1" />
+          </LinearGradientBrush>
+
+          <SolidColorBrush x:Key="Success" Color="#1F8B4C" />
+          <SolidColorBrush x:Key="Warn"    Color="#C97B0A" />
+          <SolidColorBrush x:Key="Danger"  Color="#C0392B" />
+          <SolidColorBrush x:Key="Info"    Color="#1F6FE8" />
+
+          <LinearGradientBrush x:Key="AppBackground" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#F8F9FB" Offset="0" />
+            <GradientStop Color="#EDF1F5" Offset="1" />
+          </LinearGradientBrush>
+
+          <!-- ===== Style-internal tokens (replace hardcoded literals) ===== -->
+          <SolidColorBrush x:Key="DangerBg"          Color="#FBE9E7" />
+          <SolidColorBrush x:Key="DangerBgHover"     Color="#F5D4D0" />
+          <SolidColorBrush x:Key="DangerBorderSoft"  Color="#E8B4AE" />
+          <SolidColorBrush x:Key="InputBg"           Color="#FFFFFF" />
+          <SolidColorBrush x:Key="InputBgHover"      Color="#F7F9FC" />
+          <SolidColorBrush x:Key="RowHoverHighlight" Color="#0F000000" />
+          <SolidColorBrush x:Key="PillOkBg"          Color="#E8F5EC" />
+          <SolidColorBrush x:Key="PillErrBg"         Color="#FBE9E7" />
+          <SolidColorBrush x:Key="PillWarnBg"        Color="#FBEFDD" />
+          <SolidColorBrush x:Key="PillInfoBg"        Color="#E4EDFB" />
+          <SolidColorBrush x:Key="AccentButtonForeground" Color="#1A0E00" />
+          <SolidColorBrush x:Key="DiffTextBackground" Color="#FBFCFD" />
+
+          <!-- ===== FluentTheme overrides for light ===== -->
+          <Color x:Key="SystemAccentColor">#C97B0A</Color>
+          <Color x:Key="SystemAccentColorLight1">#E8A24A</Color>
+          <Color x:Key="SystemAccentColorLight2">#F5C277</Color>
+          <Color x:Key="SystemAccentColorLight3">#FCD6A3</Color>
+          <Color x:Key="SystemAccentColorDark1">#8C520A</Color>
+          <Color x:Key="SystemAccentColorDark2">#5E370A</Color>
+          <Color x:Key="SystemAccentColorDark3">#3A2206</Color>
+          <SolidColorBrush x:Key="SystemControlBackgroundChromeLowBrush"        Color="{StaticResource Surface1Color}" />
+          <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumLowBrush"  Color="{StaticResource Surface2Color}" />
+          <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumBrush"     Color="{StaticResource Surface3Color}" />
+          <SolidColorBrush x:Key="SystemControlBackgroundAltHighBrush"          Color="{StaticResource Surface1Color}" />
+          <SolidColorBrush x:Key="TextControlBackground"        Color="#FFFFFF" />
+          <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#F7F9FC" />
+          <SolidColorBrush x:Key="TextControlBackgroundFocused"     Color="#FFFFFF" />
+          <SolidColorBrush x:Key="TextControlForeground"        Color="#0F1419" />
+          <SolidColorBrush x:Key="TextControlBorderBrush"       Color="#B6BECC" />
+          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#94A0B3" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused"     Color="{StaticResource AccentColor}" />
+          <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#8A93A4" />
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#6B7280" />
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused"     Color="#8A93A4" />
+          <SolidColorBrush x:Key="TextControlSelectionHighlightColor"          Color="{StaticResource AccentColor}" />
+
+          <!-- Icon geometries — same shapes in both themes -->
+          <StreamGeometry x:Key="IcoLogo">M12 2 L21 7 V17 L12 22 L3 17 V7 Z M12 6 L17 8.7 V14.3 L12 17 L7 14.3 V8.7 Z M12 10 L14.3 11.2 V13.4 L12 14.6 L9.7 13.4 V11.2 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoEnvironments">M12 2 C6.5 2 2 6.5 2 12 S6.5 22 12 22 S22 17.5 22 12 S17.5 2 12 2 Z M3.5 12 C3.5 11.3 3.6 10.7 3.7 10 H7 C6.9 10.7 6.9 11.3 6.9 12 S6.9 13.3 7 14 H3.7 C3.6 13.3 3.5 12.7 3.5 12 Z M12 3.5 C13.5 3.5 14.9 5.6 15.6 8.5 H8.4 C9.1 5.6 10.5 3.5 12 3.5 Z M12 20.5 C10.5 20.5 9.1 18.4 8.4 15.5 H15.6 C14.9 18.4 13.5 20.5 12 20.5 Z M8.1 14 C8 13.3 8 12.7 8 12 S8 10.7 8.1 10 H15.9 C16 10.7 16 11.3 16 12 S16 13.3 15.9 14 H8.1 Z M17 12 C17 11.3 17 10.7 17 10 H20.3 C20.4 10.7 20.5 11.3 20.5 12 S20.4 13.3 20.3 14 H17 C17 13.3 17 12.7 17 12 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoModel">M5 4 H11 V10 H5 Z M13 4 H19 V10 H13 Z M9 14 H15 V20 H9 Z M8 10 V12 H16 V10 M12 12 V14</StreamGeometry>
+          <StreamGeometry x:Key="IcoCompare">M5 4 H9 V20 H5 Z M15 4 H19 V20 H15 Z M9 12 H15 M12 9 L15 12 L12 15</StreamGeometry>
+          <StreamGeometry x:Key="IcoApply">M8 16 L12 12 L16 16 M12 12 V20 M20 18 C21.7 18 23 16.7 23 15 C23 13.3 21.7 12 20 12 C19.9 9.2 17.7 7 15 7 C12.5 7 10.4 8.8 10 11.2 C7.8 11.6 6 13.6 6 16 C6 17.7 7.3 19 9 19</StreamGeometry>
+          <StreamGeometry x:Key="IcoHistory">M12 3 C7 3 3 7 3 12 H1 L4 15 L7 12 H5 C5 8 8.1 5 12 5 S19 8.1 19 12 S15.9 19 12 19 C10.1 19 8.3 18.2 7 16.9 L5.6 18.3 C7.3 20 9.5 21 12 21 C17 21 21 17 21 12 S17 3 12 3 Z M11 7 V13 L16 16 L17 14.4 L13 12 V7 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoTools">M14.7 6.3 A4 4 0 0 0 9.3 11.7 L3 18 L6 21 L12.3 14.7 A4 4 0 0 0 17.7 9.3 L15 12 L12 9 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoSearch">M10 2 A8 8 0 1 1 10 18 A8 8 0 1 1 10 2 Z M16 16 L22 22</StreamGeometry>
+          <StreamGeometry x:Key="IcoFolder">M3 6 H9 L11 8 H21 V20 H3 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoCheck">M5 12 L10 17 L20 7</StreamGeometry>
+          <StreamGeometry x:Key="IcoStepCircle">M12 4 A8 8 0 1 1 12 20 A8 8 0 1 1 12 4 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoX">M5 5 L19 19 M19 5 L5 19</StreamGeometry>
+          <StreamGeometry x:Key="IcoArrowRight">M5 12 H19 M13 6 L19 12 L13 18</StreamGeometry>
+          <StreamGeometry x:Key="IcoPlay">M6 4 L20 12 L6 20 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoRefresh">M21 4 V10 H15 M3 20 V14 H9 M20 14 A8 8 0 0 1 6 18 L3 14 M4 10 A8 8 0 0 1 18 6 L21 10</StreamGeometry>
+          <StreamGeometry x:Key="IcoPlus">M12 4 V20 M4 12 H20</StreamGeometry>
+          <StreamGeometry x:Key="IcoSpark">M12 3 L13.2 9.3 L19.5 10.5 L13.2 11.7 L12 18 L10.8 11.7 L4.5 10.5 L10.8 9.3 Z M19 3 L19.6 5.4 L22 6 L19.6 6.6 L19 9 L18.4 6.6 L16 6 L18.4 5.4 Z M19 15 L19.6 17.4 L22 18 L19.6 18.6 L19 21 L18.4 18.6 L16 18 L18.4 17.4 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoDot">M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoStar">M12 2 L14.9 8.6 L22 9.3 L16.6 14.1 L18.2 21 L12 17.3 L5.8 21 L7.4 14.1 L2 9.3 L9.1 8.6 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoInfo">M12 2 A10 10 0 1 1 12 22 A10 10 0 1 1 12 2 Z M12 7 V8 M11 11 H13 V17 H11 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoWarn">M12 3 L22 20 H2 Z M12 9 V14 M11 16 H13 V18 H11 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoError">M12 2 A10 10 0 1 1 12 22 A10 10 0 1 1 12 2 Z M8 8 L16 16 M16 8 L8 16</StreamGeometry>
+          <StreamGeometry x:Key="IcoCopy">M8 4 H18 V18 H8 Z M4 8 V22 H16 V20 H6 V8 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoDownload">M12 3 V14 M7 10 L12 15 L17 10 M4 18 H20 V21 H4 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoFilter">M3 5 H21 L14 13 V20 L10 18 V13 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoChevDown">M6 9 L12 15 L18 9</StreamGeometry>
+          <StreamGeometry x:Key="IcoChevRight">M9 6 L15 12 L9 18</StreamGeometry>
+          <StreamGeometry x:Key="IcoChevUp">M6 15 L12 9 L18 15</StreamGeometry>
+          <StreamGeometry x:Key="IcoExpandAll">M7 8 L12 3 L17 8 M7 16 L12 21 L17 16</StreamGeometry>
+          <StreamGeometry x:Key="IcoTrash">M5 7 H19 M9 7 V5 H15 V7 M7 7 V20 H17 V7 M10 11 V17 M14 11 V17</StreamGeometry>
+          <StreamGeometry x:Key="IcoRestore">M3 4 V10 H9 M4 14 A8 8 0 1 0 7 6 L3 10 M12 8 V13 L15 15</StreamGeometry>
+          <StreamGeometry x:Key="IcoZap">M13 2 L4 14 H11 L10 22 L20 9 H13 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoShield">M12 2 L20 5 V12 C20 17 16 21 12 22 C8 21 4 17 4 12 V5 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoSun">M12 4 V2 M12 22 V20 M4 12 H2 M22 12 H20 M5 5 L3.5 3.5 M20.5 20.5 L19 19 M19 5 L20.5 3.5 M3.5 20.5 L5 19 M12 7 A5 5 0 1 1 12 17 A5 5 0 1 1 12 7 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoMoon">M21 13 A9 9 0 1 1 11 3 A7 7 0 0 0 21 13 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoUsers">M9 4 A3 3 0 1 1 9 10 A3 3 0 1 1 9 4 Z M3 21 V19 C3 16.5 5 14 9 14 C13 14 15 16.5 15 19 V21 M16 5 A2.5 2.5 0 1 1 16 10 A2.5 2.5 0 1 1 16 5 Z M16 14 C18.5 14 21 16 21 19 V21</StreamGeometry>
+          <StreamGeometry x:Key="IcoGear">M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 Z M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22 M4.5 4.5 L6.7 6.7 M17.3 17.3 L19.5 19.5 M4.5 19.5 L6.7 17.3 M17.3 6.7 L19.5 4.5</StreamGeometry>
+          <StreamGeometry x:Key="IcoHome">M3 12 L12 3 L21 12 M5 10 V21 H10 V14 H14 V21 H19 V10</StreamGeometry>
+          <StreamGeometry x:Key="IcoBackup">M3 5 H21 V9 H3 Z M5 9 V20 H19 V9 M9 13 H15</StreamGeometry>
+
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+
+          <!-- ===== Design tokens ===== -->
+          <!-- Surfaces -->
+          <Color x:Key="Surface0Color">#0A0D13</Color>
+          <Color x:Key="Surface1Color">#10141C</Color>
+          <Color x:Key="Surface2Color">#161B26</Color>
+          <Color x:Key="Surface3Color">#1C2230</Color>
+          <Color x:Key="SurfaceHiColor">#222A3A</Color>
+
+          <SolidColorBrush x:Key="Surface0"  Color="{StaticResource Surface0Color}" />
+          <SolidColorBrush x:Key="Surface1"  Color="{StaticResource Surface1Color}" />
+          <SolidColorBrush x:Key="Surface2"  Color="{StaticResource Surface2Color}" />
+          <SolidColorBrush x:Key="Surface3"  Color="{StaticResource Surface3Color}" />
+          <SolidColorBrush x:Key="SurfaceHi" Color="{StaticResource SurfaceHiColor}" />
+
+          <!-- Borders -->
+          <SolidColorBrush x:Key="Border"        Color="#1E2532" />
+          <SolidColorBrush x:Key="BorderStrong"  Color="#2D3648" />
+          <SolidColorBrush x:Key="BorderFaint"   Color="#161C28" />
+
+          <!-- Text -->
+          <SolidColorBrush x:Key="TextPri" Color="#ECEEF3" />
+          <SolidColorBrush x:Key="TextSec" Color="#9BA4B5" />
+          <SolidColorBrush x:Key="TextDim" Color="#5F6878" />
+
+          <!-- Accent (amber/copper) -->
+          <Color x:Key="AccentColor">#E8A24A</Color>
+          <Color x:Key="AccentBrightColor">#F5C277</Color>
+          <Color x:Key="AccentDeepColor">#B26A1F</Color>
+          <Color x:Key="AccentGlowColor">#33E8A24A</Color>
+
+          <SolidColorBrush x:Key="Accent"        Color="{StaticResource AccentColor}" />
+          <SolidColorBrush x:Key="AccentBright"  Color="{StaticResource AccentBrightColor}" />
+          <SolidColorBrush x:Key="AccentDeep"    Color="{StaticResource AccentDeepColor}" />
+          <!-- 12% amber — kept for compat with subtle uses (text selection, datagrid row). -->
+          <SolidColorBrush x:Key="AccentSoft"    Color="#1FE8A24A" />
+          <!-- 18% amber — clearly visible hover lift over Surface1 sidebar. -->
+          <SolidColorBrush x:Key="AccentHoverBg" Color="#2EE8A24A" />
+          <!-- 30% amber — selected nav fill: a "happy select" color, not muddy brown. -->
+          <SolidColorBrush x:Key="AccentSelected"     Color="#4DE8A24A" />
+          <SolidColorBrush x:Key="AccentSelectedHover" Color="#5CE8A24A" />
+          <!-- Focus ring glow + selected glow inside list/tree rows. -->
+          <SolidColorBrush x:Key="AccentRing"    Color="#66E8A24A" />
+
+          <!-- Environment stage colors. PROD = danger, TEST = warn, DEV = info, Unspecified = dim. -->
+          <SolidColorBrush x:Key="StageProdBrush"        Color="#F47174" />
+          <SolidColorBrush x:Key="StageProdSoftBrush"    Color="#3D1316" />
+          <SolidColorBrush x:Key="StageTestBrush"        Color="#FFB454" />
+          <SolidColorBrush x:Key="StageTestSoftBrush"    Color="#3A2510" />
+          <SolidColorBrush x:Key="StageDevBrush"         Color="#5EA5FF" />
+          <SolidColorBrush x:Key="StageDevSoftBrush"     Color="#102134" />
+          <SolidColorBrush x:Key="StageUnspecBrush"      Color="#7B8494" />
+          <SolidColorBrush x:Key="StageUnspecSoftBrush"  Color="#1A1F2A" />
+
+          <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#F5C277" Offset="0" />
+            <GradientStop Color="#E8A24A" Offset="0.55" />
+            <GradientStop Color="#B26A1F" Offset="1" />
+          </LinearGradientBrush>
+
+          <LinearGradientBrush x:Key="AccentGlowFill" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#33F5C277" Offset="0" />
+            <GradientStop Color="#11E8A24A" Offset="1" />
+          </LinearGradientBrush>
+
+          <!-- Semantic -->
+          <SolidColorBrush x:Key="Success" Color="#3FCF8E" />
+          <SolidColorBrush x:Key="Warn"    Color="#FFB454" />
+          <SolidColorBrush x:Key="Danger"  Color="#F47174" />
+          <SolidColorBrush x:Key="Info"    Color="#5EA5FF" />
+
+          <!-- App background gradient -->
+          <LinearGradientBrush x:Key="AppBackground" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#0B0F17" Offset="0" />
+            <GradientStop Color="#0A0D13" Offset="1" />
+          </LinearGradientBrush>
+
+          <!-- ===== FluentTheme overrides ===== -->
+          <Color x:Key="SystemAccentColor">#E8A24A</Color>
+          <Color x:Key="SystemAccentColorLight1">#F5C277</Color>
+          <Color x:Key="SystemAccentColorLight2">#FCD6A3</Color>
+          <Color x:Key="SystemAccentColorLight3">#FFE5C2</Color>
+          <Color x:Key="SystemAccentColorDark1">#B26A1F</Color>
+          <Color x:Key="SystemAccentColorDark2">#7E4A14</Color>
+          <Color x:Key="SystemAccentColorDark3">#4D2D0D</Color>
+          <SolidColorBrush x:Key="SystemControlBackgroundChromeLowBrush"        Color="{StaticResource Surface1Color}" />
+          <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumLowBrush"  Color="{StaticResource Surface2Color}" />
+          <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumBrush"     Color="{StaticResource Surface3Color}" />
+          <SolidColorBrush x:Key="SystemControlBackgroundAltHighBrush"          Color="{StaticResource Surface1Color}" />
+          <SolidColorBrush x:Key="TextControlBackground"        Color="#0D111A" />
+          <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#10151F" />
+          <SolidColorBrush x:Key="TextControlBackgroundFocused"     Color="#0D111A" />
+          <SolidColorBrush x:Key="TextControlForeground"        Color="#ECEEF3" />
+          <SolidColorBrush x:Key="TextControlBorderBrush"       Color="#2D3648" />
+          <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#3B4658" />
+          <SolidColorBrush x:Key="TextControlBorderBrushFocused"     Color="{StaticResource AccentColor}" />
+          <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#5F6878" />
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#7B8494" />
+          <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused"     Color="#5F6878" />
+          <SolidColorBrush x:Key="TextControlSelectionHighlightColor"          Color="{StaticResource AccentColor}" />
+
+          <!-- ===== Style-internal tokens (consumed by Styles/App.axaml) ===== -->
+          <SolidColorBrush x:Key="DangerBg"          Color="#2A1416" />
+          <SolidColorBrush x:Key="DangerBgHover"     Color="#3A1B1E" />
+          <SolidColorBrush x:Key="DangerBorderSoft"  Color="#5A2226" />
+          <SolidColorBrush x:Key="InputBg"           Color="#0D111A" />
+          <SolidColorBrush x:Key="InputBgHover"      Color="#10151F" />
+          <SolidColorBrush x:Key="RowHoverHighlight" Color="#0AFFFFFF" />
+          <SolidColorBrush x:Key="PillOkBg"          Color="#142A20" />
+          <SolidColorBrush x:Key="PillErrBg"         Color="#2A1316" />
+          <SolidColorBrush x:Key="PillWarnBg"        Color="#2E1F0E" />
+          <SolidColorBrush x:Key="PillInfoBg"        Color="#102134" />
+          <SolidColorBrush x:Key="AccentButtonForeground" Color="#1A0E00" />
+          <SolidColorBrush x:Key="DiffTextBackground" Color="#0A0D13" />
+
+          <!-- ===== Icon geometries ===== -->
+          <StreamGeometry x:Key="IcoLogo">M12 2 L21 7 V17 L12 22 L3 17 V7 Z M12 6 L17 8.7 V14.3 L12 17 L7 14.3 V8.7 Z M12 10 L14.3 11.2 V13.4 L12 14.6 L9.7 13.4 V11.2 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoEnvironments">M12 2 C6.5 2 2 6.5 2 12 S6.5 22 12 22 S22 17.5 22 12 S17.5 2 12 2 Z M3.5 12 C3.5 11.3 3.6 10.7 3.7 10 H7 C6.9 10.7 6.9 11.3 6.9 12 S6.9 13.3 7 14 H3.7 C3.6 13.3 3.5 12.7 3.5 12 Z M12 3.5 C13.5 3.5 14.9 5.6 15.6 8.5 H8.4 C9.1 5.6 10.5 3.5 12 3.5 Z M12 20.5 C10.5 20.5 9.1 18.4 8.4 15.5 H15.6 C14.9 18.4 13.5 20.5 12 20.5 Z M8.1 14 C8 13.3 8 12.7 8 12 S8 10.7 8.1 10 H15.9 C16 10.7 16 11.3 16 12 S16 13.3 15.9 14 H8.1 Z M17 12 C17 11.3 17 10.7 17 10 H20.3 C20.4 10.7 20.5 11.3 20.5 12 S20.4 13.3 20.3 14 H17 C17 13.3 17 12.7 17 12 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoModel">M5 4 H11 V10 H5 Z M13 4 H19 V10 H13 Z M9 14 H15 V20 H9 Z M8 10 V12 H16 V10 M12 12 V14</StreamGeometry>
+          <StreamGeometry x:Key="IcoCompare">M5 4 H9 V20 H5 Z M15 4 H19 V20 H15 Z M9 12 H15 M12 9 L15 12 L12 15</StreamGeometry>
+          <StreamGeometry x:Key="IcoApply">M8 16 L12 12 L16 16 M12 12 V20 M20 18 C21.7 18 23 16.7 23 15 C23 13.3 21.7 12 20 12 C19.9 9.2 17.7 7 15 7 C12.5 7 10.4 8.8 10 11.2 C7.8 11.6 6 13.6 6 16 C6 17.7 7.3 19 9 19</StreamGeometry>
+          <StreamGeometry x:Key="IcoHistory">M12 3 C7 3 3 7 3 12 H1 L4 15 L7 12 H5 C5 8 8.1 5 12 5 S19 8.1 19 12 S15.9 19 12 19 C10.1 19 8.3 18.2 7 16.9 L5.6 18.3 C7.3 20 9.5 21 12 21 C17 21 21 17 21 12 S17 3 12 3 Z M11 7 V13 L16 16 L17 14.4 L13 12 V7 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoTools">M14.7 6.3 A4 4 0 0 0 9.3 11.7 L3 18 L6 21 L12.3 14.7 A4 4 0 0 0 17.7 9.3 L15 12 L12 9 Z</StreamGeometry>
+
+          <StreamGeometry x:Key="IcoSearch">M10 2 A8 8 0 1 1 10 18 A8 8 0 1 1 10 2 Z M16 16 L22 22</StreamGeometry>
+          <StreamGeometry x:Key="IcoFolder">M3 6 H9 L11 8 H21 V20 H3 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoCheck">M5 12 L10 17 L20 7</StreamGeometry>
+          <StreamGeometry x:Key="IcoStepCircle">M12 4 A8 8 0 1 1 12 20 A8 8 0 1 1 12 4 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoX">M5 5 L19 19 M19 5 L5 19</StreamGeometry>
+          <StreamGeometry x:Key="IcoArrowRight">M5 12 H19 M13 6 L19 12 L13 18</StreamGeometry>
+          <StreamGeometry x:Key="IcoPlay">M6 4 L20 12 L6 20 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoRefresh">M21 4 V10 H15 M3 20 V14 H9 M20 14 A8 8 0 0 1 6 18 L3 14 M4 10 A8 8 0 0 1 18 6 L21 10</StreamGeometry>
+          <StreamGeometry x:Key="IcoPlus">M12 4 V20 M4 12 H20</StreamGeometry>
+          <StreamGeometry x:Key="IcoSpark">M12 3 L13.2 9.3 L19.5 10.5 L13.2 11.7 L12 18 L10.8 11.7 L4.5 10.5 L10.8 9.3 Z M19 3 L19.6 5.4 L22 6 L19.6 6.6 L19 9 L18.4 6.6 L16 6 L18.4 5.4 Z M19 15 L19.6 17.4 L22 18 L19.6 18.6 L19 21 L18.4 18.6 L16 18 L18.4 17.4 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoDot">M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoStar">M12 2 L14.9 8.6 L22 9.3 L16.6 14.1 L18.2 21 L12 17.3 L5.8 21 L7.4 14.1 L2 9.3 L9.1 8.6 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoInfo">M12 2 A10 10 0 1 1 12 22 A10 10 0 1 1 12 2 Z M12 7 V8 M11 11 H13 V17 H11 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoWarn">M12 3 L22 20 H2 Z M12 9 V14 M11 16 H13 V18 H11 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoError">M12 2 A10 10 0 1 1 12 22 A10 10 0 1 1 12 2 Z M8 8 L16 16 M16 8 L8 16</StreamGeometry>
+          <StreamGeometry x:Key="IcoCopy">M8 4 H18 V18 H8 Z M4 8 V22 H16 V20 H6 V8 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoDownload">M12 3 V14 M7 10 L12 15 L17 10 M4 18 H20 V21 H4 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoFilter">M3 5 H21 L14 13 V20 L10 18 V13 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoChevDown">M6 9 L12 15 L18 9</StreamGeometry>
+          <StreamGeometry x:Key="IcoChevRight">M9 6 L15 12 L9 18</StreamGeometry>
+          <StreamGeometry x:Key="IcoChevUp">M6 15 L12 9 L18 15</StreamGeometry>
+          <StreamGeometry x:Key="IcoExpandAll">M7 8 L12 3 L17 8 M7 16 L12 21 L17 16</StreamGeometry>
+          <StreamGeometry x:Key="IcoTrash">M5 7 H19 M9 7 V5 H15 V7 M7 7 V20 H17 V7 M10 11 V17 M14 11 V17</StreamGeometry>
+          <StreamGeometry x:Key="IcoRestore">M3 4 V10 H9 M4 14 A8 8 0 1 0 7 6 L3 10 M12 8 V13 L15 15</StreamGeometry>
+          <StreamGeometry x:Key="IcoZap">M13 2 L4 14 H11 L10 22 L20 9 H13 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoShield">M12 2 L20 5 V12 C20 17 16 21 12 22 C8 21 4 17 4 12 V5 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoSun">M12 4 V2 M12 22 V20 M4 12 H2 M22 12 H20 M5 5 L3.5 3.5 M20.5 20.5 L19 19 M19 5 L20.5 3.5 M3.5 20.5 L5 19 M12 7 A5 5 0 1 1 12 17 A5 5 0 1 1 12 7 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoMoon">M21 13 A9 9 0 1 1 11 3 A7 7 0 0 0 21 13 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoUsers">M9 4 A3 3 0 1 1 9 10 A3 3 0 1 1 9 4 Z M3 21 V19 C3 16.5 5 14 9 14 C13 14 15 16.5 15 19 V21 M16 5 A2.5 2.5 0 1 1 16 10 A2.5 2.5 0 1 1 16 5 Z M16 14 C18.5 14 21 16 21 19 V21</StreamGeometry>
+          <StreamGeometry x:Key="IcoGear">M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 Z M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22 M4.5 4.5 L6.7 6.7 M17.3 17.3 L19.5 19.5 M4.5 19.5 L6.7 17.3 M17.3 6.7 L19.5 4.5</StreamGeometry>
+          <StreamGeometry x:Key="IcoHome">M3 12 L12 3 L21 12 M5 10 V21 H10 V14 H14 V21 H19 V10</StreamGeometry>
+          <StreamGeometry x:Key="IcoBackup">M3 5 H21 V9 H3 Z M5 9 V20 H19 V9 M9 13 H15</StreamGeometry>
+
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+</Application>

@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Controls.ChecklistFilterHeader"
+             x:Name="Root">
+  <StackPanel Spacing="3">
+    <TextBlock Text="{Binding #Root.Title}" FontSize="11" FontWeight="SemiBold"
+               Foreground="{DynamicResource TextSec}" LetterSpacing="0.6"
+               VerticalAlignment="Center" />
+
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBox Grid.Column="0" MinHeight="22"
+               Padding="6,2" FontSize="11"
+               Margin="0,0,3,0"
+               Watermark="Filter…"
+               Text="{Binding #Root.FilterText, Mode=TwoWay}" />
+
+      <Button Grid.Column="1" Classes="ghost" Padding="4,2" MinHeight="22" MinWidth="22"
+              ToolTip.Tip="Checkbox filter"
+              Click="OnFilterButtonClick">
+        <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="▾" FontSize="9" />
+          <Ellipse Width="6" Height="6" Fill="{DynamicResource Accent}"
+                   IsVisible="{Binding #Root.HasActiveFilter}" />
+        </StackPanel>
+        <Button.Flyout>
+          <Flyout Placement="Bottom">
+            <Border Width="260" Padding="6">
+              <DockPanel LastChildFill="True">
+                <TextBox DockPanel.Dock="Top" Text="{Binding #Root.Search, Mode=TwoWay}"
+                         Watermark="Search…" Margin="0,0,0,4" />
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,4">
+                  <Button Content="Select all" Classes="ghost" Padding="6,2" Click="OnSelectAll" />
+                  <Button Content="Clear" Classes="ghost" Padding="6,2" Click="OnClearAll" />
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Top" Classes="dim" FontSize="11"
+                           Text="(nothing to filter — run Compare first)"
+                           IsVisible="{Binding #Root.IsEmpty}" Margin="0,4" />
+                <ScrollViewer MaxHeight="260">
+                  <ItemsControl ItemsSource="{Binding #Root.FilteredOptions}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="c:FilterOption">
+                        <CheckBox Content="{Binding Value}"
+                                  IsChecked="{Binding IsChecked, Mode=TwoWay}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </DockPanel>
+            </Border>
+          </Flyout>
+        </Button.Flyout>
+      </Button>
+    </Grid>
+  </StackPanel>
+</UserControl>

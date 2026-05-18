@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             x:Class="ModelMeister.Ui.Controls.PageActions"
+             x:DataType="vm:FeaturePageViewModel">
+
+  <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+
+    <!-- Backup: scoped capture for slot A -->
+    <Button Classes="ghost icon"
+            ToolTip.Tip="Backup"
+            IsVisible="{Binding CanBackup}"
+            Command="{Binding BackupCommand}">
+      <Path Data="{DynamicResource IcoBackup}" Width="14" Height="14" Stretch="Uniform"
+            Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+            StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+    </Button>
+
+    <!-- Export Excel -->
+    <Button Classes="ghost icon"
+            ToolTip.Tip="Export to Excel"
+            IsVisible="{Binding HasExcelExport}"
+            Command="{Binding ExportExcelCommand}">
+      <Path Data="{DynamicResource IcoDownload}" Width="14" Height="14" Stretch="Uniform"
+            Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+            StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+    </Button>
+
+    <!-- Import Excel -->
+    <Button Classes="ghost icon"
+            ToolTip.Tip="Import from Excel"
+            IsVisible="{Binding HasExcelImport}"
+            Command="{Binding ImportExcelCommand}">
+      <Path Data="{DynamicResource IcoCopy}" Width="14" Height="14" Stretch="Uniform"
+            Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+            StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+    </Button>
+
+    <!-- Refresh -->
+    <Button Classes="ghost icon"
+            ToolTip.Tip="Refresh"
+            Command="{Binding RefreshCommand}">
+      <Path Data="{DynamicResource IcoRefresh}" Width="14" Height="14" Stretch="Uniform"
+            Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+            StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+    </Button>
+
+  </StackPanel>
+
+</UserControl>

@@ -1,0 +1,156 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.CompareLayoutView"
+             x:DataType="vm:ICompareViewModel"
+             x:Name="LayoutRoot">
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter x:Key="StageText" />
+  </UserControl.Resources>
+
+  <c:PageShell Eyebrow="COMPARE"
+               Subtitle="Pick two environments to compare side-by-side"
+               Status="{Binding Status}"
+               IsBusy="{Binding Busy}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+      <!-- Row 0: header card — env pickers + Compare/Save/Copy + extra actions + summary -->
+      <Border Grid.Row="0" Classes="card">
+        <Grid Margin="14,8" VerticalAlignment="Center"
+              ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
+
+          <ComboBox Grid.Column="0" MinWidth="260"
+                    PlaceholderText="Select environment"
+                    ItemsSource="{Binding AvailableEnvs}"
+                    SelectedItem="{Binding LeftEnv, Mode=TwoWay}"
+                    IsEnabled="{Binding !Busy}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="m:EnvironmentEntry">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                  <Border Classes="pill"
+                          Background="{Binding Stage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                          BorderBrush="{Binding Stage, Converter={StaticResource StageBrush}}"
+                          BorderThickness="1" Padding="6,1">
+                    <TextBlock Text="{Binding Stage, Converter={StaticResource StageText}}"
+                               Foreground="{Binding Stage, Converter={StaticResource StageBrush}}"
+                               FontSize="10" FontWeight="SemiBold" />
+                  </Border>
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <TextBlock Grid.Column="1" Text="↔" FontSize="14" Margin="10,0"
+                     Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+
+          <ComboBox Grid.Column="2" MinWidth="260"
+                    PlaceholderText="Select environment"
+                    ItemsSource="{Binding AvailableEnvs}"
+                    SelectedItem="{Binding RightEnv, Mode=TwoWay}"
+                    IsEnabled="{Binding !Busy}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="m:EnvironmentEntry">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                  <Border Classes="pill"
+                          Background="{Binding Stage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                          BorderBrush="{Binding Stage, Converter={StaticResource StageBrush}}"
+                          BorderThickness="1" Padding="6,1">
+                    <TextBlock Text="{Binding Stage, Converter={StaticResource StageText}}"
+                               Foreground="{Binding Stage, Converter={StaticResource StageBrush}}"
+                               FontSize="10" FontWeight="SemiBold" />
+                  </Border>
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <Button Grid.Column="3" Content="Compare" Margin="14,0,0,0"
+                  Command="{Binding CompareCommand}" Classes="primary"
+                  IsEnabled="{Binding !Busy}" />
+          <Button Grid.Column="4" Content="Save CSV" Margin="6,0,0,0"
+                  Command="{Binding SaveCsvCommand}" Classes="ghost"
+                  IsEnabled="{Binding HasRows}" />
+          <Button Grid.Column="5" Content="Copy md" Margin="6,0,0,0"
+                  Command="{Binding CopyMarkdownCommand}" Classes="ghost"
+                  IsEnabled="{Binding HasRows}" />
+
+          <!-- Page-specific extra actions (e.g. Extensions' Push L→R / R→L). -->
+          <ItemsControl Grid.Column="6" ItemsSource="{Binding ExtraActions}" Margin="6,0,0,0">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="6" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:CompareAction">
+                <Button Content="{Binding Label}"
+                        Classes.primary="{Binding Primary}"
+                        Classes.ghost="{Binding !Primary}"
+                        Command="{Binding Command}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <TextBlock Grid.Column="7" Text="{Binding Summary}" Classes="dim"
+                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                     HorizontalAlignment="Right" />
+        </Grid>
+      </Border>
+
+      <!-- Row 1: body slot — the host page's DataGrid is dropped here as Content. -->
+      <Border Grid.Row="1" Classes="card" Margin="0,12,0,0">
+        <ContentPresenter Content="{Binding #LayoutRoot.Body}" />
+      </Border>
+
+      <!-- Row 2: per-bucket bar chart — visible only when there are rows. -->
+      <Border Grid.Row="2" Classes="card" Margin="0,12,0,0"
+              IsVisible="{Binding HasRows}">
+        <ItemsControl ItemsSource="{Binding Counts}" Margin="14,10">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="4" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ConceptDiffCount">
+              <Button Classes="ghost" Padding="6,4" Margin="6,4" Click="OnBucketClick"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                      ToolTip.Tip="Click to hide/show this bucket's rows in the table"
+                      Opacity="{Binding IsHidden, Converter={x:Static svc:Eq.OpacityFor}}">
+                <StackPanel Spacing="3">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding Title}" Classes="dim" FontSize="11"
+                               TextDecorations="{Binding IsHidden, Converter={x:Static svc:Eq.StrikeIfTrue}}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Count}" FontSize="11" FontWeight="SemiBold" />
+                  </Grid>
+                  <Grid Height="6">
+                    <Border Background="{DynamicResource BorderFaint}" CornerRadius="3" />
+                    <Border HorizontalAlignment="Left" CornerRadius="3" Background="{DynamicResource Accent}">
+                      <Border.Width>
+                        <MultiBinding Converter="{x:Static conv:FractionWidthConverter.Instance}">
+                          <Binding Path="Fraction" />
+                          <Binding Path="$parent[Grid].Bounds.Width" />
+                        </MultiBinding>
+                      </Border.Width>
+                    </Border>
+                  </Grid>
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+
+    </Grid>
+
+  </c:PageShell>
+</UserControl>

@@ -1,0 +1,57 @@
+name: Validate model
+
+# Runs on every PR. Compiles the model project and validates it statically.
+# Fails the PR if validation finds errors (exit code 3).
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'Directory.*.props'
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore + build
+        run: dotnet build ModelMeister.sln --configuration Release --nologo
+
+      - name: Run unit tests
+        run: dotnet test ModelMeister.sln --configuration Release --no-build --nologo --logger "trx;LogFileName=test-results.trx"
+
+      - name: Validate model (machine-readable)
+        id: validate
+        run: |
+          dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
+            validate \
+            --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
+            --json --no-color \
+            > validation.json
+        continue-on-error: true
+
+      - name: Surface validation result
+        if: always()
+        run: |
+          echo "## Model validation" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat validation.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if validation errored
+        if: steps.validate.outcome == 'failure'
+        run: exit 3
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-output
+          path: validation.json

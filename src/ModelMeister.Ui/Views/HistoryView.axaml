@@ -1,0 +1,173 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.HistoryView"
+             x:DataType="vm:HistoryViewModel">
+
+  <c:PageShell Eyebrow="BACKUPS &amp; RECEIPTS"
+               Subtitle="Browse apply receipts and the pre-apply backup snapshots they reference"
+               Status="{Binding StatusMessage}">
+
+    <DockPanel LastChildFill="True">
+
+      <Border DockPanel.Dock="Top" Classes="cardSubtle" Margin="0,0,0,10">
+        <Grid ColumnDefinitions="Auto,*" Margin="14,10">
+          <Path Grid.Column="0" Data="{DynamicResource IcoHistory}" Width="20" Height="20" Stretch="Uniform"
+                Stroke="{DynamicResource Accent}" StrokeThickness="1.7" Fill="Transparent" VerticalAlignment="Top" Margin="0,2,12,0" />
+          <StackPanel Grid.Column="1" Spacing="3">
+            <TextBlock FontSize="14" FontWeight="SemiBold" Text="What's stored here?" />
+            <TextBlock Foreground="{DynamicResource TextSec}" TextWrapping="Wrap"
+                       Text="Every Apply records a receipt (left). Every real Apply also captures a backup snapshot of the env state just before the change (right)." />
+            <TextBlock Foreground="{DynamicResource TextSec}" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Text="To restore: select a backup, click Restore. ModelMeister will re-scaffold that snapshot as a typed model and route you to Compare — review the reverse change set, then Apply to roll the env back." />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Border DockPanel.Dock="Top" Classes="card">
+        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
+          <Button Grid.Row="0" Grid.Column="0" Command="{Binding RefreshCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Data="{DynamicResource IcoRefresh}" Width="13" Height="13" Stretch="Uniform"
+                    Stroke="{DynamicResource TextPri}" StrokeThickness="1.5"
+                    StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <Border Grid.Row="0" Grid.Column="1" Width="1" Background="{DynamicResource Border}" Margin="8,4" />
+          <Button Grid.Row="0" Grid.Column="2" Content="Open receipt"  Command="{Binding OpenReceiptCommand}"
+                  IsEnabled="{Binding SelectedReceipt, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="8">
+            <Button Content="Delete dry-runs" Classes="ghost" Command="{Binding DeleteDryRunsCommand}" />
+            <Button Content="Delete &gt;30d"   Classes="ghost" Command="{Binding DeleteOldReceiptsCommand}" />
+          </StackPanel>
+
+          <!-- filter row -->
+          <Grid Grid.Row="1" Grid.ColumnSpan="6" ColumnDefinitions="Auto,*,Auto" Margin="0,10,0,0">
+            <CheckBox Grid.Column="0" Content="Show dry-runs" IsChecked="{Binding ShowDryRuns, Mode=TwoWay}" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Margin="14,0,0,0" MinHeight="28"
+                     Watermark="Filter receipts / backups by name or env…"
+                     Text="{Binding ReceiptFilter, Mode=TwoWay}" />
+          </Grid>
+        </Grid>
+      </Border>
+
+      <Grid ColumnDefinitions="*,*">
+
+        <!-- Receipts column -->
+        <Grid Grid.Column="0" RowDefinitions="*,Auto" Margin="0,0,8,0">
+          <Border Grid.Row="0" Classes="card flush" Padding="0">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" Padding="14,10"
+                      BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <Ellipse Width="8" Height="8" Fill="{DynamicResource Accent}" />
+                  <TextBlock Text="RECEIPTS" Classes="h3" />
+                </StackPanel>
+              </Border>
+              <DataGrid Name="ReceiptsGrid"
+                        ItemsSource="{Binding Receipts}"
+                        SelectedItem="{Binding SelectedReceipt, Mode=TwoWay}"
+                        AutoGenerateColumns="False" IsReadOnly="True" BorderThickness="0"
+                        ColumnHeaderHeight="62"
+                        DoubleTapped="OnReceiptDoubleTapped">
+                <DataGrid.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="Open receipt"  Command="{Binding OpenReceiptCommand}" />
+                    <MenuItem Header="Reveal in folder" Command="{Binding RevealReceiptCommand}" />
+                    <Separator />
+                    <MenuItem Header="Copy path"     Command="{Binding CopyReceiptPathCommand}" />
+                  </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Columns>
+                  <DataGridTextColumn Width="120" Binding="{Binding Env}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Env" Path="Env" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Width="80" Binding="{Binding Kind}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Kind" Path="Kind" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Width="*" Binding="{Binding Name}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="File" Path="Name" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Width="160" Binding="{Binding Modified}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Modified" Path="Modified" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Width="80" Binding="{Binding Size}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Bytes" Path="Size" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                </DataGrid.Columns>
+              </DataGrid>
+            </DockPanel>
+          </Border>
+          <Border Grid.Row="1" Classes="cardSubtle" Margin="0,8,0,0"
+                  IsVisible="{Binding ReceiptPreview, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <StackPanel Spacing="6">
+              <TextBlock Text="RECEIPT SUMMARY" Classes="h3" />
+              <TextBox Text="{Binding ReceiptPreview, Mode=OneWay}" IsReadOnly="True"
+                       Classes="mono" AcceptsReturn="True" Height="140" BorderThickness="0" Background="Transparent" />
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- Backups column -->
+        <Border Grid.Column="1" Classes="card flush" Padding="0" Margin="8,0,0,0">
+          <DockPanel>
+            <Border DockPanel.Dock="Top" Padding="14,10"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+              <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="{DynamicResource Info}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="BACKUP SNAPSHOTS" Classes="h3" Margin="8,0,0,0" VerticalAlignment="Center" />
+                <Button Grid.Column="3" Classes="ghost" Content="Open" Command="{Binding OpenBackupCommand}"
+                        IsEnabled="{Binding SelectedBackup, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <Button Grid.Column="4" Classes="primary" Margin="8,0,0,0"
+                        Command="{Binding RestoreBackupCommand}"
+                        IsEnabled="{Binding SelectedBackup, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        ToolTip.Tip="Loads the backup as a typed model and opens Compare so you can review the reverse change set before applying.">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Data="{DynamicResource IcoRestore}" Width="13" Height="13" Stretch="Uniform"
+                          Stroke="{DynamicResource AccentButtonForeground}" StrokeThickness="1.7" Fill="Transparent" />
+                    <TextBlock Text="Restore → Compare" />
+                  </StackPanel>
+                </Button>
+              </Grid>
+            </Border>
+            <DataGrid Name="BackupsGrid"
+                      ItemsSource="{Binding Backups}"
+                      SelectedItem="{Binding SelectedBackup, Mode=TwoWay}"
+                      AutoGenerateColumns="False" IsReadOnly="True" BorderThickness="0"
+                      ColumnHeaderHeight="62"
+                      DoubleTapped="OnBackupDoubleTapped">
+              <DataGrid.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="Open"        Command="{Binding OpenBackupCommand}" />
+                  <MenuItem Header="Open folder" Command="{Binding RevealBackupCommand}" />
+                  <Separator />
+                  <MenuItem Header="Copy path"   Command="{Binding CopyBackupPathCommand}" />
+                  <Separator />
+                  <MenuItem Header="Restore → Compare" Command="{Binding RestoreBackupCommand}" />
+                </ContextMenu>
+              </DataGrid.ContextMenu>
+              <DataGrid.Columns>
+                <DataGridTextColumn Width="120" Binding="{Binding Env}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Env" Path="Env" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="*" Binding="{Binding Name}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="File" Path="Name" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="160" Binding="{Binding Modified}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Modified" Path="Modified" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="100" Binding="{Binding Size}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Bytes" Path="Size" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </DockPanel>
+        </Border>
+      </Grid>
+    </DockPanel>
+
+  </c:PageShell>
+</UserControl>

@@ -1,0 +1,2191 @@
+```json
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "inriver REST API",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/v1.0.0/channels": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Get channel id's for entity id",
+        "description": "Requires View permission.",
+        "operationId": "GetChannelsForEntityId",
+        "parameters": [
+          {
+            "name": "forEntityId",
+            "in": "query",
+            "description": "optional",
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "includeChannels",
+            "in": "query",
+            "description": "optional, defaults to true",
+            "schema": {"type": "boolean", "default": true}
+          },
+          {
+            "name": "includePublications",
+            "in": "query",
+            "description": "optional, defaults to false",
+            "schema": {"type": "boolean", "default": false}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/ChannelSummaryModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/ChannelSummaryModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/ChannelSummaryModel"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/{channelId}/entitytypes": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Get entity types for channel",
+        "description": "Requires View permission.",
+        "operationId": "EntityTypes",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"type": "array", "items": {"type": "string"}}
+              },
+              "application/json": {
+                "schema": {"type": "array", "items": {"type": "string"}}
+              },
+              "text/json": {
+                "schema": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/{channelId}/entitylist": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Get a list of entities in a channel",
+        "description": "Requires View permission.",
+        "operationId": "GetByLinkEntityType",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "entityTypeId",
+            "in": "query",
+            "description": "optional, filter by entity type id",
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/EntityListModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/EntityListModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/EntityListModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/{channelId}/entities/{entityId}/links": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Get entity links",
+        "description": "Requires View permission.",
+        "operationId": "GetByEntityType",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "linkDirection",
+            "in": "query",
+            "description": "\"inbound\" or \"outbound\"",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "linkTypeId",
+            "in": "query",
+            "description": "optional, filter by link type",
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/LinkModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/LinkModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/LinkModel"}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/{channelId}/entities/{entityId}/structureentities": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Get structure entities for entity",
+        "description": "Requires View permission. Returns all occurances of an entity in a channel.",
+        "operationId": "GetChannelStructureEntities",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/StructureEntityModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/StructureEntityModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/StructureEntityModel"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/{channelId}/nodes": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Channel structure list",
+        "description": "Requires View permission.",
+        "operationId": "GetChannelNodes",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"type": "array", "items": {"type": "string"}}
+              },
+              "application/json": {
+                "schema": {"type": "array", "items": {"type": "string"}}
+              },
+              "text/json": {
+                "schema": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/{channelId}/nodetree": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Channel structure tree",
+        "description": "Requires View permission.",
+        "operationId": "GetChannelNodeTree",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {"$ref": "#/components/schemas/StructureNode"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {"$ref": "#/components/schemas/StructureNode"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {"$ref": "#/components/schemas/StructureNode"}
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/content/{path}": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Channel path content",
+        "description": "Requires View permission. Use entity list to query data directly. Use paths in content array to traverse channel structure.",
+        "operationId": "ChannelContent",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "entityTypeIds",
+            "in": "query",
+            "description": "optional, filter types using comma separated list",
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ChannelPathContentModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ChannelPathContentModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ChannelPathContentModel"}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/queue": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Get Channel queue messages for a customer environment.",
+        "description": "Requires View permission.",
+        "operationId": "GetChannelMessagesAsync",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/ChannelMessageModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/ChannelMessageModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/ChannelMessageModel"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/queue/count": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Retrieves the total count of messages in the channel message queue.",
+        "description": "Requires View permission.",
+        "operationId": "GetChannelMessageCountAsync",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"type": "integer", "format": "int32"}
+              },
+              "application/json": {
+                "schema": {"type": "integer", "format": "int32"}
+              },
+              "text/json": {
+                "schema": {"type": "integer", "format": "int32"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/entityIds/{entityTypeId}": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Get a list of channel entities of the specified entity type.",
+        "description": "Requires View permission.",
+        "operationId": "GetChannelEntitiesAsync",
+        "parameters": [
+          {
+            "name": "entityTypeId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "orphaned",
+            "in": "query",
+            "description": "True - get ids of entities not included in any channel. False - get ids of entities included in at least one channel. Default value - False.",
+            "schema": {"type": "boolean", "default": false}
+          },
+          {
+            "name": "linkRuleEnabled",
+            "in": "query",
+            "description": "Not specified - get all entity ids. True - get ids of entities with configured link rules. False - get ids of entities without configured link rules or with disabled link rules. Default value - not specified.",
+            "schema": {"type": "boolean"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"type": "integer", "format": "int32"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"type": "integer", "format": "int32"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"type": "integer", "format": "int32"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/channels/{channelId}/rebuildchannelstate": {
+      "get": {
+        "tags": ["Channel"],
+        "summary": "Get the rebuild state of a channel.",
+        "description": "Requires View permission.",
+        "operationId": "GetRebuildChannelState",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "description": "The ID of the channel.",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ChannelJobModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ChannelJobModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ChannelJobModel"}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/dsa/insights": {
+      "post": {
+        "tags": ["DSA"],
+        "summary": "Returns DSA insights data",
+        "description": "Fetch basic, essential and premium datapoints directly from Evaluate DSA. This endpoint accepts an array of entity data parameters.",
+        "operationId": "GetDSAInsights",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/InsightsRequestModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/InsightsRequestModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/InsightsRequestModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/InsightsRequestModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {"type": "object", "additionalProperties": {}}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {"type": "object", "additionalProperties": {}}
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {"type": "object", "additionalProperties": {}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.1/entities:fetchdata": {
+      "post": {
+        "tags": ["Entity"],
+        "summary": "Returns various types of entity data",
+        "description": "Requires View permission. Fetch data for entity id list and specify what data to include (objects).",
+        "operationId": "FetchData",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/FetchObjectsModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/FetchObjectsModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/FetchObjectsModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/FetchObjectsModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/EntityDataModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/EntityDataModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/EntityDataModel"}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities:upsert": {
+      "post": {
+        "tags": ["Entity"],
+        "summary": "Insert or update entities and links",
+        "description": "Requires View, either AddEntity or CopyEntity, and UpdateEntity permissions. Links require AddLink and/or DeleteLink permissions. Segment requires ChangeEntitySegment permission or segment membership.",
+        "operationId": "Upsert",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/EntityUpsertDataModel"}
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/EntityUpsertDataModel"}
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/EntityUpsertDataModel"}
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/EntityUpsertDataModel"}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/UpsertResponseModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/UpsertResponseModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/UpsertResponseModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/summary": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns a read only entity summary",
+        "description": "Requires View permission.",
+        "operationId": "GetEntitySummary",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}": {
+      "delete": {
+        "tags": ["Entity"],
+        "summary": "Delete an entity",
+        "description": "Requires View and DeleteEntity permissions.",
+        "operationId": "DeleteEntity",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.1/entities:createnew": {
+      "post": {
+        "tags": ["Entity"],
+        "summary": "Create a new entity",
+        "description": "Requires View, and either AddEntity or CopyEntity permissions. Segment requires ChangeEntitySegment permission or membership. Omitting segmentId in multi-segment environment recommended.",
+        "operationId": "CreateEntity",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/EntityCreationModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/EntityCreationModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/EntityCreationModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/EntityCreationModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities:getempty": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns an entity creation model",
+        "description": "Requires View permission. fieldValues array contains all fields required to create entity.",
+        "operationId": "GetEmptyEntity",
+        "parameters": [
+          {
+            "name": "entityTypeId",
+            "in": "query",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "fieldSetId",
+            "in": "query",
+            "description": "optional",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "allFields",
+            "in": "query",
+            "description": "optional, include all fields",
+            "schema": {"type": "boolean"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/EntityCreationModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/EntityCreationModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/EntityCreationModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities:mapuniquevalues": {
+      "post": {
+        "tags": ["Entity"],
+        "summary": "Returns a dictionary of unique values and entity id's",
+        "description": "Requires View permission.",
+        "operationId": "MapUniqueValues",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/MapUniqueValuesModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/MapUniqueValuesModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/MapUniqueValuesModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/MapUniqueValuesModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {"type": "integer", "format": "int32"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {"type": "integer", "format": "int32"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {"type": "integer", "format": "int32"}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/completenessdetails": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns a completeness details",
+        "description": "Requires View permission.",
+        "operationId": "CompletenessDetails",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/CompletenessDetailsModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/CompletenessDetailsModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/CompletenessDetailsModel"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/summary/fields": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns a read only list of field values",
+        "description": "Requires View permission.",
+        "operationId": "GetFields",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "fieldTypeIds",
+            "in": "query",
+            "description": "optional, filter types using comma separated list",
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldSummaryModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldSummaryModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldSummaryModel"}
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/fieldvalues": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns a list of field values",
+        "description": "Requires View permission.",
+        "operationId": "GetFieldValues",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "fieldTypeIds",
+            "in": "query",
+            "description": "optional, filter types using comma separated list",
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldValueModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldValueModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldValueModel"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Entity"],
+        "summary": "Update field values",
+        "description": "Requires View and UpdateEntity permissions. List may be a subset of available field values.",
+        "operationId": "SetFieldValues",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/FieldValueModel"}
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/FieldValueModel"}
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/FieldValueModel"}
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/FieldValueModel"}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldValueModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldValueModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldValueModel"}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/fieldvalues/{fieldTypeId}/revisions": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Field value revisions",
+        "description": "Requires View permission.",
+        "operationId": "FieldHistory",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "fieldTypeId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldRevisionModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldRevisionModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/FieldRevisionModel"}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/fieldset": {
+      "put": {
+        "tags": ["Entity"],
+        "summary": "Set field set",
+        "description": "Requires View, UpdateEntity and ChangeFieldSet permissions. Set fieldSetId to null to remove field set.",
+        "operationId": "SetFieldSet",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/SetFieldSetModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/SetFieldSetModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/SetFieldSetModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/SetFieldSetModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/summary/specification": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns a read only list of specification field values",
+        "description": "Requires View permission.",
+        "operationId": "GetSpecificationSummary",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "specificationFieldTypeIds",
+            "in": "query",
+            "description": "optional, filter types using comma separated list",
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/SpecificationValueSummaryModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/SpecificationValueSummaryModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/SpecificationValueSummaryModel"}
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/specificationvalues": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns a list of specification field values",
+        "description": "Requires View permission.",
+        "operationId": "GetSpecificationValues",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "specificationFieldTypeIds",
+            "in": "query",
+            "description": "optional, filter types using comma separated list",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "mandatoryOnly",
+            "in": "query",
+            "description": "optional",
+            "schema": {"type": "boolean"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Entity"],
+        "summary": "Update specification field values",
+        "description": "Requires View and UpdateEntity permissions. List may be a subset of available specification values.",
+        "operationId": "UpdateSpecificationValues",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+              }
+            },
+            "text/json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/SpecificationValueModel"}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/specificationtemplate": {
+      "put": {
+        "tags": ["Entity"],
+        "summary": "Set specification template",
+        "description": "Requires View, DeleteLink and AddLink permissions. Set SpecificationId to null for removing template.",
+        "operationId": "SetSpecificationTemplate",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/SetSpecificationTemplateModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/SetSpecificationTemplateModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/SetSpecificationTemplateModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/SetSpecificationTemplateModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/segment": {
+      "put": {
+        "tags": ["Entity"],
+        "summary": "Set entity segment",
+        "description": "Requires View and ChangeEntitySegment permissions.",
+        "operationId": "SetSegment",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/SetSegmentModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/SetSegmentModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/SetSegmentModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/SetSegmentModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/EntitySummaryModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/links": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns a list of links",
+        "description": "Requires View permission.",
+        "operationId": "GetLinksForEntity",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "linkDirection",
+            "in": "query",
+            "description": "optional, \"inbound\" or \"outbound\"",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "linkTypeId",
+            "in": "query",
+            "description": "optional, filter by link type",
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/LinkModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/LinkModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/LinkModel"}
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/linksandfields": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns a bundle of the entity and all linked entities",
+        "description": "Requires View permission.",
+        "operationId": "GetEntityBundle",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          },
+          {
+            "name": "fieldTypeIds",
+            "in": "query",
+            "description": "optional, filter field types using comma separated list",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "linkDirection",
+            "in": "query",
+            "description": "optional, \"inbound\" or \"outbound\"",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "linkTypeId",
+            "in": "query",
+            "description": "optional, filter by link type",
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/EntityBundleModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/EntityBundleModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/EntityBundleModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/media": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns a read only list of media resources linked to the entity",
+        "description": "Requires View permission.",
+        "operationId": "GetAllMedia",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"type": "array", "items": {"type": "string"}}
+              },
+              "application/json": {
+                "schema": {"type": "array", "items": {"type": "string"}}
+              },
+              "text/json": {
+                "schema": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/mediadetails": {
+      "get": {
+        "tags": ["Entity"],
+        "summary": "Returns detailed media information for an entity",
+        "description": "Requires View permission. If Resource, returns own details. Otherwise returns details of outbound linked Resources.",
+        "operationId": "GetMediaDetails",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/MediaInfoModel"}
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/MediaInfoModel"}
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/MediaInfoModel"}
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/media:uploadbase64": {
+      "post": {
+        "tags": ["Entity"],
+        "summary": "Add Media",
+        "description": "Requires View, AddFile, UpdateEntity, either AddEntity or CopyEntity, and AddLink permissions. Upload base64 encoded file data. Enter entityId for entity to link created resource to.",
+        "operationId": "UploadBase64File",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/Base64FileModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/Base64FileModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/Base64FileModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/Base64FileModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/MediaInfoModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/MediaInfoModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/MediaInfoModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/media:uploadfromurl": {
+      "post": {
+        "tags": ["Entity"],
+        "summary": "Add Media",
+        "description": "Requires View, AddFile, UpdateEntity, either AddEntity or CopyEntity, and AddLink permissions. Enter entityId for entity to link created resource to. Filename will match URL unless overridden.",
+        "operationId": "UploadMediaFromUrl",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/UrlFileModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/UrlFileModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/UrlFileModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/UrlFileModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/MediaInfoModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/MediaInfoModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/MediaInfoModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1.0.0/entities/{entityId}/media:addexternalurl": {
+      "post": {
+        "tags": ["Entity"],
+        "summary": "Add external media url",
+        "description": "Requires View, AddFile, UpdateEntity, either AddEntity or CopyEntity, and AddLink permissions. Enter entityId for entity to link created resource to. External service must support standard inRiver image format suffixes.",
+        "operationId": "AddExternalUrl",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int32"}
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {"$ref": "#/components/schemas/ExeternalUrlFileModel"}
+            },
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/ExeternalUrlFileModel"}
+            },
+            "text/json": {
+              "schema": {"$ref": "#/components/schemas/ExeternalUrlFileModel"}
+            },
+            "application/*+json": {
+              "schema": {"$ref": "#/components/schemas/ExeternalUrlFileModel"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/MediaInfoModel"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/MediaInfoModel"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/MediaInfoModel"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              },
+              "text/json": {
+                "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```

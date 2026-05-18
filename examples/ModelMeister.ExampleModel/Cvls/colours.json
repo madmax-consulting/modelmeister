@@ -1,0 +1,6 @@
+[
+  { "key": "red",   "value": { "en-US": "Red",   "sv-SE": "Röd"   }, "index": 0 },
+  { "key": "blue",  "value": { "en-US": "Blue",  "sv-SE": "Blå"   }, "index": 1 },
+  { "key": "green", "value": { "en-US": "Green", "sv-SE": "Grön"  }, "index": 2 },
+  { "key": "amber", "value": "Amber", "index": 3, "deactivated": true }
+]

@@ -1,0 +1,44 @@
+<Project>
+
+  <ItemGroup>
+    <!-- inriver -->
+    <PackageVersion Include="inRiver.Remoting.iPMC" Version="8.21.0" />
+
+    <!-- CLI -->
+    <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <PackageVersion Include="Spectre.Console" Version="0.49.1" />
+
+    <!-- Resilience -->
+    <PackageVersion Include="Polly" Version="8.4.2" />
+
+    <!-- DI / Logging / Config -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
+
+    <!-- Roslyn (scaffolder code emission) -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />
+
+    <!-- XLSX translations (optional) -->
+    <PackageVersion Include="ClosedXML" Version="0.104.1" />
+
+    <!-- Tests -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="Shouldly" Version="4.2.1" />
+
+    <!-- UI (Avalonia 11) -->
+    <PackageVersion Include="Avalonia" Version="11.2.2" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.2.2" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.2.2" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.2.2" />
+    <PackageVersion Include="Avalonia.Controls.DataGrid" Version="11.2.2" />
+    <PackageVersion Include="Avalonia.Diagnostics" Version="11.2.2" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

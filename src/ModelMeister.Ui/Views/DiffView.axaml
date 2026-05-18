@@ -1,0 +1,218 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.DiffView"
+             x:DataType="vm:DiffViewModel">
+
+  <UserControl.Resources>
+    <conv:OperationToBrushConverter x:Key="OpBrush" />
+    <conv:KindToOperationConverter x:Key="KindToOp" />
+  </UserControl.Resources>
+
+  <c:PageShell Eyebrow="COMPARE"
+               Subtitle="Diff the loaded model against the connected environment"
+               IsBusy="{Binding Busy}">
+
+    <Grid ColumnDefinitions="2*,3*">
+
+      <Border Grid.Column="0" Classes="card flush" Padding="0" Margin="0,0,8,0">
+        <DockPanel>
+          <Border DockPanel.Dock="Top" Padding="14,10" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+              <TextBlock Grid.Column="0" Text="CHANGE TREE" Classes="h3" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Classes="ghost icon" Click="OnExpandAllClick"
+                      ToolTip.Tip="Expand all" Margin="4,0">
+                <Path Data="{DynamicResource IcoChevDown}" Width="11" Height="11" Stretch="Uniform"
+                      Stroke="{DynamicResource TextSec}" StrokeThickness="1.7" Fill="Transparent" />
+              </Button>
+              <Button Grid.Column="2" Classes="ghost icon" Click="OnCollapseAllClick"
+                      ToolTip.Tip="Collapse all">
+                <Path Data="{DynamicResource IcoChevUp}" Width="11" Height="11" Stretch="Uniform"
+                      Stroke="{DynamicResource TextSec}" StrokeThickness="1.7" Fill="Transparent" />
+              </Button>
+            </Grid>
+          </Border>
+          <Border DockPanel.Dock="Top" Padding="10,8" BorderBrush="{DynamicResource BorderFaint}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Path Grid.Column="0" Data="{DynamicResource IcoSearch}" Width="13" Height="13" Stretch="Uniform"
+                    Stroke="{DynamicResource TextDim}" StrokeThickness="1.5" Fill="Transparent"
+                    VerticalAlignment="Center" Margin="4,0,8,0" />
+              <TextBox Grid.Column="1" Text="{Binding TreeFilter, Mode=TwoWay}"
+                       Watermark="Filter changes…" MinHeight="28" />
+              <Button Grid.Column="2" Classes="ghost icon" Margin="4,0,0,0"
+                      Command="{Binding ClearTreeFilterCommand}"
+                      IsVisible="{Binding TreeFilter, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <Path Data="{DynamicResource IcoX}" Width="10" Height="10" Stretch="Uniform"
+                      Stroke="{DynamicResource TextSec}" StrokeThickness="1.7" Fill="Transparent" />
+              </Button>
+            </Grid>
+          </Border>
+          <TreeView Name="ChangeTree" ItemsSource="{Binding Tree}" BorderThickness="0"
+                    SelectedItem="{Binding SelectedTreeItem, Mode=TwoWay}">
+            <TreeView.DataTemplates>
+              <TreeDataTemplate ItemsSource="{Binding Operations}" DataType="vm:ConceptNode">
+                <TextBlock Text="{Binding Header}" FontWeight="SemiBold" FontSize="13">
+                  <TextBlock.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="Enable all in this concept"
+                                Command="{Binding #ChangeTree.((vm:DiffViewModel)DataContext).EnableNodeCommand}"
+                                CommandParameter="{Binding}" />
+                      <MenuItem Header="Disable all in this concept"
+                                Command="{Binding #ChangeTree.((vm:DiffViewModel)DataContext).DisableNodeCommand}"
+                                CommandParameter="{Binding}" />
+                    </ContextMenu>
+                  </TextBlock.ContextMenu>
+                </TextBlock>
+              </TreeDataTemplate>
+              <TreeDataTemplate ItemsSource="{Binding Items}" DataType="vm:OperationNode">
+                <Border Classes="pill"
+                        Background="Transparent"
+                        BorderBrush="{Binding Operation, Converter={StaticResource OpBrush}}"
+                        BorderThickness="1"
+                        HorizontalAlignment="Left">
+                  <Border.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="Enable all in this group"
+                                Command="{Binding #ChangeTree.((vm:DiffViewModel)DataContext).EnableNodeCommand}"
+                                CommandParameter="{Binding}" />
+                      <MenuItem Header="Disable all in this group"
+                                Command="{Binding #ChangeTree.((vm:DiffViewModel)DataContext).DisableNodeCommand}"
+                                CommandParameter="{Binding}" />
+                    </ContextMenu>
+                  </Border.ContextMenu>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Ellipse Width="6" Height="6"
+                             Fill="{Binding Operation, Converter={StaticResource OpBrush}}" />
+                    <TextBlock Text="{Binding Header}"
+                               Foreground="{Binding Operation, Converter={StaticResource OpBrush}}" />
+                  </StackPanel>
+                </Border>
+              </TreeDataTemplate>
+              <DataTemplate DataType="vm:ChangeRow">
+                <Grid ColumnDefinitions="Auto,*">
+                  <Grid.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="Enable change"
+                                Command="{Binding #ChangeTree.((vm:DiffViewModel)DataContext).EnableNodeCommand}"
+                                CommandParameter="{Binding}" />
+                      <MenuItem Header="Disable change"
+                                Command="{Binding #ChangeTree.((vm:DiffViewModel)DataContext).DisableNodeCommand}"
+                                CommandParameter="{Binding}" />
+                    </ContextMenu>
+                  </Grid.ContextMenu>
+                  <CheckBox Grid.Column="0" Margin="0,0,8,0"
+                            VerticalAlignment="Center"
+                            ToolTip.Tip="Include this change in the apply batch"
+                            IsChecked="{Binding IsExcluded, Converter={x:Static svc:Eq.BoolNot}, Mode=OneWay}"
+                            Click="OnIncludeToggle" />
+                  <TextBlock Grid.Column="1" Text="{Binding Description}"
+                             FontSize="12"
+                             Foreground="{DynamicResource TextPri}"
+                             TextDecorations="{Binding IsExcluded, Converter={x:Static svc:Eq.StrikeIfTrue}}"
+                             Opacity="{Binding IsExcluded, Converter={x:Static svc:Eq.OpacityFor}}" />
+                </Grid>
+              </DataTemplate>
+            </TreeView.DataTemplates>
+          </TreeView>
+        </DockPanel>
+      </Border>
+
+      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto">
+        <!-- Details pane -->
+        <Border Grid.Row="0" Classes="card flush" Padding="0" Margin="8,0,0,0"
+                IsVisible="{Binding HasDetails}">
+          <DockPanel>
+            <Border DockPanel.Dock="Top" Padding="14,10"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+              <StackPanel Spacing="2">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <Ellipse Width="8" Height="8" Fill="{DynamicResource DiffUpdateBrush}" />
+                  <TextBlock Text="CHANGE DETAILS" Classes="h3" />
+                </StackPanel>
+                <TextBlock Text="{Binding SelectedTitle}" FontSize="13" />
+                <TextBlock Text="{Binding SelectedSubtitle}" Classes="dim" />
+              </StackPanel>
+            </Border>
+            <Grid>
+              <TextBlock Text="No property-level deltas to show for this change."
+                         Classes="subtle"
+                         Margin="14"
+                         IsVisible="{Binding !HasDeltas}" />
+              <DataGrid ItemsSource="{Binding SelectedDeltas}" AutoGenerateColumns="False"
+                        IsReadOnly="True" BorderThickness="0"
+                        IsVisible="{Binding HasDeltas}">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Property"             Width="180" Binding="{Binding Property}" />
+                  <DataGridTextColumn Header="Live (current)"       Width="*"   Binding="{Binding LiveValue}" />
+                  <DataGridTextColumn Header="Code (will become)"   Width="*"   Binding="{Binding CodeValue}" />
+                </DataGrid.Columns>
+              </DataGrid>
+            </Grid>
+          </DockPanel>
+        </Border>
+
+        <!-- Fallback: full diff text -->
+        <Border Grid.Row="0" Classes="card flush" Padding="0" Margin="8,0,0,0"
+                IsVisible="{Binding !HasDetails}">
+          <DockPanel>
+            <Border DockPanel.Dock="Top" Padding="14,10"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+              <Grid ColumnDefinitions="*,Auto,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <Ellipse Width="8" Height="8" Fill="{DynamicResource Accent}" />
+                  <TextBlock Text="DIFF AS TEXT" Classes="h3" />
+                  <TextBlock Text="(click an item in the tree to inspect a single change)"
+                             Classes="subtle" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="ghost icon" Command="{Binding CopyDiffCommand}"
+                        ToolTip.Tip="Copy to clipboard" Margin="4,0">
+                  <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                        Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                </Button>
+                <Button Grid.Column="2" Classes="ghost icon" Command="{Binding ExportDiffCommand}"
+                        ToolTip.Tip="Save as file">
+                  <Path Data="{DynamicResource IcoDownload}" Width="13" Height="13" Stretch="Uniform"
+                        Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                </Button>
+              </Grid>
+            </Border>
+            <TextBox Text="{Binding DiffText, Mode=OneWay}" IsReadOnly="True"
+                     Classes="mono"
+                     Background="{DynamicResource DiffTextBackground}"
+                     BorderThickness="0"
+                     CornerRadius="0"
+                     Padding="14"
+                     AcceptsReturn="True" TextWrapping="NoWrap"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto" />
+          </DockPanel>
+        </Border>
+
+        <GridSplitter Grid.Row="1" Height="6" Margin="8,4,0,4" Background="Transparent" />
+
+        <Border Grid.Row="2" Classes="card flush" Padding="0" Margin="8,0,0,0" MinHeight="160">
+          <DockPanel>
+            <Border DockPanel.Dock="Top" Padding="14,10"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Ellipse Width="8" Height="8" Fill="{DynamicResource DiffWarnBrush}" />
+                <TextBlock Text="WARNINGS" Classes="h3" />
+              </StackPanel>
+            </Border>
+            <DataGrid ItemsSource="{Binding WarningRows}" AutoGenerateColumns="False"
+                      IsReadOnly="True" BorderThickness="0">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Code"    Width="80"  Binding="{Binding Code}" />
+                <DataGridTextColumn Header="Message" Width="*"   Binding="{Binding Message}" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </DockPanel>
+        </Border>
+      </Grid>
+    </Grid>
+
+  </c:PageShell>
+</UserControl>

@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:views="using:ModelMeister.Ui.Views"
+             x:Class="ModelMeister.Ui.Views.CompareExtensionsView"
+             x:DataType="vm:CompareExtensionsViewModel"
+             x:Name="Root">
+
+  <views:CompareLayoutView>
+    <views:CompareLayoutView.Body>
+      <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
+                SelectedItem="{Binding Selected, Mode=TwoWay}"
+                AutoGenerateColumns="False" SelectionMode="Single"
+                GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                ColumnHeaderHeight="62" Classes="filterable">
+        <DataGrid.Columns>
+          <DataGridTextColumn Binding="{Binding State}" Width="110">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Id}" Width="220">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Id" Path="Id" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding LeftStatus}" Width="100">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Left" Path="LeftStatus" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding RightStatus}" Width="100">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Right" Path="RightStatus" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Summary}" Width="*">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Detail" Path="Summary" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+    </views:CompareLayoutView.Body>
+  </views:CompareLayoutView>
+</UserControl>

@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ModelMeister.Ui.Controls.FilterableHeader"
+             x:Name="Root">
+
+  <StackPanel Spacing="3" Margin="-10,-5,-10,-5" Background="Transparent">
+    <Border Padding="10,5,10,3">
+      <ContentControl Content="{Binding #Root.Title}"
+                      FontWeight="SemiBold" FontSize="11"
+                      Foreground="{DynamicResource TextSec}" />
+    </Border>
+    <Border Padding="6,0,6,4">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox Grid.Column="0" Text="{Binding #Root.FilterText, Mode=TwoWay}"
+                 Watermark="Filter…" MinHeight="22" Padding="6,2" FontSize="11" />
+        <Button Grid.Column="1" Classes="ghost icon" Margin="2,0,0,0"
+                Click="OnClearClick" Padding="4"
+                IsVisible="{Binding #Root.HasFilter}"
+                ToolTip.Tip="Clear">
+          <Path Data="{DynamicResource IcoX}" Width="9" Height="9" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+        </Button>
+      </Grid>
+    </Border>
+  </StackPanel>
+</UserControl>

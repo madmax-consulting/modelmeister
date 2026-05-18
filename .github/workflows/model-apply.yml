@@ -1,0 +1,69 @@
+name: Apply model
+
+# Triggered manually (workflow_dispatch) or on a tag push. Applies the code-defined
+# model to the chosen environment. Production needs an environment-protected secret
+# and a reviewer (configure via Settings → Environments).
+#
+# Secrets required (per GitHub environment):
+#   INRIVER_URL, INRIVER_API_KEY
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target inriver environment
+        type: choice
+        required: true
+        options: [test, staging, production]
+      allow_deletes:
+        description: Allow deletion of concepts missing from code (dangerous)
+        type: boolean
+        default: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      INRIVER_URL: ${{ secrets.INRIVER_URL }}
+      INRIVER_API_KEY: ${{ secrets.INRIVER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build CLI
+        run: dotnet build ModelMeister.sln --configuration Release --nologo
+
+      - name: Dry-run first
+        run: |
+          dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
+            apply \
+            --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
+            --url "$INRIVER_URL" \
+            --yes --dry-run --no-color \
+            ${{ inputs.allow_deletes && '--allow-deletes' || '' }}
+
+      - name: Apply
+        run: |
+          dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
+            apply \
+            --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
+            --url "$INRIVER_URL" \
+            --yes --no-color \
+            ${{ inputs.allow_deletes && '--allow-deletes' || '' }}
+
+      - name: Verify (post-apply diff must be empty)
+        run: |
+          dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
+            diff \
+            --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
+            --url "$INRIVER_URL" \
+            --format json --no-color --fail-on-changes
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: modelmeister-receipts-${{ inputs.environment }}
+          path: .modelmeister/

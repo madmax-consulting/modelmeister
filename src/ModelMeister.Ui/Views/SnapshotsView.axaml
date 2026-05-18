@@ -1,0 +1,121 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.SnapshotsView"
+             x:DataType="vm:SnapshotsViewModel">
+
+  <UserControl.KeyBindings>
+    <!-- Delete key targets the currently-selected backup row. -->
+    <KeyBinding Gesture="Delete"
+                Command="{Binding DeleteCommand}"
+                CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
+  </UserControl.KeyBindings>
+
+  <c:PageShell Eyebrow="BACKUP LIBRARY"
+               Subtitle="Every scoped or full snapshot the app has captured, in one place"
+               Status="{Binding Summary}">
+    <c:PageShell.Actions>
+      <c:PageActions DataContext="{Binding}" />
+    </c:PageShell.Actions>
+
+    <Grid RowDefinitions="Auto,*">
+
+      <!-- Toolbar: page-level primary action (Capture) + scope filter -->
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*" Margin="0,0,0,8" VerticalAlignment="Center">
+        <Button Grid.Column="0" Classes="primary" Content="Capture full snapshot" Command="{Binding CaptureFullCommand}" />
+
+        <TextBlock Grid.Column="1" Text="Scope:" Classes="label" VerticalAlignment="Center" Margin="14,0,6,0" />
+        <ComboBox Grid.Column="2" SelectedItem="{Binding ScopeFilter, Mode=TwoWay}" MinWidth="140">
+          <ComboBoxItem Content="All" />
+          <ComboBoxItem Content="Full" />
+          <ComboBoxItem Content="Users" />
+          <ComboBoxItem Content="ServerSettings" />
+          <ComboBoxItem Content="Extensions" />
+          <ComboBoxItem Content="Cvls" />
+          <ComboBoxItem Content="Model" />
+        </ComboBox>
+      </Grid>
+
+      <!-- Backup library grid -->
+      <Border Grid.Row="1" Classes="card flush" Padding="0">
+        <Grid>
+          <!-- Empty state -->
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                      Spacing="6" Margin="0,40"
+                      IsVisible="{Binding Rows.Count, Converter={x:Static svc:Eq.IsZero}}">
+            <TextBlock Text="No backups yet" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
+            <TextBlock Text="Capture a full snapshot to populate the library." Classes="subtle" HorizontalAlignment="Center" />
+            <Button Content="Capture full snapshot" Command="{Binding CaptureFullCommand}" Classes="primary"
+                    HorizontalAlignment="Center" Margin="0,4,0,0" />
+          </StackPanel>
+        <DataGrid Name="BackupsGrid"
+                  ItemsSource="{Binding Rows}" IsReadOnly="True"
+                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
+                  HeadersVisibility="Column"
+                  ColumnHeaderHeight="62"
+                  Margin="0" BorderThickness="0" CornerRadius="0"
+                  DoubleTapped="OnRowDoubleTapped">
+          <DataGrid.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Open"
+                        Command="{Binding OpenInExplorerCommand}"
+                        CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
+              <MenuItem Header="Open folder"
+                        Command="{Binding OpenInExplorerCommand}"
+                        CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
+              <Separator />
+              <MenuItem Header="Copy path"
+                        Command="{Binding CopyPathCommand}"
+                        CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
+              <Separator />
+              <MenuItem Header="Delete"
+                        Command="{Binding DeleteCommand}"
+                        CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
+            </ContextMenu>
+          </DataGrid.ContextMenu>
+          <DataGrid.Columns>
+            <DataGridTextColumn Binding="{Binding Scope}" Width="120">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Scope" Path="Scope" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding EnvName}" Width="*">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Env" Path="EnvName" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding CapturedAt}" Width="160">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Captured" Path="CapturedAt" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding KindLabel}" Width="70">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Kind" Path="KindLabel" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding Size}" Width="90">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Size" Path="Size" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding FileName}" Width="*">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="File" Path="FileName" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTemplateColumn Header="" Width="180">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:BackupRow">
+                  <StackPanel Orientation="Horizontal" Spacing="3" Margin="4,0">
+                    <Button Classes="ghost" Padding="6,2" MinHeight="22"
+                            Content="Open"
+                            Command="{Binding $parent[DataGrid].((vm:SnapshotsViewModel)DataContext).OpenInExplorerCommand}"
+                            CommandParameter="{Binding}" />
+                    <Button Classes="ghost danger" Padding="6,2" MinHeight="22"
+                            Content="Delete"
+                            Command="{Binding $parent[DataGrid].((vm:SnapshotsViewModel)DataContext).DeleteCommand}"
+                            CommandParameter="{Binding}" />
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+        </Grid>
+      </Border>
+
+    </Grid>
+
+  </c:PageShell>
+</UserControl>

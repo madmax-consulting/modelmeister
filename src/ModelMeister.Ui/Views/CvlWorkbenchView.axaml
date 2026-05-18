@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.CvlWorkbenchView"
+             x:DataType="vm:CvlWorkbenchViewModel">
+
+  <c:PageShell Eyebrow="CVL WORKBENCH"
+               Subtitle="Controlled Value Lists on the connected environment"
+               Status="{Binding Status}"
+               IsBusy="{Binding Busy}">
+    <c:PageShell.Actions>
+      <c:PageActions DataContext="{Binding}" />
+    </c:PageShell.Actions>
+
+    <Border Classes="card flush" Padding="0">
+      <DataGrid Name="CvlGrid"
+                ItemsSource="{Binding Cvls}" IsReadOnly="True"
+                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                BorderThickness="0">
+        <DataGrid.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="Copy CVL id"
+                      Command="{Binding CopyCvlIdCommand}"
+                      CommandParameter="{Binding #CvlGrid.SelectedItem}" />
+          </ContextMenu>
+        </DataGrid.ContextMenu>
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Id"       Binding="{Binding Id}"       Width="*" />
+          <DataGridTextColumn Header="DataType" Binding="{Binding DataType}" Width="120" />
+          <DataGridTextColumn Header="Values"   Binding="{Binding ValueCount}" Width="90" />
+          <DataGridTextColumn Header="Parent"   Binding="{Binding ParentId}" Width="160" />
+          <DataGridCheckBoxColumn Header="Custom" Binding="{Binding CustomValueList}" Width="80" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </Border>
+
+  </c:PageShell>
+</UserControl>

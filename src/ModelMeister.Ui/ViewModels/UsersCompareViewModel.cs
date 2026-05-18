@@ -1,0 +1,326 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using ModelMeister.Inriver.Users;
+using ModelMeister.Ui.Models;
+using ModelMeister.Ui.Services;
+
+namespace ModelMeister.Ui.ViewModels;
+
+/// <summary>
+/// Compare users across two environments. Sequentially switches the active connection
+/// (<see cref="Shell.SwitchEnvAsync"/>) and pulls the user list via
+/// <see cref="Shell.ListUsersAsync"/>, then renders existence + email/role/active deltas.
+/// Read-only — provisioning lives on the single-env Manage view.
+/// </summary>
+public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
+{
+    readonly MainWindowViewModel _main;
+    readonly Shell _shell;
+    readonly IAppLog _log;
+    readonly IEnvironmentVault _vault;
+
+    public ObservableCollection<EnvironmentEntry> AvailableEnvs { get; } = [];
+    public ObservableCollection<UserCompareRow> Rows { get; } = [];
+    public ObservableCollection<ConceptDiffCount> Counts { get; } = [];
+
+    [ObservableProperty] private EnvironmentEntry? _leftEnv;
+    [ObservableProperty] private EnvironmentEntry? _rightEnv;
+    [ObservableProperty] private bool _busy;
+    [ObservableProperty] private string _status = "Pick two environments to compare users.";
+    [ObservableProperty] private string _summary = "";
+    [ObservableProperty] private bool _hasRows;
+    [ObservableProperty] private string _leftColumnHeader = "";
+    [ObservableProperty] private string _rightColumnHeader = "";
+    [ObservableProperty] private EnvironmentStage _leftColumnStage;
+    [ObservableProperty] private EnvironmentStage _rightColumnStage;
+
+    public IAsyncRelayCommand SaveCsvCommand { get; }
+    public IAsyncRelayCommand CopyMarkdownCommand { get; }
+    public IReadOnlyList<CompareAction> ExtraActions { get; } = Array.Empty<CompareAction>();
+
+    // Cached captures so per-row promote can look up the source UserSummary without re-querying.
+    private IReadOnlyList<UserSummary>? _leftCapture;
+    private IReadOnlyList<UserSummary>? _rightCapture;
+
+    public UsersCompareViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
+    {
+        _main = main;
+        _shell = shell;
+        _log = log;
+        _vault = main.Vault;
+        _vault.Changed += RefreshEnvList;
+        RefreshEnvList();
+
+        SaveCsvCommand = CompareCommands.MakeSaveCsv(
+            () => Rows,
+            BuildExportColumns,
+            suggestedFileName: "users-compare.csv",
+            log: _log,
+            logSource: "UsersCompare");
+
+        CopyMarkdownCommand = CompareCommands.MakeCopyMarkdown(
+            () => Rows,
+            BuildExportColumns,
+            log: _log,
+            logSource: "UsersCompare");
+    }
+
+    private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
+        new CompareExport.Column[]
+        {
+            new("State",    r => ((UserCompareRow)r).State),
+            new("Username", r => ((UserCompareRow)r).Username),
+            new("Email",    r => ((UserCompareRow)r).Email),
+            new("Roles",    r => ((UserCompareRow)r).Roles),
+            new("Detail",   r => ((UserCompareRow)r).Detail),
+        };
+
+    public void RefreshEnvList()
+    {
+        var lid = LeftEnv?.Id;
+        var rid = RightEnv?.Id;
+        AvailableEnvs.Clear();
+        foreach (var e in _vault.List().OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+            AvailableEnvs.Add(e);
+        if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
+        if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
+
+        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.Stage; }
+        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.Stage; }
+    }
+
+    partial void OnLeftEnvChanged(EnvironmentEntry? value)
+    {
+        LeftColumnHeader = value?.Name ?? "";
+        LeftColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        TryAutoCompare();
+    }
+    partial void OnRightEnvChanged(EnvironmentEntry? value)
+    {
+        RightColumnHeader = value?.Name ?? "";
+        RightColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        TryAutoCompare();
+    }
+
+    private void TryAutoCompare()
+    {
+        if (Busy) return;
+        if (LeftEnv is null || RightEnv is null) return;
+        if (LeftEnv.Id == RightEnv.Id)
+        {
+            Status = "Pick two different environments.";
+            Rows.Clear();
+            Counts.Clear();
+            HasRows = false;
+            Summary = "";
+            return;
+        }
+        _ = CompareAsync();
+    }
+
+    [RelayCommand]
+    public async Task CompareAsync()
+    {
+        if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
+        if (LeftEnv.Id == RightEnv.Id) { Status = "Pick two different environments."; return; }
+
+        var leftSecret = _vault.GetSecret(LeftEnv.Id);
+        var rightSecret = _vault.GetSecret(RightEnv.Id);
+        if (leftSecret is null || string.IsNullOrEmpty(leftSecret.ApiKey))
+        { Status = $"No API key on file for '{LeftEnv.Name}'."; return; }
+        if (rightSecret is null || string.IsNullOrEmpty(rightSecret.ApiKey))
+        { Status = $"No API key on file for '{RightEnv.Name}'."; return; }
+
+        Busy = true;
+        Rows.Clear();
+        Counts.Clear();
+        HasRows = false;
+        Summary = "";
+        try
+        {
+            Status = $"Connecting to '{LeftEnv.Name}'…";
+            await _shell.SwitchEnvAsync(LeftEnv, leftSecret).ConfigureAwait(true);
+            Status = $"Listing users in '{LeftEnv.Name}'…";
+            var leftUsers = await _shell.ListUsersAsync().ConfigureAwait(true);
+
+            Status = $"Connecting to '{RightEnv.Name}'…";
+            await _shell.SwitchEnvAsync(RightEnv, rightSecret).ConfigureAwait(true);
+            Status = $"Listing users in '{RightEnv.Name}'…";
+            var rightUsers = await _shell.ListUsersAsync().ConfigureAwait(true);
+
+            _leftCapture = leftUsers;
+            _rightCapture = rightUsers;
+            PopulateRows(leftUsers, rightUsers);
+
+            var diffCount = Rows.Count(r => r.State != "identical");
+            HasRows = diffCount > 0;
+            RebuildCounts();
+            Summary = diffCount == 0
+                ? $"No differences. ({Rows.Count} users compared.)"
+                : $"{diffCount} differences across {Rows.Count} users.";
+            Status = "Comparison complete.";
+            _log.Success("UsersCompare", $"Compared '{LeftEnv.Name}' ({leftUsers.Count}) vs '{RightEnv.Name}' ({rightUsers.Count}): {diffCount} differences.");
+        }
+        catch (Exception ex)
+        {
+            Status = "Compare failed: " + ex.Message;
+            _log.Error("UsersCompare", ex.Message);
+        }
+        finally { Busy = false; }
+    }
+
+    private void PopulateRows(IReadOnlyList<UserSummary> leftUsers, IReadOnlyList<UserSummary> rightUsers)
+    {
+        var leftMap = leftUsers.ToDictionary(u => u.Username, StringComparer.OrdinalIgnoreCase);
+        var rightMap = rightUsers.ToDictionary(u => u.Username, StringComparer.OrdinalIgnoreCase);
+
+        var leftName = LeftEnv?.Name ?? "left";
+        var rightName = RightEnv?.Name ?? "right";
+
+        var allNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        allNames.UnionWith(leftMap.Keys);
+        allNames.UnionWith(rightMap.Keys);
+
+        foreach (var name in allNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+        {
+            var l = leftMap.GetValueOrDefault(name);
+            var r = rightMap.GetValueOrDefault(name);
+
+            if (l is null)
+            {
+                // only-right: L→R would mean "delete on right", which Remoting cannot do. Hide it.
+                Rows.Add(new UserCompareRow(name, "only-right", r?.Email ?? "", string.Join(", ", r?.Roles ?? []),
+                    $"only in {rightName}",
+                    CanPromoteLeftToRight: false,
+                    CanPromoteRightToLeft: true));
+                continue;
+            }
+            if (r is null)
+            {
+                // only-left: R→L would mean "delete on left" — same Remoting limitation, hide it.
+                Rows.Add(new UserCompareRow(name, "only-left", l.Email ?? "", string.Join(", ", l.Roles),
+                    $"only in {leftName}",
+                    CanPromoteLeftToRight: true,
+                    CanPromoteRightToLeft: false));
+                continue;
+            }
+
+            var diffs = new List<string>();
+            if (!string.Equals(l.Email, r.Email, StringComparison.OrdinalIgnoreCase))
+                diffs.Add($"email: {l.Email ?? "—"} → {r.Email ?? "—"}");
+            if (l.Active != r.Active)
+                diffs.Add($"active: {l.Active} → {r.Active}");
+            var leftRoles = string.Join(",", l.Roles.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+            var rightRoles = string.Join(",", r.Roles.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+            if (!string.Equals(leftRoles, rightRoles, StringComparison.Ordinal))
+                diffs.Add($"roles: [{leftRoles}] → [{rightRoles}]");
+
+            var state = diffs.Count == 0 ? "identical" : "changed";
+            Rows.Add(new UserCompareRow(
+                name,
+                state,
+                l.Email ?? "",
+                leftRoles,
+                diffs.Count == 0 ? "" : string.Join(" · ", diffs),
+                CanPromoteLeftToRight: state == "changed",
+                CanPromoteRightToLeft: state == "changed"));
+        }
+    }
+
+    /// <summary>Promote <paramref name="row"/>'s left-side user into the right env.</summary>
+    [RelayCommand]
+    public Task ApplyLeftToRightAsync(UserCompareRow? row) =>
+        ApplyUserAsync(row, sourceFromLeft: true);
+
+    /// <summary>Promote <paramref name="row"/>'s right-side user into the left env.</summary>
+    [RelayCommand]
+    public Task ApplyRightToLeftAsync(UserCompareRow? row) =>
+        ApplyUserAsync(row, sourceFromLeft: false);
+
+    private async Task ApplyUserAsync(UserCompareRow? row, bool sourceFromLeft)
+    {
+        if (row is null) return;
+        if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
+        if (_leftCapture is null || _rightCapture is null) { Status = "Run a compare first."; return; }
+
+        var sourceList = sourceFromLeft ? _leftCapture : _rightCapture;
+        var targetEnv = sourceFromLeft ? RightEnv : LeftEnv;
+        var label = sourceFromLeft ? "left→right" : "right→left";
+
+        var source = sourceList.FirstOrDefault(u => string.Equals(u.Username, row.Username, StringComparison.OrdinalIgnoreCase));
+        if (source is null) { Status = $"Source user '{row.Username}' not in {(sourceFromLeft ? "left" : "right")} capture."; return; }
+
+        var targetSecret = _vault.GetSecret(targetEnv.Id);
+        if (targetSecret is null || string.IsNullOrEmpty(targetSecret.ApiKey))
+        { Status = $"No API key on file for target '{targetEnv.Name}'."; return; }
+
+        Busy = true;
+        Status = $"Promoting '{row.Username}' {label} → '{targetEnv.Name}'…";
+        try
+        {
+            if (_main.ConnectedEnv?.Id != targetEnv.Id)
+                await _shell.SwitchEnvAsync(targetEnv, targetSecret).ConfigureAwait(true);
+
+            var spec = new UserProvisioning.UserSpec(
+                Username: source.Username,
+                Email: source.Email,
+                FirstName: source.FirstName,
+                LastName: source.LastName,
+                Company: null,
+                Roles: source.Roles);
+            var result = await _shell.ProvisionUserAsync(spec, targetSecret, targetEnv).ConfigureAwait(true);
+
+            if (result.Errors.Count == 0)
+            {
+                _log.Success("UsersCompare",
+                    $"Promoted '{row.Username}' {label}: created={result.Created}, rolesAssigned={result.RolesAssigned}.");
+                Status = result.Created
+                    ? $"Created '{row.Username}' on '{targetEnv.Name}'."
+                    : $"Synced roles for '{row.Username}' on '{targetEnv.Name}' (email/name not updated by Remoting).";
+            }
+            else
+            {
+                Status = $"Promote '{row.Username}' had errors: {string.Join("; ", result.Errors)}";
+                _log.Error("UsersCompare", Status);
+            }
+        }
+        catch (Exception ex)
+        {
+            Status = "Promote failed: " + ex.Message;
+            _log.Error("UsersCompare", ex.Message);
+        }
+        finally { Busy = false; }
+
+        // Re-run the compare so rows reflect the new state.
+        await CompareAsync().ConfigureAwait(true);
+    }
+
+    private void RebuildCounts()
+    {
+        // Bucket by State, but suppress the "identical" bucket from the bar chart — it'd dwarf everything.
+        var max = 0;
+        var groups = Rows.Where(r => r.State != "identical")
+                         .GroupBy(r => r.State)
+                         .Select(g => (Title: g.Key, Count: g.Count()))
+                         .OrderByDescending(t => t.Count)
+                         .ToList();
+        foreach (var g in groups) if (g.Count > max) max = g.Count;
+        foreach (var g in groups)
+            Counts.Add(new ConceptDiffCount(g.Title, g.Count, max == 0 ? 0 : (double)g.Count / max));
+    }
+}
+
+public sealed record UserCompareRow(
+    string Username,
+    string State,
+    string Email,
+    string Roles,
+    string Detail,
+    bool CanPromoteLeftToRight,
+    bool CanPromoteRightToLeft);

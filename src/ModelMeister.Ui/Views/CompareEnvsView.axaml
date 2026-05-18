@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:views="using:ModelMeister.Ui.Views"
+             x:Class="ModelMeister.Ui.Views.CompareEnvsView"
+             x:DataType="vm:CompareEnvsViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter x:Key="StageText" />
+  </UserControl.Resources>
+
+  <views:CompareLayoutView>
+    <views:CompareLayoutView.Body>
+      <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
+                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                ColumnHeaderHeight="72" Classes="filterable">
+        <DataGrid.Columns>
+          <DataGridTextColumn Binding="{Binding Concept}" Width="140">
+            <DataGridTextColumn.Header>
+              <c:ChecklistFilterHeader Title="Concept" Path="Concept" />
+            </DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Cvl}" Width="180">
+            <DataGridTextColumn.Header>
+              <c:FilterableHeader Title="CVL" Path="Cvl" />
+            </DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Id}" Width="200">
+            <DataGridTextColumn.Header>
+              <c:FilterableHeader Title="Id" Path="Id" />
+            </DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Property}" Width="160">
+            <DataGridTextColumn.Header>
+              <c:FilterableHeader Title="Property" Path="Property" />
+            </DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="LeftValue">
+            <DataGridTemplateColumn.Header>
+              <c:FilterableHeader Path="LeftValue">
+                <c:FilterableHeader.Title>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).LeftColumnHeader}" />
+                    <Border Classes="pill"
+                            Background="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="5,0">
+                      <TextBlock Text="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </c:FilterableHeader.Title>
+              </c:FilterableHeader>
+            </DataGridTemplateColumn.Header>
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:DiffLineRow">
+                <TextBlock Text="{Binding LeftValue}" VerticalAlignment="Center" Margin="8,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="RightValue">
+            <DataGridTemplateColumn.Header>
+              <c:FilterableHeader Path="RightValue">
+                <c:FilterableHeader.Title>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).RightColumnHeader}" />
+                    <Border Classes="pill"
+                            Background="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="5,0">
+                      <TextBlock Text="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </c:FilterableHeader.Title>
+              </c:FilterableHeader>
+            </DataGridTemplateColumn.Header>
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:DiffLineRow">
+                <TextBlock Text="{Binding RightValue}" VerticalAlignment="Center" Margin="8,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+    </views:CompareLayoutView.Body>
+  </views:CompareLayoutView>
+</UserControl>

@@ -1,0 +1,395 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.DashboardView"
+             x:DataType="vm:DashboardViewModel">
+
+  <UserControl.Resources>
+    <conv:ConnectionStateToBrushConverter x:Key="ConnState" />
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter  x:Key="StageText" />
+    <conv:OperationToBrushConverter x:Key="OpBrush" />
+    <conv:FractionWidthConverter x:Key="FractionWidth" />
+    <conv:FractionToPixelConverter x:Key="FractionPx" />
+  </UserControl.Resources>
+
+  <c:PageShell Eyebrow="DASHBOARD"
+               Subtitle="Connection · model · pending changes · backup activity · quick actions">
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="14" Margin="0,4,0,0">
+
+        <!-- COLD START: shown only when nothing's connected and no model loaded -->
+        <Border Classes="cardAccent" IsVisible="{Binding ShowColdStart}">
+          <StackPanel Spacing="10">
+            <TextBlock Text="WELCOME" Classes="eyebrow" />
+            <TextBlock Text="ModelMeister" Classes="h1" />
+            <TextBlock Text="Start by adding an environment in the vault or loading a model project."
+                       Classes="subtle" MaxWidth="640" />
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,6,0,0">
+              <Button Classes="primary" Content="Add an environment" Command="{Binding GoEnvironmentsCommand}" />
+              <Button Content="Load a model" Command="{Binding GoModelCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- HERO: welcome + stage pill + quick CTAs + workflow donut -->
+        <Border Classes="cardAccent" IsVisible="{Binding !ShowColdStart}">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Text="READY" Classes="eyebrow" />
+              <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="{Binding WelcomeHeadline}" Classes="h1" />
+                <Border Classes="stage"
+                        IsVisible="{Binding IsConnected}"
+                        VerticalAlignment="Center"
+                        Margin="2,8,0,0"
+                        Background="{Binding ConnectedStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                        BorderBrush="{Binding ConnectedStage, Converter={StaticResource StageBrush}}">
+                  <TextBlock Text="{Binding ConnectedStage, Converter={StaticResource StageText}}"
+                             Foreground="{Binding ConnectedStage, Converter={StaticResource StageBrush}}" />
+                </Border>
+              </StackPanel>
+              <TextBlock Text="{Binding WelcomeSubtitle}" Classes="subtle" MaxWidth="640" TextWrapping="Wrap" />
+              <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                <Button Classes="primary" Content="Continue →" Command="{Binding ContinueCommand}" />
+                <Button Content="Compare now" Command="{Binding CompareNowCommand}" IsEnabled="{Binding HasModel}" />
+                <Button Content="Full backup" Command="{Binding FullBackupCommand}" IsEnabled="{Binding IsConnected}" />
+              </StackPanel>
+            </StackPanel>
+
+            <!-- Workflow progress donut -->
+            <Grid Grid.Column="1" Width="116" Height="116" VerticalAlignment="Center" Margin="16,0,0,0">
+              <Ellipse Stroke="{DynamicResource BorderFaint}" StrokeThickness="9" Width="96" Height="96" />
+              <Ellipse Stroke="{DynamicResource AccentBright}" StrokeThickness="9" Width="96" Height="96"
+                       IsVisible="{Binding IsWorkflowComplete}" />
+              <Path Stroke="{DynamicResource AccentBright}" StrokeThickness="9"
+                    StrokeLineCap="Round" StrokeJoin="Round"
+                    Width="96" Height="96"
+                    Data="{Binding WorkflowDonutGeometry}"
+                    IsVisible="{Binding HasPartialProgress}" />
+              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="-2">
+                <TextBlock Text="{Binding WorkflowDoneCount}" Classes="metricSm" HorizontalAlignment="Center" />
+                <TextBlock Text="of 5" Classes="dim" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Grid>
+          </Grid>
+        </Border>
+
+        <!-- MODEL AT A GLANCE: four metric tiles -->
+        <Grid ColumnDefinitions="*,*,*,*" IsVisible="{Binding !ShowColdStart}">
+          <Border Grid.Column="0" Classes="card" Margin="0,0,7,0">
+            <StackPanel Spacing="2">
+              <TextBlock Text="ENTITIES" Classes="eyebrow" />
+              <TextBlock Text="{Binding EntityTypeCount}" Classes="metric" />
+              <TextBlock Text="{Binding EntitiesSubLabel}" Classes="dim" />
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="1" Classes="card" Margin="7,0,7,0">
+            <StackPanel Spacing="2">
+              <TextBlock Text="FIELDS" Classes="eyebrow" />
+              <TextBlock Text="{Binding FieldCount}" Classes="metric" />
+              <TextBlock Text="{Binding FieldsSubLabel}" Classes="dim" />
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="2" Classes="card" Margin="7,0,7,0">
+            <StackPanel Spacing="2">
+              <TextBlock Text="CVLS" Classes="eyebrow" />
+              <TextBlock Text="{Binding CvlCount}" Classes="metric" />
+              <TextBlock Text="{Binding CvlsSubLabel}" Classes="dim" />
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="3" Classes="card" Margin="7,0,0,0">
+            <StackPanel Spacing="2">
+              <TextBlock Text="CATEGORIES" Classes="eyebrow" />
+              <TextBlock Text="{Binding CategoryCount}" Classes="metric" />
+              <TextBlock Text="{Binding CategoriesSubLabel}" Classes="dim" />
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- WORKFLOW STRIP: 5 segments + next-step pointer -->
+        <Border Classes="card" IsVisible="{Binding !ShowColdStart}">
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="WORKFLOW" Classes="eyebrow" />
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding WorkflowProgressLabel}"
+                       Classes="dim" HorizontalAlignment="Right" />
+
+            <ItemsControl Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,8"
+                          ItemsSource="{Binding WorkflowDots}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Rows="1" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:WorkflowDot">
+                  <StackPanel Spacing="6" Margin="3,0">
+                    <Grid Height="6">
+                      <Rectangle RadiusX="3" RadiusY="3" Fill="{DynamicResource BorderFaint}"
+                                 IsVisible="{Binding IsPending}" />
+                      <Rectangle RadiusX="3" RadiusY="3" Fill="{DynamicResource Accent}"
+                                 IsVisible="{Binding IsCurrent}" />
+                      <Rectangle RadiusX="3" RadiusY="3" Fill="{DynamicResource Success}"
+                                 IsVisible="{Binding IsDone}" />
+                    </Grid>
+                    <TextBlock Text="{Binding Label}" Classes="dim" FontSize="10"
+                               LetterSpacing="1.2" HorizontalAlignment="Center" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Next:" Classes="dim" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding NextStepLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
+            <Button Grid.Row="2" Grid.Column="1" Classes="ghost" Content="Continue →"
+                    Command="{Binding ContinueCommand}" HorizontalAlignment="Right" />
+          </Grid>
+        </Border>
+
+        <!-- PENDING CHANGES + BACKUP ACTIVITY -->
+        <Grid ColumnDefinitions="*,*" IsVisible="{Binding !ShowColdStart}">
+
+          <!-- PENDING CHANGES -->
+          <Border Grid.Column="0" Classes="card" Margin="0,0,7,0">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="PENDING CHANGES" Classes="eyebrow" />
+                <TextBlock Grid.Column="1" Text="{Binding PendingTotal}" Classes="metricSm" />
+              </Grid>
+
+              <!-- Empty state -->
+              <StackPanel Spacing="4" IsVisible="{Binding !HasPendingChanges}">
+                <TextBlock Text="Nothing pending." FontWeight="SemiBold" />
+                <TextBlock Text="Run Compare in the Model hub to populate this view." Classes="dim" />
+                <Button Classes="ghost" Content="Compare now →"
+                        Command="{Binding CompareNowCommand}"
+                        IsEnabled="{Binding HasModel}"
+                        HorizontalAlignment="Left" />
+              </StackPanel>
+
+              <!-- Populated state -->
+              <StackPanel Spacing="10" IsVisible="{Binding HasPendingChanges}">
+
+                <!-- By operation -->
+                <ItemsControl ItemsSource="{Binding PendingByOp}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:KindCount">
+                      <Grid ColumnDefinitions="80,*,40" Margin="0,2">
+                        <TextBlock Grid.Column="0" Text="{Binding Label}" Classes="subtle" VerticalAlignment="Center" />
+                        <Border Grid.Column="1" Background="{DynamicResource Surface1}"
+                                CornerRadius="4" Height="10" VerticalAlignment="Center" x:Name="OpTrack">
+                          <Rectangle HorizontalAlignment="Left" RadiusX="4" RadiusY="4" Height="10"
+                                     Fill="{Binding Op, Converter={StaticResource OpBrush}}">
+                            <Rectangle.Width>
+                              <MultiBinding Converter="{StaticResource FractionWidth}">
+                                <Binding Path="Fraction" />
+                                <Binding Path="Bounds.Width" ElementName="OpTrack" />
+                              </MultiBinding>
+                            </Rectangle.Width>
+                          </Rectangle>
+                        </Border>
+                        <TextBlock Grid.Column="2" Text="{Binding Count}" Classes="mono"
+                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Classes="divider" />
+
+                <!-- By concept -->
+                <TextBlock Text="BY CONCEPT" Classes="eyebrow" />
+                <ItemsControl ItemsSource="{Binding PendingByConcept}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DashConceptCount">
+                      <Grid ColumnDefinitions="120,*,40" Margin="0,2">
+                        <TextBlock Grid.Column="0" Text="{Binding Label}" Classes="subtle" VerticalAlignment="Center" />
+                        <Border Grid.Column="1" Background="{DynamicResource Surface1}"
+                                CornerRadius="4" Height="10" VerticalAlignment="Center" x:Name="ConceptTrack">
+                          <Rectangle HorizontalAlignment="Left" RadiusX="4" RadiusY="4" Height="10"
+                                     Fill="{DynamicResource Accent}">
+                            <Rectangle.Width>
+                              <MultiBinding Converter="{StaticResource FractionWidth}">
+                                <Binding Path="Fraction" />
+                                <Binding Path="Bounds.Width" ElementName="ConceptTrack" />
+                              </MultiBinding>
+                            </Rectangle.Width>
+                          </Rectangle>
+                        </Border>
+                        <TextBlock Grid.Column="2" Text="{Binding Count}" Classes="mono"
+                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="{Binding PendingOverflowLabel}" Classes="dim"
+                           IsVisible="{Binding HasPendingConceptOverflow}" />
+
+                <Button Classes="ghost" Content="Open Model hub →"
+                        Command="{Binding GoModelCommand}" HorizontalAlignment="Left" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- BACKUP ACTIVITY -->
+          <Border Grid.Column="1" Classes="card" Margin="7,0,0,0">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="BACKUP ACTIVITY" Classes="eyebrow" />
+                <TextBlock Grid.Column="1" Text="{Binding TotalBackupCount}" Classes="metricSm" />
+              </Grid>
+              <TextBlock Text="last 14 days" Classes="dim" />
+
+              <!-- Sparkline -->
+              <Grid Height="44" Margin="0,4,0,0">
+                <Rectangle VerticalAlignment="Bottom" Height="1" Fill="{DynamicResource BorderFaint}" />
+                <ItemsControl ItemsSource="{Binding BackupsLast14Days}"
+                              IsVisible="{Binding HasAnyBackupInWindow}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <UniformGrid Rows="1" Columns="14" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DayBucket">
+                      <Grid Margin="2,0">
+                        <Rectangle VerticalAlignment="Bottom" HorizontalAlignment="Stretch"
+                                   Fill="{DynamicResource AccentBright}"
+                                   RadiusX="2" RadiusY="2"
+                                   Height="{Binding NormalizedHeight,
+                                                    Converter={StaticResource FractionPx},
+                                                    ConverterParameter=36}" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="No backups in the last 14 days" Classes="dim"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding !HasAnyBackupInWindow}" />
+              </Grid>
+
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="Last:" Classes="dim" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding LastBackupAgo}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Text="·" Classes="dim" VerticalAlignment="Center"
+                           IsVisible="{Binding HasAnyBackup}" />
+                <TextBlock Text="{Binding LastBackup.Scope, FallbackValue=''}"
+                           Classes="dim" VerticalAlignment="Center" />
+                <TextBlock Text="·" Classes="dim" VerticalAlignment="Center"
+                           IsVisible="{Binding HasAnyBackup}" />
+                <TextBlock Text="{Binding LastBackup.EnvName, FallbackValue=''}"
+                           Classes="dim" VerticalAlignment="Center" />
+              </StackPanel>
+
+              <Border Classes="divider" Margin="0,4" />
+
+              <TextBlock Text="RECENT" Classes="eyebrow" />
+              <ItemsControl ItemsSource="{Binding RecentBackups}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,3">
+                      <Ellipse Grid.Column="0" Width="6" Height="6" Margin="0,0,8,0"
+                               Fill="{DynamicResource Accent}" VerticalAlignment="Center" />
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding Scope}" FontWeight="SemiBold" />
+                        <TextBlock Text="·" Classes="dim" />
+                        <TextBlock Text="{Binding EnvName}" Classes="dim" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Text="{Binding CapturedAtUtc, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                                 Classes="mono dim" VerticalAlignment="Center" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <Button Classes="ghost" Content="Open Backup hub →"
+                      Command="{Binding GoBackupCommand}" HorizontalAlignment="Left" />
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- QUICK ACTIONS -->
+        <Border Classes="card" IsVisible="{Binding !ShowColdStart}">
+          <StackPanel Spacing="8">
+            <TextBlock Text="QUICK ACTIONS" Classes="eyebrow" />
+            <UniformGrid Rows="2" Columns="3">
+              <Button Classes="primary" Content="Continue →" Margin="0,0,6,6"
+                      Command="{Binding ContinueCommand}" />
+              <Button Content="Compare now" Margin="6,0,6,6"
+                      Command="{Binding CompareNowCommand}" IsEnabled="{Binding HasModel}" />
+              <Button Content="Full backup now" Margin="6,0,0,6"
+                      Command="{Binding FullBackupCommand}" IsEnabled="{Binding IsConnected}" />
+              <Button Content="Validate" Margin="0,6,6,0"
+                      Command="{Binding ValidateCommand}" IsEnabled="{Binding HasModel}" />
+              <Button Content="Scaffold from env" Margin="6,6,6,0"
+                      Command="{Binding GoToolsCommand}" />
+              <Button Content="Open environments" Margin="6,6,0,0"
+                      Command="{Binding GoEnvironmentsCommand}" />
+            </UniformGrid>
+          </StackPanel>
+        </Border>
+
+        <!-- HUB TILES (always visible) -->
+        <TextBlock Text="HUBS" Classes="h3" Margin="2,8,0,2" />
+        <WrapPanel Orientation="Horizontal" ItemWidth="240" ItemHeight="90">
+          <Border Classes="card">
+            <Button Classes="ghost" Padding="0" Background="Transparent" Command="{Binding GoModelCommand}">
+              <StackPanel Spacing="2" HorizontalAlignment="Left">
+                <TextBlock Text="MODEL" Classes="eyebrow" />
+                <TextBlock Text="Load · compare · apply" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+          </Border>
+          <Border Classes="card">
+            <Button Classes="ghost" Padding="0" Background="Transparent" Command="{Binding GoEnvironmentsCommand}">
+              <StackPanel Spacing="2" HorizontalAlignment="Left">
+                <TextBlock Text="ENVIRONMENTS" Classes="eyebrow" />
+                <TextBlock Text="Vault · settings · extensions" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+          </Border>
+          <Border Classes="card">
+            <Button Classes="ghost" Padding="0" Background="Transparent" Command="{Binding GoUsersCommand}">
+              <StackPanel Spacing="2" HorizontalAlignment="Left">
+                <TextBlock Text="USERS" Classes="eyebrow" />
+                <TextBlock Text="Users · roles · provisioning" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+          </Border>
+          <Border Classes="card">
+            <Button Classes="ghost" Padding="0" Background="Transparent" Command="{Binding GoBackupCommand}">
+              <StackPanel Spacing="2" HorizontalAlignment="Left">
+                <TextBlock Text="BACKUP &amp; RESTORE" Classes="eyebrow" />
+                <TextBlock Text="Snapshots · receipts" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+          </Border>
+          <Border Classes="card">
+            <Button Classes="ghost" Padding="0" Background="Transparent" Command="{Binding GoToolsCommand}">
+              <StackPanel Spacing="2" HorizontalAlignment="Left">
+                <TextBlock Text="SCAFFOLDING" Classes="eyebrow" />
+                <TextBlock Text="Scaffolder · merge" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+          </Border>
+          <Border Classes="card">
+            <Button Classes="ghost" Padding="0" Background="Transparent" Command="{Binding GoSetupCommand}">
+              <StackPanel Spacing="2" HorizontalAlignment="Left">
+                <TextBlock Text="SETUP" Classes="eyebrow" />
+                <TextBlock Text="Theme · defaults · about" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+          </Border>
+        </WrapPanel>
+
+      </StackPanel>
+    </ScrollViewer>
+
+  </c:PageShell>
+</UserControl>

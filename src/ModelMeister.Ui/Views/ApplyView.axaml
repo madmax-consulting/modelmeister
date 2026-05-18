@@ -1,0 +1,175 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:apply="using:ModelMeister.Inriver.Apply"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.ApplyView"
+             x:DataType="vm:ApplyViewModel">
+
+  <UserControl.Resources>
+    <conv:BoolToBrushConverter x:Key="OkBrush" />
+  </UserControl.Resources>
+
+  <c:PageShell Eyebrow="APPLY"
+               Subtitle="Push the included changes to inriver — dry-run first, then commit"
+               Status="{Binding StatusMessage}"
+               IsBusy="{Binding Busy}">
+
+    <DockPanel LastChildFill="True">
+
+      <!-- Policy context strip — read-only echo of the policy set on Compare. -->
+      <Border DockPanel.Dock="Top" Classes="cardSubtle" Margin="0,0,0,12">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Path Data="{DynamicResource IcoShield}" Width="13" Height="13" Stretch="Uniform"
+                  Stroke="{DynamicResource Accent}" StrokeThickness="1.5" Fill="Transparent" />
+            <TextBlock Text="POLICY" Classes="h3" />
+          </StackPanel>
+          <TextBlock Grid.Column="1" Text="{Binding PolicySummary}" Classes="mono"
+                     Foreground="{DynamicResource TextSec}" Margin="14,0,0,0" VerticalAlignment="Center" />
+          <Button Grid.Column="2" Classes="ghost" Content="Edit on Compare" Command="{Binding GoToCompareCommand}" />
+        </Grid>
+      </Border>
+
+      <!-- Action card -->
+      <Border DockPanel.Dock="Top" Classes="card">
+        <StackPanel Spacing="14">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button Command="{Binding DryRunCommand}" IsEnabled="{Binding CanApply}"
+                    ToolTip.Tip="Walks the change set in the same order as a real apply and writes a receipt — but sends nothing to inriver. Use this to confirm what would be touched and in what order before committing.">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Path Data="{DynamicResource IcoSpark}" Width="13" Height="13" Stretch="Uniform"
+                      Fill="{DynamicResource Accent}" />
+                <TextBlock Text="Dry-run" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}" Classes="primary">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Path Data="{DynamicResource IcoApply}" Width="13" Height="13" Stretch="Uniform"
+                      Fill="{DynamicResource AccentButtonForeground}" />
+                <TextBlock Text="Apply changes" />
+              </StackPanel>
+            </Button>
+            <Button Content="Retry failed" Command="{Binding RetryFailedCommand}" Classes="ghost"
+                    IsEnabled="{Binding Failed, Converter={x:Static svc:Eq.GtZero}}" />
+            <Button Content="Cancel" Command="{Binding CancelCommand}" IsEnabled="{Binding Busy}" Classes="danger" />
+            <Border Width="1" Height="22" Background="{DynamicResource Border}" Margin="6,0" VerticalAlignment="Center" />
+            <Button Content="Open receipt" Command="{Binding OpenReceiptCommand}" Classes="ghost"
+                    IsEnabled="{Binding LastReceiptPath, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <Button Content="Reveal backup" Command="{Binding RevealBackupCommand}" Classes="ghost"
+                    IsEnabled="{Binding LastBackupPath, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <Button Content="Restore from this backup" Command="{Binding RestoreFromLastBackupCommand}" Classes="ghost"
+                    IsEnabled="{Binding LastBackupPath, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Load the backup as a model and route to Compare." />
+          </StackPanel>
+
+          <Border Classes="divider" />
+
+          <Grid ColumnDefinitions="*,*,*,*,Auto,Auto">
+            <StackPanel Grid.Column="0" Classes="stat">
+              <TextBlock Text="TOTAL" Classes="label" />
+              <TextBlock Text="{Binding TotalChanges}" Classes="metric" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Classes="stat">
+              <TextBlock Text="COMPLETED" Classes="label" />
+              <TextBlock Text="{Binding Completed}" Classes="metric" Foreground="{DynamicResource Accent}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Classes="stat">
+              <TextBlock Text="SUCCEEDED" Classes="label" />
+              <TextBlock Text="{Binding Succeeded}" Classes="metric" Foreground="{DynamicResource Success}" />
+            </StackPanel>
+            <StackPanel Grid.Column="3" Classes="stat">
+              <TextBlock Text="FAILED" Classes="label" />
+              <TextBlock Text="{Binding Failed}" Classes="metric" Foreground="{DynamicResource Danger}" />
+            </StackPanel>
+            <StackPanel Grid.Column="4" Classes="stat" VerticalAlignment="Center" Margin="16,0,0,0">
+              <TextBlock Text="RATE" Classes="label" />
+              <TextBlock Text="{Binding RatePerSec}" Classes="metricSm" Foreground="{DynamicResource TextSec}" />
+            </StackPanel>
+            <StackPanel Grid.Column="5" Classes="stat" VerticalAlignment="Center" Margin="16,0,0,0">
+              <TextBlock Text="ETA" Classes="label" />
+              <TextBlock Text="{Binding Eta}" Classes="metricSm" Foreground="{DynamicResource TextSec}" />
+            </StackPanel>
+          </Grid>
+
+          <ProgressBar Maximum="{Binding TotalChanges}" Value="{Binding Completed}" Height="8" />
+        </StackPanel>
+      </Border>
+
+      <!-- Log header + filter chips -->
+      <Border Classes="card flush" Padding="0" Margin="0,12,0,0">
+        <DockPanel>
+          <Border DockPanel.Dock="Top" Padding="14,10"
+                  BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+              <TextBlock Grid.Column="0" Text="EXECUTION LOG" Classes="h3" VerticalAlignment="Center" />
+              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                <ToggleButton Classes="filter"
+                              IsChecked="{Binding Filter, ConverterParameter=All, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}"
+                              Command="{Binding SetFilterCommand}" CommandParameter="All">
+                  <TextBlock Text="All" />
+                </ToggleButton>
+                <ToggleButton Classes="filter"
+                              IsChecked="{Binding Filter, ConverterParameter=Succeeded, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}"
+                              Command="{Binding SetFilterCommand}" CommandParameter="Succeeded">
+                  <TextBlock Text="Succeeded" />
+                </ToggleButton>
+                <ToggleButton Classes="filter"
+                              IsChecked="{Binding Filter, ConverterParameter=Failed, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}"
+                              Command="{Binding SetFilterCommand}" CommandParameter="Failed">
+                  <TextBlock Text="Failed" />
+                </ToggleButton>
+              </StackPanel>
+            </Grid>
+          </Border>
+          <DataGrid Name="LogGrid"
+                    ItemsSource="{Binding FilteredEntries}" AutoGenerateColumns="False" IsReadOnly="True"
+                    BorderThickness="0">
+            <DataGrid.RowDetailsTemplate>
+              <DataTemplate DataType="apply:ChangeReceiptEntry">
+                <Border Padding="20,10" Background="{DynamicResource Surface0}">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="ERROR DETAIL" Classes="h3" />
+                    <TextBox Text="{Binding Error, Mode=OneWay}" IsReadOnly="True" Classes="mono"
+                             AcceptsReturn="True" Height="120" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
+            <DataGrid.Columns>
+              <DataGridTemplateColumn Header="Status" Width="100">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Border Classes="pill"
+                            Background="Transparent"
+                            BorderBrush="{Binding Succeeded, Converter={StaticResource OkBrush}}"
+                            BorderThickness="1"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Margin="0,7,0,0">
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6"
+                                 Fill="{Binding Succeeded, Converter={StaticResource OkBrush}}" />
+                        <Panel>
+                          <TextBlock Text="OK"    Foreground="{Binding Succeeded, Converter={StaticResource OkBrush}}" IsVisible="{Binding Succeeded}" />
+                          <TextBlock Text="ERROR" Foreground="{Binding Succeeded, Converter={StaticResource OkBrush}}" IsVisible="{Binding !Succeeded}" />
+                        </Panel>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Kind"        Width="160" Binding="{Binding Kind}" />
+              <DataGridTextColumn Header="Description" Width="*"   Binding="{Binding Description}" />
+              <DataGridTextColumn Header="ms"          Width="80"  Binding="{Binding DurationMs}" />
+              <DataGridTextColumn Header="Error"       Width="300" Binding="{Binding Error}" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </DockPanel>
+      </Border>
+    </DockPanel>
+
+  </c:PageShell>
+</UserControl>

@@ -1,0 +1,65 @@
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/publish/
+**/AppPackages/
+
+# .NET
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Roslyn/NuGet cache
+.vs/
+.cr/
+*.nuget.props
+*.nuget.targets
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# Rider
+*.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs / coverage
+*.log
+*.coverage
+*.coveragexml
+TestResults/
+coverage*/
+
+# Local scratch
+tmp_*/
+scratch/
+*.local.json
+*.local.env
+
+# Secrets / per-user settings
+secrets.json
+appsettings.*.local.json
+*.pfx
+*.p12
+
+# Avalonia / WPF designer
+*.designer.cs.bak
+
+# JetBrains ReSharper
+_ReSharper.*/
+*.[Rr]e[Ss]harper
+
+# Generated scaffold outputs (project-local convention)
+GeneratedModel/

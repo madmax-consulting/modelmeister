@@ -1,0 +1,178 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.ExtensionsView"
+             x:DataType="vm:ExtensionsViewModel">
+
+  <c:PageShell Eyebrow="EXTENSIONS"
+               Subtitle="Extensions registered on the connected environment — settings, events, states"
+               Status="{Binding StatusMessage}"
+               IsBusy="{Binding Busy}">
+    <c:PageShell.Actions>
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Button Content="Latest events" Command="{Binding RefreshAllEventsCommand}"
+                Classes="ghost" IsEnabled="{Binding !Busy}" />
+        <c:PageActions DataContext="{Binding}" />
+      </StackPanel>
+    </c:PageShell.Actions>
+
+    <!-- Master/detail split inside a single card -->
+    <Border Classes="card flush" Padding="0">
+      <Grid ColumnDefinitions="*,1,1.4*">
+
+        <!-- Left: extensions list -->
+        <DataGrid Grid.Column="0"
+                  Name="ExtensionsGrid"
+                  ItemsSource="{Binding Items}"
+                  SelectedItem="{Binding Selected, Mode=TwoWay}"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  SelectionMode="Single"
+                  Margin="0" BorderThickness="0" CornerRadius="0">
+          <DataGrid.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Start"
+                        Command="{Binding StartCommand}"
+                        CommandParameter="{Binding #ExtensionsGrid.SelectedItem}" />
+              <MenuItem Header="Stop"
+                        Command="{Binding StopCommand}"
+                        CommandParameter="{Binding #ExtensionsGrid.SelectedItem}" />
+              <MenuItem Header="Run now (REST)"
+                        Command="{Binding RunCommand}"
+                        CommandParameter="{Binding #ExtensionsGrid.SelectedItem}" />
+              <Separator />
+              <MenuItem Header="View events"
+                        Command="{Binding ViewEventsCommand}"
+                        CommandParameter="{Binding #ExtensionsGrid.SelectedItem}" />
+              <MenuItem Header="Load states"
+                        Command="{Binding LoadStatesCommand}"
+                        CommandParameter="{Binding #ExtensionsGrid.SelectedItem}" />
+              <Separator />
+              <MenuItem Header="Copy id"
+                        Command="{Binding CopyExtensionIdCommand}"
+                        CommandParameter="{Binding #ExtensionsGrid.SelectedItem}" />
+              <MenuItem Header="Copy type"
+                        Command="{Binding CopyExtensionTypeCommand}"
+                        CommandParameter="{Binding #ExtensionsGrid.SelectedItem}" />
+            </ContextMenu>
+          </DataGrid.ContextMenu>
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Id"      Binding="{Binding Id}"       Width="*" />
+            <DataGridTextColumn Header="Type"    Binding="{Binding TypeName}" Width="*" />
+            <DataGridTextColumn Header="Status"  Binding="{Binding Status}"   Width="70" />
+            <DataGridTextColumn Header="Errs"    Binding="{Binding RecentErrorCount}" Width="50" />
+            <DataGridTemplateColumn Header="" Width="120">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:ExtensionRow">
+                  <StackPanel Orientation="Horizontal" Spacing="3" Margin="4,0">
+                    <Button Content="▶" Classes="ghost" Padding="6,2" MinHeight="22"
+                            ToolTip.Tip="Start"
+                            Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).StartCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding !IsStarted}" />
+                    <Button Content="◼" Classes="ghost danger" Padding="6,2" MinHeight="22"
+                            ToolTip.Tip="Stop"
+                            Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).StopCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding IsStarted}" />
+                    <Button Content="↻" Classes="ghost" Padding="6,2" MinHeight="22"
+                            ToolTip.Tip="Run (REST :run)"
+                            Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).RunCommand}"
+                            CommandParameter="{Binding}"
+                            IsEnabled="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).HasRestKey}" />
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Vertical divider -->
+        <Border Grid.Column="1" Background="{DynamicResource Border}" Width="1" />
+
+        <!-- Right: detail tabs (slim) -->
+        <TabControl Grid.Column="2" Padding="0">
+          <TabItem Header="Settings">
+            <Grid RowDefinitions="*,Auto" Margin="6">
+              <DataGrid Grid.Row="0" ItemsSource="{Binding Settings}" IsReadOnly="True"
+                        AutoGenerateColumns="False" SelectionMode="Single" BorderThickness="1">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Key"   Binding="{Binding Key}"   Width="200" />
+                  <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*" />
+                  <DataGridTemplateColumn Header="" Width="70">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate x:DataType="vm:ExtensionSettingRow">
+                        <Button Content="✕" Classes="ghost danger" Padding="6,2" MinHeight="22"
+                                ToolTip.Tip="Delete setting"
+                                Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).DeleteSettingCommand}"
+                                CommandParameter="{Binding}" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                </DataGrid.Columns>
+              </DataGrid>
+              <Grid Grid.Row="1" Margin="0,6,0,0" ColumnDefinitions="*,1.5*,Auto">
+                <TextBox Grid.Column="0" Text="{Binding NewSettingKey, Mode=TwoWay}" Watermark="key" />
+                <TextBox Grid.Column="1" Text="{Binding NewSettingValue, Mode=TwoWay}" Watermark="value" Margin="6,0,0,0" />
+                <Button Grid.Column="2" Content="Save" Command="{Binding AddSettingCommand}"
+                        Classes="primary" IsEnabled="{Binding !Busy}" Margin="6,0,0,0" />
+              </Grid>
+            </Grid>
+          </TabItem>
+
+          <TabItem Header="Events">
+            <DataGrid ItemsSource="{Binding Events}" IsReadOnly="True"
+                      AutoGenerateColumns="False" Margin="6" BorderThickness="1">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="UTC"     Binding="{Binding Utc}"      Width="160" />
+                <DataGridTextColumn Header="Level"   Binding="{Binding Severity}" Width="64" />
+                <DataGridTextColumn Header="Message" Binding="{Binding Message}"  Width="*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </TabItem>
+
+          <TabItem Header="States">
+            <Grid RowDefinitions="*,Auto" Margin="6">
+              <DataGrid Grid.Row="0" ItemsSource="{Binding States}" IsReadOnly="True"
+                        AutoGenerateColumns="False" BorderThickness="1">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Id"       Binding="{Binding Id}"          Width="50" />
+                  <DataGridTextColumn Header="Modified" Binding="{Binding ModifiedUtc}" Width="160" />
+                  <DataGridTextColumn Header="Data"     Binding="{Binding Data}"        Width="*" />
+                  <DataGridTemplateColumn Header="" Width="70">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate x:DataType="vm:ExtensionStateRowVm">
+                        <Button Content="✕" Classes="ghost danger" Padding="6,2" MinHeight="22"
+                                Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).DeleteStateCommand}"
+                                CommandParameter="{Binding}" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                </DataGrid.Columns>
+              </DataGrid>
+              <Grid Grid.Row="1" Margin="0,6,0,0" ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0" Text="{Binding NewStateData, Mode=TwoWay}" Watermark="state data" />
+                <Button Grid.Column="1" Content="Add" Command="{Binding AddStateCommand}"
+                        Classes="primary" IsEnabled="{Binding !Busy}" Margin="6,0,0,0" />
+              </Grid>
+            </Grid>
+          </TabItem>
+
+          <TabItem Header="Latest (all)">
+            <DataGrid ItemsSource="{Binding AllEvents}" IsReadOnly="True"
+                      AutoGenerateColumns="False" Margin="6" BorderThickness="1">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="UTC"       Binding="{Binding Utc}"         Width="160" />
+                <DataGridTextColumn Header="Extension" Binding="{Binding ConnectorId}" Width="160" />
+                <DataGridTextColumn Header="Lvl"       Binding="{Binding Severity}"    Width="56" />
+                <DataGridTextColumn Header="Message"   Binding="{Binding Message}"     Width="*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </TabItem>
+        </TabControl>
+      </Grid>
+    </Border>
+
+  </c:PageShell>
+</UserControl>

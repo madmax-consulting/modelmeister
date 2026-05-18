@@ -1,0 +1,83 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        xmlns:conv="using:ModelMeister.Ui.Converters"
+        x:Class="ModelMeister.Ui.Views.ConfirmApplyDialog"
+        x:DataType="vm:ConfirmApplyViewModel"
+        Title="Confirm apply"
+        Width="560" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Window.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter  x:Key="StageText" />
+  </Window.Resources>
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <StackPanel Margin="28,26,28,24" Spacing="14">
+
+      <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+        <Grid Width="44" Height="44">
+          <Border CornerRadius="12"
+                  Background="{DynamicResource PillErrBg}"
+                  BorderBrush="{DynamicResource Danger}"
+                  BorderThickness="1" />
+          <Path Data="{DynamicResource IcoApply}" Width="22" Height="22" Stretch="Uniform"
+                Fill="{DynamicResource Danger}"
+                HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+        <StackPanel Spacing="2">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="DESTRUCTIVE ACTION" Classes="eyebrow" Foreground="{DynamicResource Danger}" Margin="0" />
+            <Border Classes="stage"
+                    Background="{Binding Stage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                    BorderBrush="{Binding Stage, Converter={StaticResource StageBrush}}">
+              <TextBlock Text="{Binding Stage, Converter={StaticResource StageText}}"
+                         Foreground="{Binding Stage, Converter={StaticResource StageBrush}}" />
+            </Border>
+          </StackPanel>
+          <TextBlock Text="Apply changes" FontSize="20" FontWeight="Bold" />
+        </StackPanel>
+      </StackPanel>
+
+      <Border Classes="pill err" IsVisible="{Binding IsProd}" HorizontalAlignment="Left">
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Path Data="{DynamicResource IcoWarn}" Width="11" Height="11" Stretch="Uniform"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.7" Fill="Transparent" />
+          <TextBlock Text="PRODUCTION ENVIRONMENT" Foreground="{DynamicResource Danger}" />
+        </StackPanel>
+      </Border>
+
+      <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSec}" FontSize="13" LineHeight="20">
+        <Run Text="You are about to apply " />
+        <Run Text="{Binding ChangeCount, Mode=OneTime}" FontWeight="Bold" Foreground="{DynamicResource TextPri}" />
+        <Run Text=" change(s) to the connected environment. This cannot be undone automatically — a backup snapshot will be captured first." />
+      </TextBlock>
+
+      <Border Classes="cardSubtle">
+        <StackPanel Spacing="4">
+          <TextBlock Text="TARGET" Classes="h3" />
+          <TextBlock Text="{Binding EnvironmentUrl}" Classes="mono"
+                     FontSize="13" Foreground="{DynamicResource TextPri}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="cardSubtle"
+              IsVisible="{Binding PolicySummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <StackPanel Spacing="4">
+          <TextBlock Text="MERGE POLICY (in effect)" Classes="h3" />
+          <TextBlock Text="{Binding PolicySummary}" Classes="mono" FontSize="12"
+                     Foreground="{DynamicResource TextSec}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,8,0,0">
+        <Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
+        <Button Content="Apply"  Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <RootNamespace>ModelMeister.Ui</RootNamespace>
+    <Description>ModelMeister desktop UI (Avalonia 11, DPAPI vault — Windows only).</Description>
+    <Nullable>enable</Nullable>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <UseWindowsForms>false</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" />
+    <PackageReference Include="Avalonia.Diagnostics" Condition="'$(Configuration)' == 'Debug'" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ModelMeister.Model\ModelMeister.Model.csproj" />
+    <ProjectReference Include="..\ModelMeister.Inriver\ModelMeister.Inriver.csproj" />
+    <ProjectReference Include="..\ModelMeister.Scaffolder\ModelMeister.Scaffolder.csproj" />
+    <ProjectReference Include="..\ModelMeister.Loading\ModelMeister.Loading.csproj" />
+    <ProjectReference Include="..\ModelMeister.Excel\ModelMeister.Excel.csproj" />
+    <ProjectReference Include="..\ModelMeister.Rest\ModelMeister.Rest.csproj" />
+  </ItemGroup>
+
+</Project>

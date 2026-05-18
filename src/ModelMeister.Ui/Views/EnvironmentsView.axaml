@@ -1,0 +1,176 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             mc:Ignorable="d"
+             x:Class="ModelMeister.Ui.Views.EnvironmentsView"
+             x:DataType="vm:EnvironmentsViewModel">
+
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding AddCommand}" />
+    <KeyBinding Gesture="Ctrl+E" Command="{Binding EditCommand}" />
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
+  </UserControl.KeyBindings>
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter  x:Key="StageText" />
+  </UserControl.Resources>
+
+  <c:PageShell Eyebrow="ENVIRONMENTS"
+               Subtitle="Vault of inriver environments — add, edit, connect, set default"
+               Status="{Binding StatusMessage}">
+
+    <DockPanel LastChildFill="True">
+
+      <!-- Toolbar -->
+      <Border DockPanel.Dock="Top" Classes="card">
+        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+          <Button Grid.Column="0" Command="{Binding AddCommand}" Classes="primary">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Data="{DynamicResource IcoPlus}" Width="11" Height="11" Stretch="Uniform"
+                    Stroke="{DynamicResource AccentButtonForeground}" StrokeThickness="2"
+                    StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+              <TextBlock Text="New" />
+            </StackPanel>
+          </Button>
+          <Button Grid.Column="1" Content="Edit"   Command="{Binding EditCommand}" Margin="8,0,0,0"
+                  IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          <Button Grid.Column="2" Content="Delete" Command="{Binding DeleteCommand}" Classes="danger" Margin="8,0,0,0"
+                  IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+          <!-- Single Connect/Disconnect toggle on the right, label tracks IConnectionLifecycle.State. -->
+          <Button Grid.Column="4" Command="{Binding ConnectOrDisconnectCommand}"
+                  IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Ellipse Width="6" Height="6" Fill="{DynamicResource Success}" IsVisible="{Binding !IsConnected}" />
+              <Ellipse Width="6" Height="6" Fill="{DynamicResource TextDim}" IsVisible="{Binding IsConnected}" />
+              <TextBlock Text="Connect"    IsVisible="{Binding !IsConnected}" />
+              <TextBlock Text="Disconnect" IsVisible="{Binding IsConnected}" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+
+      <Border Classes="card flush" Padding="0" Margin="0,10,0,0">
+        <Grid>
+          <!-- Empty state: visible only when no envs have been added yet. -->
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                      Spacing="6" Margin="0,40"
+                      IsVisible="{Binding Rows.Count, Converter={x:Static svc:Eq.IsZero}}">
+            <TextBlock Text="No environments yet" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
+            <TextBlock Text="Click New to add your first environment." Classes="subtle" HorizontalAlignment="Center" />
+            <Button Content="New environment" Command="{Binding AddCommand}" Classes="primary"
+                    HorizontalAlignment="Center" Margin="0,4,0,0" />
+          </StackPanel>
+        <!-- Double-click on a row triggers Connect — handled at the UserControl level so it
+             survives row virtualization (see EnvironmentsView.axaml.cs). -->
+        <DataGrid Name="EnvGrid"
+                  ItemsSource="{Binding Rows}"
+                  SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  BorderThickness="0"
+                  ColumnHeaderHeight="62"
+                  LoadingRow="OnLoadingRow">
+          <DataGrid.Styles>
+            <Style Selector="DataGridRow.connected /template/ Rectangle#BackgroundRectangle">
+              <Setter Property="Fill" Value="#2226C465" />
+            </Style>
+            <Style Selector="DataGridRow.connected:pointerover /template/ Rectangle#BackgroundRectangle">
+              <Setter Property="Fill" Value="#3326C465" />
+            </Style>
+            <Style Selector="DataGridRow.connected:selected /template/ Rectangle#BackgroundRectangle">
+              <Setter Property="Fill" Value="#4426C465" />
+            </Style>
+          </DataGrid.Styles>
+          <DataGrid.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Edit"
+                        Command="{Binding EditCommand}"
+                        IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              <MenuItem Header="Delete"
+                        Command="{Binding DeleteCommand}"
+                        IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              <Separator />
+              <MenuItem Header="Connect / disconnect"
+                        Command="{Binding ConnectOrDisconnectCommand}"
+                        IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              <MenuItem Header="Copy remoting URL"
+                        Command="{Binding CopyRemotingUrlCommand}"
+                        IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              <Separator />
+              <MenuItem Header="Set as default"
+                        Command="{Binding SetDefaultCommand}"
+                        ToolTip.Tip="Auto-connect to this environment on startup"
+                        IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </ContextMenu>
+          </DataGrid.ContextMenu>
+          <DataGrid.Columns>
+            <DataGridTemplateColumn Header="" Width="40">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:EnvironmentRow">
+                  <TextBlock Text="{Binding DefaultMarker}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                             Foreground="{DynamicResource Accent}" FontSize="14" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Width="240" Binding="{Binding Name}">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Name" Path="Name" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTemplateColumn Width="100" SortMemberPath="Stage">
+              <DataGridTemplateColumn.Header><c:FilterableHeader Title="Stage" Path="Stage" /></DataGridTemplateColumn.Header>
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:EnvironmentRow">
+                  <Border Classes="stage"
+                          HorizontalAlignment="Left" VerticalAlignment="Center"
+                          Background="{Binding Stage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                          BorderBrush="{Binding Stage, Converter={StaticResource StageBrush}}">
+                    <TextBlock Text="{Binding Stage, Converter={StaticResource StageText}}"
+                               Foreground="{Binding Stage, Converter={StaticResource StageBrush}}" />
+                  </Border>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Width="180" Binding="{Binding LastUsed}">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Last used" Path="LastUsed" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTemplateColumn Header="Health" Width="180">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:EnvironmentRow">
+                  <Grid VerticalAlignment="Center">
+                    <Border Classes="pill warn"
+                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                            IsVisible="{Binding SecretMissing}">
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Path Data="{DynamicResource IcoWarn}" Width="11" Height="11" Stretch="Uniform"
+                              Stroke="{DynamicResource Warn}" StrokeThickness="1.5" Fill="Transparent" />
+                        <TextBlock Text="secret missing" Foreground="{DynamicResource Warn}" />
+                      </StackPanel>
+                    </Border>
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsTesting}"
+                                 Width="80" Height="3" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding TestResult}"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSec}"
+                               IsVisible="{Binding TestResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                  </Grid>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Width="*" Binding="{Binding Notes}">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Notes" Path="Notes" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+        </Grid>
+      </Border>
+    </DockPanel>
+
+  </c:PageShell>
+</UserControl>
