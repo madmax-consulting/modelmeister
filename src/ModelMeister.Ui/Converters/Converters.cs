@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
@@ -267,6 +269,21 @@ public sealed class FractionToPixelConverter : IValueConverter
 }
 
 /// <summary>Maps a <see cref="Services.LogLevel"/>-derived string to its themed brush.</summary>
+/// <summary>Joins an <see cref="IEnumerable"/> of strings with ", ". Used for the Roles column.</summary>
+public sealed class JoinStringsConverter : IValueConverter
+{
+    public static readonly JoinStringsConverter Instance = new();
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is null) return string.Empty;
+        if (value is IEnumerable<string> strs) return string.Join(", ", strs);
+        if (value is IEnumerable e) return string.Join(", ", e.Cast<object?>().Select(o => o?.ToString() ?? ""));
+        return value.ToString();
+    }
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 public sealed class LogLevelToBrushConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        x:Class="ModelMeister.Ui.Views.SimpleConfirmDialog"
+        x:DataType="vm:SimpleConfirmViewModel"
+        Title="{Binding Title}"
+        Width="460" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <StackPanel Margin="28,22,28,20" Spacing="12">
+
+      <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="{Binding Message}" TextWrapping="Wrap"
+                 Foreground="{DynamicResource TextSec}" FontSize="13" LineHeight="20" />
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+        <Button Content="{Binding CancelLabel}"  Command="{Binding CancelCommand}"  IsCancel="True" />
+        <Button Content="{Binding ConfirmLabel}" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

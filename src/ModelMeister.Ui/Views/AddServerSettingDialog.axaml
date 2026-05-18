@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        x:Class="ModelMeister.Ui.Views.AddServerSettingDialog"
+        x:DataType="vm:AddServerSettingViewModel"
+        Title="{Binding Title}"
+        Width="520" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <StackPanel Margin="28,26,28,24" Spacing="14">
+
+      <StackPanel Spacing="2">
+        <TextBlock Text="SERVER SETTING" Classes="eyebrow" />
+        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" />
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Key" Classes="label" />
+        <TextBox Text="{Binding Key, Mode=TwoWay}" Watermark="setting.key"
+                 IsReadOnly="{Binding IsEdit}" Classes="mono" />
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Value" Classes="label" />
+        <TextBox Text="{Binding Value, Mode=TwoWay}" Watermark="value (leave empty to clear)"
+                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Classes="mono" />
+      </StackPanel>
+
+      <TextBlock Text="{Binding Validation}" Foreground="{DynamicResource Danger}"
+                 IsVisible="{Binding Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+        <Button Content="Abort"  Command="{Binding AbortCommand}"   IsCancel="True" />
+        <Button Content="Create" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True"
+                IsVisible="{Binding !IsEdit}" />
+        <Button Content="Save"   Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True"
+                IsVisible="{Binding IsEdit}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

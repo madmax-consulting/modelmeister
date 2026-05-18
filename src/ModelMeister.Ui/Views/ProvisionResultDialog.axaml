@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        x:Class="ModelMeister.Ui.Views.ProvisionResultDialog"
+        x:DataType="vm:ProvisionResultViewModel"
+        Title="{Binding Title}"
+        Width="720" Height="520"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <DockPanel Margin="28,22,28,22" LastChildFill="True">
+
+      <!-- Header -->
+      <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,14">
+        <TextBlock Text="{Binding Eyebrow}" Classes="eyebrow" />
+        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" />
+      </StackPanel>
+
+      <!-- Summary chips -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,*,*,*" Margin="0,0,0,14">
+        <Border Grid.Column="0" Classes="cardSubtle" Margin="0,0,4,0">
+          <StackPanel Spacing="2" Margin="10,8">
+            <TextBlock Text="{Binding HeadlineCreated}" FontWeight="SemiBold" FontSize="14" />
+            <TextBlock Text="users" Classes="dim" FontSize="11" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="1" Classes="cardSubtle" Margin="4,0,4,0">
+          <StackPanel Spacing="2" Margin="10,8">
+            <TextBlock Text="{Binding HeadlineUpdated}" FontWeight="SemiBold" FontSize="14" />
+            <TextBlock Text="users" Classes="dim" FontSize="11" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="2" Classes="cardSubtle" Margin="4,0,4,0">
+          <StackPanel Spacing="2" Margin="10,8">
+            <TextBlock FontWeight="SemiBold" FontSize="14">
+              <Run Text="{Binding Warnings, Mode=OneTime}" />
+              <Run Text="warnings" />
+            </TextBlock>
+            <TextBlock Text="non-fatal" Classes="dim" FontSize="11" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="3" Classes="cardSubtle" Margin="4,0,0,0">
+          <StackPanel Spacing="2" Margin="10,8">
+            <TextBlock FontWeight="SemiBold" FontSize="14"
+                       Foreground="{DynamicResource Danger}">
+              <Run Text="{Binding Errors, Mode=OneTime}" />
+              <Run Text="errors" />
+            </TextBlock>
+            <TextBlock Text="failed rows" Classes="dim" FontSize="11" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Footer -->
+      <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                  HorizontalAlignment="Right" Spacing="10" Margin="0,12,0,0">
+        <Button Content="Close" Command="{Binding CloseCommand}" Classes="primary"
+                IsDefault="True" IsCancel="True" />
+      </StackPanel>
+
+      <!-- Row-by-row table -->
+      <Border Classes="card flush" Padding="0">
+        <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
+                  AutoGenerateColumns="False" SelectionMode="Single"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                  BorderThickness="0">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="200" />
+            <DataGridTextColumn Header="Outcome"  Binding="{Binding Outcome}"  Width="120" />
+            <DataGridTextColumn Header="Detail"   Binding="{Binding Detail}"   Width="*" />
+          </DataGrid.Columns>
+        </DataGrid>
+      </Border>
+
+    </DockPanel>
+  </Border>
+</Window>

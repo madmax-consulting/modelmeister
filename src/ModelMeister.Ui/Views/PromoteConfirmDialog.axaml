@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        x:Class="ModelMeister.Ui.Views.PromoteConfirmDialog"
+        x:DataType="vm:PromoteConfirmViewModel"
+        Title="Promote"
+        Width="540" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <StackPanel Margin="28,26,28,24" Spacing="14">
+
+      <StackPanel Spacing="2">
+        <TextBlock Text="PROMOTE" Classes="eyebrow" />
+        <TextBlock Text="{Binding Headline}" FontSize="20" FontWeight="Bold" />
+      </StackPanel>
+
+      <Border Classes="pill err" IsVisible="{Binding IsProd}" HorizontalAlignment="Left">
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Path Data="{DynamicResource IcoWarn}" Width="11" Height="11" Stretch="Uniform"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.7" Fill="Transparent" />
+          <TextBlock Text="PRODUCTION TARGET" Foreground="{DynamicResource Danger}" />
+        </StackPanel>
+      </Border>
+
+      <TextBlock Text="{Binding Detail}" TextWrapping="Wrap"
+                 Foreground="{DynamicResource TextSec}" FontSize="13" LineHeight="20" />
+
+      <Border Classes="cardSubtle">
+        <StackPanel Spacing="4" Margin="10,8">
+          <Grid ColumnDefinitions="100,*">
+            <TextBlock Grid.Column="0" Text="From" Classes="dim" />
+            <TextBlock Grid.Column="1" Text="{Binding SourceEnv}" Classes="mono" />
+          </Grid>
+          <Grid ColumnDefinitions="100,*">
+            <TextBlock Grid.Column="0" Text="To" Classes="dim" />
+            <TextBlock Grid.Column="1" Text="{Binding TargetEnv}" Classes="mono" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+        <Button Content="Abort"    Command="{Binding AbortCommand}"    IsCancel="True" />
+        <Button Content="Continue" Command="{Binding ContinueCommand}" Classes="primary" IsDefault="True" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

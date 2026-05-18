@@ -37,6 +37,32 @@ internal static class DialogHost
         return ok ? vm : null;
     }
 
+    /// <summary>Show the Add/Edit server-setting dialog. Returns the populated VM on Confirm, else <c>null</c>.</summary>
+    public static async Task<AddServerSettingViewModel?> AddServerSettingAsync(string? initialKey = null, string? initialValue = null, bool isEdit = false)
+    {
+        var vm = new AddServerSettingViewModel(initialKey, initialValue, isEdit);
+        var ok = await ShowDialogAsync<AddServerSettingDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
+    /// <summary>Show the per-row promote confirmation. Returns <c>true</c> when the user clicks Continue.</summary>
+    public static Task<bool> ConfirmPromoteAsync(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string targetStage)
+    {
+        var vm = new PromoteConfirmViewModel(conceptLabel, itemLabel, sourceEnv, targetEnv, targetStage);
+        return ShowDialogAsync<PromoteConfirmDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
+    }
+
+    /// <summary>Show the post-import / post-dry-run result summary. Always returns once the user closes it.</summary>
+    public static Task<bool> ShowProvisionResultAsync(ProvisionResultViewModel vm)
+        => ShowDialogAsync<ProvisionResultDialog>(vm, dlg => vm.Closed += () => dlg.Close(true));
+
+    /// <summary>Simple yes/no confirmation. Returns <c>true</c> on the affirmative button.</summary>
+    public static async Task<bool> ConfirmAsync(string title, string message, string confirmLabel = "Continue", string cancelLabel = "Abort")
+    {
+        var vm = new SimpleConfirmViewModel(title, message, confirmLabel, cancelLabel);
+        return await ShowDialogAsync<SimpleConfirmDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+    }
+
     private static async Task<bool> ShowDialogAsync<TDialog>(object dataContext, Action<Window> wire)
         where TDialog : Window, new()
     {

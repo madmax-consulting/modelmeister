@@ -152,7 +152,10 @@
           <StreamGeometry x:Key="IcoWarn">M12 3 L22 20 H2 Z M12 9 V14 M11 16 H13 V18 H11 Z</StreamGeometry>
           <StreamGeometry x:Key="IcoError">M12 2 A10 10 0 1 1 12 22 A10 10 0 1 1 12 2 Z M8 8 L16 16 M16 8 L8 16</StreamGeometry>
           <StreamGeometry x:Key="IcoCopy">M8 4 H18 V18 H8 Z M4 8 V22 H16 V20 H6 V8 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoEdit">M14 4 L20 10 L9 21 H3 V15 Z M13 5 L19 11</StreamGeometry>
           <StreamGeometry x:Key="IcoDownload">M12 3 V14 M7 10 L12 15 L17 10 M4 18 H20 V21 H4 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoTemplate">M6 3 H18 V21 H6 Z M9 8 H15 M9 12 H15 M9 16 H13</StreamGeometry>
+          <StreamGeometry x:Key="IcoUserImport">M9 4 A3 3 0 1 1 9 10 A3 3 0 1 1 9 4 Z M3 21 V19 C3 16.5 5 14 9 14 H12 M16 14 L20 18 L16 22 M12 18 H20</StreamGeometry>
           <StreamGeometry x:Key="IcoFilter">M3 5 H21 L14 13 V20 L10 18 V13 Z</StreamGeometry>
           <StreamGeometry x:Key="IcoChevDown">M6 9 L12 15 L18 9</StreamGeometry>
           <StreamGeometry x:Key="IcoChevRight">M9 6 L15 12 L9 18</StreamGeometry>
@@ -312,7 +315,10 @@
           <StreamGeometry x:Key="IcoWarn">M12 3 L22 20 H2 Z M12 9 V14 M11 16 H13 V18 H11 Z</StreamGeometry>
           <StreamGeometry x:Key="IcoError">M12 2 A10 10 0 1 1 12 22 A10 10 0 1 1 12 2 Z M8 8 L16 16 M16 8 L8 16</StreamGeometry>
           <StreamGeometry x:Key="IcoCopy">M8 4 H18 V18 H8 Z M4 8 V22 H16 V20 H6 V8 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoEdit">M14 4 L20 10 L9 21 H3 V15 Z M13 5 L19 11</StreamGeometry>
           <StreamGeometry x:Key="IcoDownload">M12 3 V14 M7 10 L12 15 L17 10 M4 18 H20 V21 H4 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoTemplate">M6 3 H18 V21 H6 Z M9 8 H15 M9 12 H15 M9 16 H13</StreamGeometry>
+          <StreamGeometry x:Key="IcoUserImport">M9 4 A3 3 0 1 1 9 10 A3 3 0 1 1 9 4 Z M3 21 V19 C3 16.5 5 14 9 14 H12 M16 14 L20 18 L16 22 M12 18 H20</StreamGeometry>
           <StreamGeometry x:Key="IcoFilter">M3 5 H21 L14 13 V20 L10 18 V13 Z</StreamGeometry>
           <StreamGeometry x:Key="IcoChevDown">M6 9 L12 15 L18 9</StreamGeometry>
           <StreamGeometry x:Key="IcoChevRight">M9 6 L15 12 L9 18</StreamGeometry>
