@@ -35,6 +35,7 @@ public partial class ToolsViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(MergeCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExcelScaffoldCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExcelExportCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     private bool _busy;
 
@@ -99,6 +100,27 @@ public partial class ToolsViewModel : ViewModelBase
     /// <summary>Result summary for the export action.</summary>
     [ObservableProperty] private string _exportResultText = "";
 
+    // ----- Excel export (any source → workbook). Per-page PageActions still own slice exports;
+    // this tab is for "the whole model, from env/JSON/code project, into a filterable workbook". -----
+    /// <summary>True when the env radio is selected.</summary>
+    [ObservableProperty] private bool _excelExportIsEnv;
+    /// <summary>True when the JSON-file radio is selected (default).</summary>
+    [ObservableProperty] private bool _excelExportIsJson = true;
+    /// <summary>True when the model-project radio is selected.</summary>
+    [ObservableProperty] private bool _excelExportIsModel;
+    /// <summary>Source JSON file path (used when ExcelExportIsJson).</summary>
+    [ObservableProperty] private string? _excelExportJsonPath;
+    /// <summary>Source model project / dll / dir path (used when ExcelExportIsModel).</summary>
+    [ObservableProperty] private string? _excelExportProjectPath;
+    /// <summary>Destination xlsx path.</summary>
+    [ObservableProperty] private string? _excelExportOutputPath;
+    /// <summary>Open the xlsx in the OS default handler after a successful export.</summary>
+    [ObservableProperty] private bool _excelExportOpenAfter = true;
+
+    partial void OnExcelExportIsEnvChanged(bool value)   { if (value) { ExcelExportIsJson = false; ExcelExportIsModel = false; } }
+    partial void OnExcelExportIsJsonChanged(bool value)  { if (value) { ExcelExportIsEnv = false; ExcelExportIsModel = false; } }
+    partial void OnExcelExportIsModelChanged(bool value) { if (value) { ExcelExportIsEnv = false; ExcelExportIsJson = false; } }
+
     // ----- Excel scaffold (workbook → typed C# project). Excel export of feature data lives
     // on each feature page via PageActions; a "capture full env" is in the Snapshots hub. -----
     /// <summary>Source Excel workbook for an Excel-driven scaffold.</summary>
@@ -143,6 +165,9 @@ public partial class ToolsViewModel : ViewModelBase
     [RelayCommand] private async Task BrowseExportOutAsync()       => ExportOutputPath = await PickSaveAsync("snapshot JSON", "snapshot.json", "json");
     [RelayCommand] private async Task BrowseExcelScaffoldXlsxAsync() => ExcelScaffoldPath = await PickFileAsync("Excel workbook", "*.xlsx");
     [RelayCommand] private async Task BrowseExcelScaffoldOutAsync()  => ExcelScaffoldOutputDir = await PickFolderAsync("Excel scaffold output directory");
+    [RelayCommand] private async Task BrowseExcelExportJsonAsync()    => ExcelExportJsonPath = await PickFileAsync("inriver JSON export", "*.json");
+    [RelayCommand] private async Task BrowseExcelExportProjectAsync() => ExcelExportProjectPath = await PickFileAsync("Model csproj", "*.csproj");
+    [RelayCommand] private async Task BrowseExcelExportOutAsync()     => ExcelExportOutputPath = await PickSaveAsync("workbook", "model.xlsx", "xlsx");
 
     [RelayCommand(CanExecute = nameof(BusyNow))] private void Cancel() => _cts?.Cancel();
 
@@ -369,6 +394,66 @@ public partial class ToolsViewModel : ViewModelBase
         }
         catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
         catch (Exception ex) { StatusMessage = "Excel scaffold failed: " + ex.Message; _log.Error("Excel", ex.Message, ex); }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Export the whole model to a styled, filterable Excel workbook from one of three sources.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    private async Task ExcelExportAsync()
+    {
+        if (string.IsNullOrEmpty(ExcelExportOutputPath))
+        {
+            StatusMessage = "Pick an output .xlsx path.";
+            return;
+        }
+
+        Busy = true;
+        _cts = new CancellationTokenSource();
+        try
+        {
+            if (ExcelExportIsEnv)
+            {
+                if (!_main.IsConnected)
+                {
+                    StatusMessage = "Connect to an environment first.";
+                    return;
+                }
+                var live = await _shell.CaptureSnapshotAsync(_cts.Token).ConfigureAwait(true);
+                await _shell.SaveSnapshotAsExcelAsync(live, ExcelExportOutputPath!, _cts.Token).ConfigureAwait(true);
+            }
+            else if (ExcelExportIsJson)
+            {
+                if (string.IsNullOrEmpty(ExcelExportJsonPath))
+                {
+                    StatusMessage = "Pick a source JSON file.";
+                    return;
+                }
+                await _shell.SaveJsonAsExcelAsync(ExcelExportJsonPath!, ExcelExportOutputPath!, _cts.Token).ConfigureAwait(true);
+            }
+            else if (ExcelExportIsModel)
+            {
+                if (string.IsNullOrEmpty(ExcelExportProjectPath))
+                {
+                    StatusMessage = "Pick a model project (csproj/dll/dir).";
+                    return;
+                }
+                await _shell.SaveLoadedModelAsExcelAsync(ExcelExportProjectPath!, ExcelExportOutputPath!, _cts.Token).ConfigureAwait(true);
+            }
+            else
+            {
+                StatusMessage = "Pick a source.";
+                return;
+            }
+
+            StatusMessage = $"Workbook written to {ExcelExportOutputPath}.";
+            _log.Success("Excel", $"Exported model to {ExcelExportOutputPath}");
+            _log.Toast(LogLevel.Success, "Workbook exported", ExcelExportOutputPath!,
+                onClick: () => _fileOpener.RevealInExplorer(ExcelExportOutputPath!));
+
+            if (ExcelExportOpenAfter) _fileOpener.Open(ExcelExportOutputPath!);
+        }
+        catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
+        catch (Exception ex) { StatusMessage = "Excel export failed: " + ex.Message; _log.Error("Excel", ex.Message, ex); }
         finally { Busy = false; }
     }
 

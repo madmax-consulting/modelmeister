@@ -142,6 +142,19 @@ public sealed class Shell
             ModelWorkbook.Save(json, xlsxPath);
         }, ct);
 
+    /// <summary>Save a JSON model export to an Excel workbook.</summary>
+    public Task SaveJsonAsExcelAsync(string jsonPath, string xlsxPath, CancellationToken ct = default)
+        => Task.Run(() => ModelWorkbook.Save(InriverModelJson.Load(jsonPath), xlsxPath), ct);
+
+    /// <summary>Load a C# model project (csproj/dll/dir) and save it to an Excel workbook.</summary>
+    public Task SaveLoadedModelAsExcelAsync(string csprojOrDll, string xlsxPath, CancellationToken ct = default)
+        => Task.Run(() =>
+        {
+            var loaded = _loader.LoadFromPath(csprojOrDll);
+            var json = LoadedModelConverter.ToJsonModel(loaded);
+            ModelWorkbook.Save(json, xlsxPath);
+        }, ct);
+
     /// <summary>Save a CVL-values workbook from a captured snapshot.</summary>
     public Task SaveCvlValuesAsExcelAsync(LiveModel snapshot, string xlsxPath, CancellationToken ct = default)
         => Task.Run(() =>

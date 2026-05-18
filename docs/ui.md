@@ -155,7 +155,7 @@ job — pick the one that matches what you want to do:
 | Scaffold from Excel    | `Shell.ScaffoldFromExcelAsync(xlsxPath, outDir, ns, …, !skipCvlValues)` |
 | Merge two JSON exports | `Shell.MergeJsonAsync(a, b, policy)`               |
 | Snapshot env to JSON   | `Shell.SaveSnapshotAsync(snapshot, path)`          |
-| Snapshot env to Excel  | `Shell.SaveSnapshotAsExcelAsync(snapshot, xlsxPath)` |
+| Export to Excel        | `Shell.SaveSnapshotAsExcelAsync` / `SaveJsonAsExcelAsync` / `SaveLoadedModelAsExcelAsync` — pick env, JSON file, or C# model project as source; opens the xlsx after writing. |
 | Probe connection       | `Shell.CaptureSnapshotAsync` followed by counts.   |
 
 ### Compare envs

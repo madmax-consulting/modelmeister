@@ -359,10 +359,86 @@
           </ScrollViewer>
         </TabItem>
 
-        <!-- ============== Tab 5 · Export Excel ============== -->
-        <!-- Removed in Session 2: per-page PageActions own Excel export now. -->
+        <!-- ============== Tab 5 · Export to Excel ============== -->
+        <TabItem>
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Data="{DynamicResource IcoFolder}" Width="14" Height="14" Stretch="Uniform"
+                    Stroke="{Binding $parent[TabItem].Foreground}" StrokeThickness="1.5"
+                    StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+              <TextBlock Text="To workbook" />
+            </StackPanel>
+          </TabItem.Header>
 
-        <!-- ============== Tab 5 · Scaffold from Excel ============== -->
+          <ScrollViewer Padding="22">
+            <StackPanel Spacing="14" MaxWidth="900">
+              <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Border Width="36" Height="36" CornerRadius="9" Background="{DynamicResource AccentGlowFill}"
+                        BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1">
+                  <Path Data="{DynamicResource IcoFolder}" Width="18" Height="18" Stretch="Uniform"
+                        Stroke="{DynamicResource Accent}" StrokeThickness="1.5"
+                        StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Export model to Excel" FontSize="15" FontWeight="SemiBold" />
+                  <TextBlock Text="Filterable, styled-table workbook from a live env, a JSON file, or a C# model project."
+                             Classes="dim" />
+                </StackPanel>
+              </StackPanel>
+
+              <StackPanel Spacing="6">
+                <TextBlock Text="SOURCE" Classes="label" />
+                <StackPanel Orientation="Horizontal" Spacing="20">
+                  <RadioButton GroupName="ExcelSrc" Content="Live environment" IsChecked="{Binding ExcelExportIsEnv, Mode=TwoWay}" />
+                  <RadioButton GroupName="ExcelSrc" Content="JSON file" IsChecked="{Binding ExcelExportIsJson, Mode=TwoWay}" />
+                  <RadioButton GroupName="ExcelSrc" Content="Model project" IsChecked="{Binding ExcelExportIsModel, Mode=TwoWay}" />
+                </StackPanel>
+              </StackPanel>
+
+              <StackPanel Spacing="6" IsVisible="{Binding ExcelExportIsJson}">
+                <TextBlock Text="JSON FILE" Classes="label" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox Text="{Binding ExcelExportJsonPath, Mode=TwoWay}" Classes="mono" Watermark="path\to\model.json" />
+                  <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseExcelExportJsonCommand}" Margin="8,0,0,0" />
+                </Grid>
+              </StackPanel>
+
+              <StackPanel Spacing="6" IsVisible="{Binding ExcelExportIsModel}">
+                <TextBlock Text="MODEL PROJECT" Classes="label" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox Text="{Binding ExcelExportProjectPath, Mode=TwoWay}" Classes="mono" Watermark="path\to\YourModel.csproj" />
+                  <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseExcelExportProjectCommand}" Margin="8,0,0,0" />
+                </Grid>
+              </StackPanel>
+
+              <StackPanel Spacing="6">
+                <TextBlock Text="OUTPUT WORKBOOK" Classes="label" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox Text="{Binding ExcelExportOutputPath, Mode=TwoWay}" Classes="mono" Watermark="path\to\model.xlsx" />
+                  <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseExcelExportOutCommand}" Margin="8,0,0,0" />
+                </Grid>
+              </StackPanel>
+
+              <CheckBox Content="Open after export" IsChecked="{Binding ExcelExportOpenAfter, Mode=TwoWay}" />
+
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Command="{Binding ExcelExportCommand}" Classes="primary">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Data="{DynamicResource IcoPlay}" Width="11" Height="11" Stretch="Uniform" Fill="{DynamicResource AccentButtonForeground}" />
+                    <TextBlock Text="Export" />
+                  </StackPanel>
+                </Button>
+                <Button Content="Cancel" Command="{Binding CancelCommand}" Classes="danger" IsEnabled="{Binding Busy}" />
+              </StackPanel>
+
+              <TextBlock Text="Tip: to bring edits back into code, use the 'From workbook' tab to scaffold a project from the saved xlsx."
+                         Classes="dim" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <!-- ============== Tab 6 · Scaffold from Excel ============== -->
         <TabItem>
           <TabItem.Header>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">

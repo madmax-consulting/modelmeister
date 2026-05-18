@@ -2,6 +2,7 @@ using Spectre.Console;
 using ModelMeister.Excel;
 using ModelMeister.Inriver;
 using ModelMeister.Inriver.Snapshot;
+using ModelMeister.Loading;
 using ModelMeister.Scaffolder;
 
 namespace ModelMeister.Cli.Commands;
@@ -20,6 +21,28 @@ public static class ExcelCommand
         ModelWorkbook.Save(model, xlsxPath);
         AnsiConsole.MarkupLine($"[green]Wrote {xlsxPath.EscapeMarkup()}[/]");
         return ExitCodes.Success;
+    }
+
+    public static int ExportFromModel(string modelPath, string xlsxPath)
+    {
+        if (!File.Exists(modelPath) && !Directory.Exists(modelPath))
+        {
+            AnsiConsole.MarkupLine($"[red]Model path not found: {modelPath.EscapeMarkup()}[/]");
+            return ExitCodes.UsageError;
+        }
+        try
+        {
+            var loaded = new ModelAssemblyLoader().LoadFromPath(modelPath);
+            var model = LoadedModelConverter.ToJsonModel(loaded);
+            ModelWorkbook.Save(model, xlsxPath);
+            AnsiConsole.MarkupLine($"[green]Wrote {xlsxPath.EscapeMarkup()}[/]");
+            return ExitCodes.Success;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Export failed:[/] {ex.Message.EscapeMarkup()}");
+            return ExitCodes.OperationFailed;
+        }
     }
 
     public static async Task<int> ExportFromEnvAsync(string url, InriverAuth auth, string xlsxPath, CancellationToken ct)

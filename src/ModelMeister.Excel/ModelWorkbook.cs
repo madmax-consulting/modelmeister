@@ -67,8 +67,30 @@ public static class ModelWorkbook
         {
             ws.SheetView.FreezeRows(1);
             ws.Columns().AdjustToContents(1, 50, 8, 60);
+            if (ws.Name == SheetReadme) continue;
+            StyleAsTable(ws);
         }
         return wb;
+    }
+
+    /// <summary>
+    /// Wraps the sheet's used range as an Excel Table so the freshly-opened workbook has
+    /// AutoFilter dropdowns and banded-row styling on every data sheet. Header-only sheets
+    /// fall back to plain AutoFilter — ClosedXML's XLTable needs at least one data row.
+    /// </summary>
+    static void StyleAsTable(IXLWorksheet ws)
+    {
+        var range = ws.RangeUsed();
+        if (range is null) return;
+        if (range.RowCount() < 2)
+        {
+            range.SetAutoFilter();
+            return;
+        }
+        var tableName = "tbl_" + new string(ws.Name.Where(char.IsLetterOrDigit).ToArray());
+        var table = range.CreateTable(tableName);
+        table.Theme = XLTableTheme.TableStyleMedium2;
+        table.ShowAutoFilter = true;
     }
 
     static void WriteReadme(IXLWorkbook wb, InriverModelJson model)
@@ -96,7 +118,8 @@ public static class ModelWorkbook
             ("Roles", (model.Security?.Roles?.Count ?? 0).ToString()),
             ("", ""),
             ("How to edit", "Each sheet maps to one concept. Locale strings expand as Name[en], Name[sv], etc."),
-            ("How to import", "modelmeister scaffold --excel <path>  OR  Tools → Excel I/O → Import in the UI."),
+            ("How to filter", "Every data sheet is an Excel Table — use the dropdowns in row 1 to filter and sort."),
+            ("How to import", "modelmeister excel scaffold --excel <path>  OR  Tools → From workbook in the UI."),
             ("CVL value sheets", "See the dedicated CVL values workbook produced by 'modelmeister cvl export' for per-CVL editing."),
         };
         for (var i = 0; i < rows.Length; i++)
