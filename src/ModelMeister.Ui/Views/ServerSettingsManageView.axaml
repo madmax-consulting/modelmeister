@@ -7,7 +7,7 @@
 
   <UserControl.KeyBindings>
     <KeyBinding Gesture="Delete"
-                Command="{Binding DeleteCommand}"
+                Command="{Binding ConfirmAndDeleteCommand}"
                 CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
   </UserControl.KeyBindings>
 
@@ -16,80 +16,83 @@
                Status="{Binding Status}"
                IsBusy="{Binding Busy}">
     <c:PageShell.Actions>
-      <c:PageActions DataContext="{Binding}" />
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <!-- + Add as the leftmost action with pipe separator before the standard metadata icons.
+             The previous inline form at the top of the page is replaced by a modal dialog. -->
+        <Button Classes="ghost icon" ToolTip.Tip="New server setting"
+                Command="{Binding AddCommand}" IsEnabled="{Binding !Busy}">
+          <Path Data="{DynamicResource IcoPlus}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
+        <c:PageActions DataContext="{Binding}" />
+      </StackPanel>
     </c:PageShell.Actions>
 
     <Border Classes="card flush" Padding="0">
-      <Grid RowDefinitions="Auto,Auto,*">
+      <!-- The grid is read-only (no inline editing) so users can freely select cell text without
+           triggering an edit. Mutation happens through Edit / Delete / Copy icons per row, each
+           routed through a popup. -->
+      <DataGrid Name="SettingsGrid"
+                ItemsSource="{Binding Rows}" IsReadOnly="True"
+                AutoGenerateColumns="False" SelectionMode="Single"
+                GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                ColumnHeaderHeight="62"
+                Margin="0" BorderThickness="0" CornerRadius="0">
+        <DataGrid.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="Edit"
+                      Command="{Binding EditCommand}"
+                      CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
+            <MenuItem Header="Copy key"
+                      Command="{Binding CopyKeyCommand}"
+                      CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
+            <MenuItem Header="Copy value"
+                      Command="{Binding CopyValueCommand}"
+                      CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
+            <Separator />
+            <MenuItem Header="Delete"
+                      Command="{Binding ConfirmAndDeleteCommand}"
+                      CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
+          </ContextMenu>
+        </DataGrid.ContextMenu>
+        <DataGrid.Columns>
+          <DataGridTextColumn Binding="{Binding Key}" Width="320">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Value}" Width="*">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Value" Path="Value" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
 
-        <!-- Add-new strip -->
-        <Grid Grid.Row="0" Margin="10,10,10,6" ColumnDefinitions="Auto,*,Auto,*,Auto">
-          <TextBlock Grid.Column="0" Text="ADD" Classes="eyebrow" VerticalAlignment="Center" Margin="0,0,8,0" />
-          <TextBox Grid.Column="1" Text="{Binding NewKey, Mode=TwoWay}" Watermark="key (e.g. inriver.SomeFlag)" Classes="mono" />
-          <TextBlock Grid.Column="2" Text="=" Margin="8,0" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
-          <TextBox Grid.Column="3" Text="{Binding NewValue, Mode=TwoWay}" Watermark="value" />
-          <Button Grid.Column="4" Content="Create" Margin="8,0,0,0"
-                  Command="{Binding AddCommand}" Classes="primary" IsEnabled="{Binding !Busy}" />
-        </Grid>
-
-        <!-- Filter strip -->
-        <Grid Grid.Row="1" Margin="10,2,10,6" ColumnDefinitions="Auto,*">
-          <TextBox Grid.Column="0" Text="{Binding FilterText, Mode=TwoWay}" Width="260"
-                   Watermark="filter key or value" />
-        </Grid>
-
-        <!-- Grid -->
-        <DataGrid Grid.Row="2"
-                  Name="SettingsGrid"
-                  ItemsSource="{Binding Rows}" IsReadOnly="False"
-                  AutoGenerateColumns="False" SelectionMode="Single"
-                  Margin="0" BorderThickness="1,1,1,0" CornerRadius="0">
-          <DataGrid.ContextMenu>
-            <ContextMenu>
-              <MenuItem Header="Save change"
-                        Command="{Binding SaveCommand}"
-                        CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
-              <MenuItem Header="Revert change"
-                        Command="{Binding RevertRowCommand}"
-                        CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
-              <Separator />
-              <MenuItem Header="Copy key"
-                        Command="{Binding CopyKeyCommand}"
-                        CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
-              <MenuItem Header="Copy value"
-                        Command="{Binding CopyValueCommand}"
-                        CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
-              <Separator />
-              <MenuItem Header="Delete"
-                        Command="{Binding DeleteCommand}"
-                        CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
-            </ContextMenu>
-          </DataGrid.ContextMenu>
-          <DataGrid.Columns>
-            <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="320" IsReadOnly="True" />
-            <DataGridTextColumn Header="Value" Binding="{Binding Value, Mode=TwoWay}" Width="*" />
-            <DataGridTemplateColumn Header="" Width="180" IsReadOnly="True">
-              <DataGridTemplateColumn.CellTemplate>
-                <DataTemplate x:DataType="vm:ServerSettingEditRow">
-                  <StackPanel Orientation="Horizontal" Spacing="4" Margin="4,0">
-                    <Button Content="Save" Classes="primary"
-                            IsVisible="{Binding IsDirty}"
-                            Command="{Binding $parent[DataGrid].((vm:ServerSettingsManageViewModel)DataContext).SaveCommand}"
-                            CommandParameter="{Binding}" />
-                    <Button Content="Revert" Classes="ghost"
-                            IsVisible="{Binding IsDirty}"
-                            Command="{Binding $parent[DataGrid].((vm:ServerSettingsManageViewModel)DataContext).RevertRowCommand}"
-                            CommandParameter="{Binding}" />
-                    <Button Content="Delete" Classes="ghost"
-                            Command="{Binding $parent[DataGrid].((vm:ServerSettingsManageViewModel)DataContext).DeleteCommand}"
-                            CommandParameter="{Binding}" />
-                  </StackPanel>
-                </DataTemplate>
-              </DataGridTemplateColumn.CellTemplate>
-            </DataGridTemplateColumn>
-          </DataGrid.Columns>
-        </DataGrid>
-      </Grid>
+          <DataGridTemplateColumn Header="" Width="130">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:ServerSettingEditRow">
+                <StackPanel Orientation="Horizontal" Spacing="3" Margin="4,0">
+                  <Button Classes="ghost icon" Padding="6" ToolTip.Tip="Edit"
+                          Command="{Binding $parent[DataGrid].((vm:ServerSettingsManageViewModel)DataContext).EditCommand}"
+                          CommandParameter="{Binding}">
+                    <Path Data="{DynamicResource IcoEdit}" Width="12" Height="12" Stretch="Uniform"
+                          Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+                  </Button>
+                  <Button Classes="ghost icon" Padding="6" ToolTip.Tip="Copy key + value"
+                          Command="{Binding $parent[DataGrid].((vm:ServerSettingsManageViewModel)DataContext).CopyValueCommand}"
+                          CommandParameter="{Binding}">
+                    <Path Data="{DynamicResource IcoCopy}" Width="12" Height="12" Stretch="Uniform"
+                          Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+                  </Button>
+                  <Button Classes="ghost icon danger" Padding="6" ToolTip.Tip="Delete"
+                          Command="{Binding $parent[DataGrid].((vm:ServerSettingsManageViewModel)DataContext).ConfirmAndDeleteCommand}"
+                          CommandParameter="{Binding}">
+                    <Path Data="{DynamicResource IcoTrash}" Width="12" Height="12" Stretch="Uniform"
+                          Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent" />
+                  </Button>
+                </StackPanel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+        </DataGrid.Columns>
+      </DataGrid>
     </Border>
 
   </c:PageShell>

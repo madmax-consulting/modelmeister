@@ -51,20 +51,19 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
             {
-                if (_main.IsConnected) _ = RefreshAsync();
+                // Connection change invalidates the cache (different env's settings).
+                MarkDataDirty();
+                if (_main.IsConnected) _ = EnsureLoadedAsync();
                 AddCommand.NotifyCanExecuteChanged();
                 SaveCommand.NotifyCanExecuteChanged();
                 DeleteCommand.NotifyCanExecuteChanged();
             }
         };
-        if (_main.IsConnected) _ = RefreshAsync();
+        if (_main.IsConnected) _ = EnsureLoadedAsync();
         else Status = "Connect to an environment first.";
     }
 
-    private bool CanAdd() =>
-        !Busy && _main.IsConnected
-             && !string.IsNullOrWhiteSpace(NewKey)
-             && !_allRows.Any(r => string.Equals(r.Key, NewKey.Trim(), StringComparison.Ordinal));
+    private bool CanAdd() => !Busy && _main.IsConnected;
 
     // Note: not gated on row.IsDirty. The Save button is already hidden via IsVisible when the row
     // is clean, and the row's PropertyChanged doesn't notify SaveCommand — gating on IsDirty here
@@ -91,7 +90,7 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
         catch (Exception ex)
         {
             Status = "Load failed: " + ex.Message;
-            _log.Error("ServerSettings", ex.Message);
+            _log.Error("ServerSettings", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -116,8 +115,11 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
     public async Task AddAsync()
     {
         if (!_main.IsConnected) { Status = "Connect first."; return; }
-        var key = (NewKey ?? "").Trim();
-        if (string.IsNullOrEmpty(key)) { Status = "Key is required."; return; }
+
+        // Modal dialog (Create / Abort) replaces the previous inline form at the top of the page.
+        var vm = await DialogHost.AddServerSettingAsync().ConfigureAwait(true);
+        if (vm is null) return;
+        var key = vm.Key.Trim();
         if (_allRows.Any(r => string.Equals(r.Key, key, StringComparison.Ordinal)))
         {
             Status = $"Key '{key}' already exists — edit the existing row.";
@@ -128,23 +130,64 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
         Status = $"Creating '{key}'…";
         try
         {
-            var ok = await _shell.SetServerSettingAsync(key, NewValue ?? "").ConfigureAwait(true);
+            var ok = await _shell.SetServerSettingAsync(key, vm.Value ?? "").ConfigureAwait(true);
             if (!ok) { Status = $"Create '{key}' failed."; return; }
 
-            _allRows.Add(new ServerSettingEditRow(key, NewValue ?? ""));
+            _allRows.Add(new ServerSettingEditRow(key, vm.Value ?? ""));
             _allRows = _allRows.OrderBy(r => r.Key, StringComparer.Ordinal).ToList();
             RebuildVisible();
-            NewKey = "";
-            NewValue = "";
+            MarkDataDirty(); // server-side may have applied side effects; next nav back re-fetches
             _log.Success("ServerSettings", $"Created '{key}'.");
             Status = $"Created '{key}'.";
         }
         catch (Exception ex)
         {
             Status = "Create failed: " + ex.Message;
-            _log.Error("ServerSettings", ex.Message);
+            _log.Error("ServerSettings", ex.Message, ex);
         }
         finally { Busy = false; }
+    }
+
+    /// <summary>Open the edit dialog pre-populated with <paramref name="row"/>'s value; save on Confirm.</summary>
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    public async Task EditAsync(ServerSettingEditRow? row)
+    {
+        if (row is null || !_main.IsConnected) return;
+        var vm = await DialogHost.AddServerSettingAsync(row.Key, row.Value, isEdit: true).ConfigureAwait(true);
+        if (vm is null) return;
+
+        Busy = true;
+        Status = $"Saving '{row.Key}'…";
+        try
+        {
+            var ok = await _shell.SetServerSettingAsync(row.Key, vm.Value ?? "").ConfigureAwait(true);
+            if (!ok) { Status = $"Save '{row.Key}' failed."; return; }
+            row.Value = vm.Value;
+            row.CommitValue();
+            MarkDataDirty();
+            _log.Success("ServerSettings", $"Updated '{row.Key}'.");
+            Status = $"Saved '{row.Key}'.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Save failed: " + ex.Message;
+            _log.Error("ServerSettings", ex.Message, ex);
+        }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Delete <paramref name="row"/> after a confirmation prompt.</summary>
+    [RelayCommand(CanExecute = nameof(CanDelete))]
+    public async Task ConfirmAndDeleteAsync(ServerSettingEditRow? row)
+    {
+        if (row is null || !_main.IsConnected) return;
+        var ok = await DialogHost.ConfirmAsync(
+            "Delete setting",
+            $"Delete the server setting '{row.Key}'? This cannot be undone.",
+            "Delete",
+            "Abort").ConfigureAwait(true);
+        if (!ok) return;
+        await DeleteAsync(row).ConfigureAwait(true);
     }
 
     [RelayCommand(CanExecute = nameof(CanSave))]
@@ -166,7 +209,7 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
         catch (Exception ex)
         {
             Status = "Save failed: " + ex.Message;
-            _log.Error("ServerSettings", ex.Message);
+            _log.Error("ServerSettings", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -186,13 +229,14 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
 
             _allRows.Remove(row);
             Rows.Remove(row);
+            MarkDataDirty();
             _log.Success("ServerSettings", $"Deleted '{row.Key}'.");
             Status = $"Deleted '{row.Key}'.";
         }
         catch (Exception ex)
         {
             Status = "Delete failed: " + ex.Message;
-            _log.Error("ServerSettings", ex.Message);
+            _log.Error("ServerSettings", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -216,7 +260,7 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
         }
         catch (Exception ex)
         {
-            _log.Error("Backup", $"Server settings backup failed: {ex.Message}");
+            _log.Error("Backup", $"Server settings backup failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Backup failed", ex.Message);
         }
     }
@@ -235,7 +279,7 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
         }
         catch (Exception ex)
         {
-            _log.Error("Export", ex.Message);
+            _log.Error("Export", ex.Message, ex);
             _log.Toast(LogLevel.Error, "Export failed", ex.Message);
         }
     }
@@ -260,7 +304,7 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
         }
         catch (Exception ex)
         {
-            _log.Error("Import", ex.Message);
+            _log.Error("Import", ex.Message, ex);
             _log.Toast(LogLevel.Error, "Import failed", ex.Message);
         }
     }

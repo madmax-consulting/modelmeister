@@ -44,7 +44,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         }
         catch (Exception ex)
         {
-            _log.Error("Backup", $"Server settings backup failed: {ex.Message}");
+            _log.Error("Backup", $"Server settings backup failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Backup failed", ex.Message);
         }
     }
@@ -64,7 +64,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         }
         catch (Exception ex)
         {
-            _log.Error("Export", ex.Message);
+            _log.Error("Export", ex.Message, ex);
             _log.Toast(LogLevel.Error, "Export failed", ex.Message);
         }
     }
@@ -85,7 +85,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         }
         catch (Exception ex)
         {
-            _log.Error("Import", ex.Message);
+            _log.Error("Import", ex.Message, ex);
             _log.Toast(LogLevel.Error, "Import failed", ex.Message);
         }
     }
@@ -96,8 +96,13 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
     private readonly IAppLog _log;
 
     public ObservableCollection<EnvironmentEntry> AvailableEnvs { get; } = [];
+    /// <summary>Full row set; <see cref="Rows"/> is filtered to whatever buckets are visible.</summary>
+    private readonly List<ServerSettingRow> _allRows = new();
     public ObservableCollection<ServerSettingRow> Rows { get; } = [];
     public ObservableCollection<ConceptDiffCount> Counts { get; } = [];
+
+    public BucketToggleState Buckets { get; } = new();
+    public string BucketPath => "State";
 
     [ObservableProperty] private EnvironmentEntry? _leftEnv;
     [ObservableProperty] private EnvironmentEntry? _rightEnv;
@@ -125,6 +130,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         _vault = vault;
         _log = log;
         _vault.Changed += RefreshEnvList;
+        Buckets.Changed += _ => RebuildVisibleRows();
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -215,8 +221,10 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         { Status = $"No API key on file for '{RightEnv.Name}'."; return; }
 
         Busy = true;
+        _allRows.Clear();
         Rows.Clear();
         Counts.Clear();
+        Buckets.Reset(Counts);
         HasRows = false;
         Summary = "";
         try
@@ -233,7 +241,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         catch (Exception ex)
         {
             Status = "Compare failed: " + ex.Message;
-            _log.Error("ServerSettings", ex.Message);
+            _log.Error("ServerSettings", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -265,6 +273,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
 
     private void RebuildRows()
     {
+        _allRows.Clear();
         Rows.Clear();
         if (_leftCapture is null && _rightCapture is null) return;
 
@@ -286,7 +295,20 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
             // Compare pages only surface differences; identical keys would drown the chart and grid.
             if (state == "identical") continue;
 
-            Rows.Add(new ServerSettingRow(key, lv, rv, state));
+            _allRows.Add(new ServerSettingRow(key, lv, rv, state));
+        }
+        RebuildVisibleRows();
+    }
+
+    /// <summary>Project <see cref="_allRows"/> into <see cref="Rows"/> applying the bucket filter.</summary>
+    private void RebuildVisibleRows()
+    {
+        Rows.Clear();
+        foreach (var r in _allRows)
+        {
+            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Title, r.State, StringComparison.OrdinalIgnoreCase));
+            if (bucketRow is { IsHidden: true }) continue;
+            Rows.Add(r);
         }
     }
 
@@ -326,6 +348,21 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
             Status = $"No API key on file for target '{targetEnv.Name}'."; return;
         }
 
+        // Per-row promote needs explicit confirmation — it overwrites a setting on a (possibly
+        // production) environment with no automatic rollback.
+        var sourceEnvName = ReferenceEquals(targetEnv, RightEnv) ? LeftEnv?.Name ?? "left" : RightEnv?.Name ?? "right";
+        var confirmed = await DialogHost.ConfirmPromoteAsync(
+            conceptLabel: "Setting",
+            itemLabel: row.Key,
+            sourceEnv: sourceEnvName,
+            targetEnv: targetEnv.Name,
+            targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
+        if (!confirmed)
+        {
+            Status = "Promote cancelled.";
+            return;
+        }
+
         Busy = true;
         Status = $"Applying '{row.Key}' {label} → '{targetEnv.Name}'…";
         try
@@ -350,7 +387,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         catch (Exception ex)
         {
             Status = "Apply failed: " + ex.Message;
-            _log.Error("ServerSettings", ex.Message);
+            _log.Error("ServerSettings", ex.Message, ex);
         }
         finally { Busy = false; }
 
