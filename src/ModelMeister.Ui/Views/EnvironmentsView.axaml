@@ -75,7 +75,6 @@
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   BorderThickness="0"
-                  ColumnHeaderHeight="62"
                   LoadingRow="OnLoadingRow">
           <DataGrid.Styles>
             <Style Selector="DataGridRow.connected /template/ Rectangle#BackgroundRectangle">

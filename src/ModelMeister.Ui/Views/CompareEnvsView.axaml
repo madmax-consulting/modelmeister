@@ -18,8 +18,7 @@
                            Subtitle="Compare model concepts across two environments">
     <views:CompareLayoutView.Body>
       <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
-                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                ColumnHeaderHeight="72" Classes="filterable">
+                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable">
         <DataGrid.Columns>
           <DataGridTextColumn Binding="{Binding Concept}" Width="140">
             <DataGridTextColumn.Header>

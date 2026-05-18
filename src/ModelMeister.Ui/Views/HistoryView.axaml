@@ -71,7 +71,6 @@
                         ItemsSource="{Binding Receipts}"
                         SelectedItem="{Binding SelectedReceipt, Mode=TwoWay}"
                         AutoGenerateColumns="False" IsReadOnly="True" BorderThickness="0"
-                        ColumnHeaderHeight="62"
                         DoubleTapped="OnReceiptDoubleTapped">
                 <DataGrid.ContextMenu>
                   <ContextMenu>
@@ -137,7 +136,6 @@
                       ItemsSource="{Binding Backups}"
                       SelectedItem="{Binding SelectedBackup, Mode=TwoWay}"
                       AutoGenerateColumns="False" IsReadOnly="True" BorderThickness="0"
-                      ColumnHeaderHeight="62"
                       DoubleTapped="OnBackupDoubleTapped">
               <DataGrid.ContextMenu>
                 <ContextMenu>

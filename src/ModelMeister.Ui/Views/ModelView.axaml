@@ -135,7 +135,7 @@
             <DataGrid ItemsSource="{Binding FieldRows}"
                       IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Fields}"
                       AutoGenerateColumns="False" IsReadOnly="True"
-                      BorderThickness="0" MaxHeight="360" ColumnHeaderHeight="62">
+                      BorderThickness="0" MaxHeight="360">
               <DataGrid.Columns>
                 <DataGridTextColumn Width="160" Binding="{Binding EntityTypeId}">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="Entity type" Path="EntityTypeId" /></DataGridTextColumn.Header>
@@ -170,7 +170,7 @@
                         ItemsSource="{Binding ModelCvlRows}"
                         SelectedItem="{Binding SelectedModelCvlRow, Mode=TwoWay}"
                         AutoGenerateColumns="False" IsReadOnly="True"
-                        BorderThickness="0" MaxHeight="260" ColumnHeaderHeight="62">
+                        BorderThickness="0" MaxHeight="260">
                 <DataGrid.Columns>
                   <DataGridTextColumn Width="240" Binding="{Binding CvlId}">
                     <DataGridTextColumn.Header><c:FilterableHeader Title="CVL" Path="CvlId" /></DataGridTextColumn.Header>
@@ -196,7 +196,7 @@
               <DataGrid ItemsSource="{Binding SelectedCvlValues}"
                         IsVisible="{Binding SelectedModelCvlRow, Converter={x:Static ObjectConverters.IsNotNull}}"
                         AutoGenerateColumns="False" IsReadOnly="True"
-                        BorderThickness="0" MaxHeight="240" ColumnHeaderHeight="62">
+                        BorderThickness="0" MaxHeight="240">
                 <DataGrid.Columns>
                   <DataGridTextColumn Width="180" Binding="{Binding Key}">
                     <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
@@ -215,7 +215,7 @@
             <DataGrid ItemsSource="{Binding LinkTypeRows}"
                       IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=LinkTypes}"
                       AutoGenerateColumns="False" IsReadOnly="True"
-                      BorderThickness="0" MaxHeight="360" ColumnHeaderHeight="62">
+                      BorderThickness="0" MaxHeight="360">
               <DataGrid.Columns>
                 <DataGridTextColumn Width="220" Binding="{Binding LinkTypeId}">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="Link type" Path="LinkTypeId" /></DataGridTextColumn.Header>
@@ -235,7 +235,7 @@
             <DataGrid ItemsSource="{Binding RoleRows}"
                       IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Roles}"
                       AutoGenerateColumns="False" IsReadOnly="True"
-                      BorderThickness="0" MaxHeight="360" ColumnHeaderHeight="62">
+                      BorderThickness="0" MaxHeight="360">
               <DataGrid.Columns>
                 <DataGridTextColumn Width="200" Binding="{Binding Name}">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="Role" Path="Name" /></DataGridTextColumn.Header>
@@ -251,7 +251,7 @@
             <DataGrid ItemsSource="{Binding SelectedConcept.Items}"
                       IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static conv:KindIsGenericConverter.Instance}}"
                       AutoGenerateColumns="False" IsReadOnly="True"
-                      BorderThickness="0" MaxHeight="320" ColumnHeaderHeight="62">
+                      BorderThickness="0" MaxHeight="320">
               <DataGrid.Columns>
                 <DataGridTextColumn Width="*" Binding="{Binding Primary}">
                   <DataGridTextColumn.Header>
@@ -341,7 +341,7 @@
                     ItemsSource="{Binding Issues}"
                     SelectedItem="{Binding SelectedIssue, Mode=TwoWay}"
                     AutoGenerateColumns="False" IsReadOnly="True"
-                    BorderThickness="0" ColumnHeaderHeight="62"
+                    BorderThickness="0"
                     DoubleTapped="OnIssueDoubleTapped">
             <DataGrid.ContextMenu>
               <ContextMenu>

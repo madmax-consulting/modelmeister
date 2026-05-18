@@ -20,8 +20,7 @@
     <views:CompareLayoutView.Body>
         <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
                   AutoGenerateColumns="False" SelectionMode="Single"
-                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                  ColumnHeaderHeight="62" Classes="filterable">
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable">
           <DataGrid.Columns>
             <DataGridTextColumn Binding="{Binding State}" Width="100">
               <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>

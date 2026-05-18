@@ -2,20 +2,35 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="using:ModelMeister.Ui.Controls"
              x:Class="ModelMeister.Ui.Controls.ChecklistFilterHeader"
-             x:Name="Root">
-  <StackPanel Spacing="3">
-    <TextBlock Text="{Binding #Root.Title}" FontSize="11" FontWeight="SemiBold"
-               Foreground="{DynamicResource TextSec}" LetterSpacing="0.6"
+             x:Name="Root"
+             ClipToBounds="True">
+
+  <!-- Same structural shape as FilterableHeader: a single Grid that fills the column header rect,
+       with title on top and the filter row underneath. Checklist flyout button overlays the right
+       edge of the textbox so widths don't shift when the indicator dot appears. -->
+  <Grid RowDefinitions="Auto,*" Background="Transparent">
+
+    <TextBlock Grid.Row="0"
+               Text="{Binding #Root.Title}"
+               FontWeight="SemiBold" FontSize="11"
+               Foreground="{DynamicResource TextSec}"
+               TextTrimming="CharacterEllipsis"
+               ToolTip.Tip="{Binding #Root.Title}"
+               Margin="10,6,10,2"
                VerticalAlignment="Center" />
 
-    <Grid ColumnDefinitions="*,Auto">
-      <TextBox Grid.Column="0" MinHeight="22"
-               Padding="6,2" FontSize="11"
-               Margin="0,0,3,0"
+    <Grid Grid.Row="1" Margin="6,0,6,6">
+      <TextBox Text="{Binding #Root.FilterText, Mode=TwoWay}"
                Watermark="Filter…"
-               Text="{Binding #Root.FilterText, Mode=TwoWay}" />
+               FontSize="11"
+               MinHeight="22"
+               Padding="6,2,30,2"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch" />
 
-      <Button Grid.Column="1" Classes="ghost" Padding="4,2" MinHeight="22" MinWidth="22"
+      <Button Classes="ghost" Padding="4,0" MinHeight="20" MinWidth="22"
+              HorizontalAlignment="Right" VerticalAlignment="Center"
+              Margin="0,0,2,0"
               ToolTip.Tip="Checkbox filter"
               Click="OnFilterButtonClick">
         <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
@@ -52,5 +67,5 @@
         </Button.Flyout>
       </Button>
     </Grid>
-  </StackPanel>
+  </Grid>
 </UserControl>

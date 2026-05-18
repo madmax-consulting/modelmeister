@@ -38,7 +38,6 @@
                 ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" SelectionMode="Single"
                 GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                ColumnHeaderHeight="62"
                 Margin="0" BorderThickness="0" CornerRadius="0">
         <DataGrid.ContextMenu>
           <ContextMenu>

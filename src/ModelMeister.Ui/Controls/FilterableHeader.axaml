@@ -1,29 +1,44 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ModelMeister.Ui.Controls.FilterableHeader"
-             x:Name="Root">
+             x:Name="Root"
+             ClipToBounds="True">
 
-  <StackPanel Spacing="3" Margin="-10,-5,-10,-5" Background="Transparent">
-    <Border Padding="10,5,10,3">
-      <ContentControl Content="{Binding #Root.Title}"
-                      FontWeight="SemiBold" FontSize="11"
-                      Foreground="{DynamicResource TextSec}" />
-    </Border>
-    <Border Padding="6,0,6,4">
-      <!-- Reserve fixed width for the Clear button column even when it's hidden so typing into
-           the filter doesn't cause the textbox to suddenly shrink and the cursor jump left when
-           the first character appears. -->
-      <Grid ColumnDefinitions="*,22">
-        <TextBox Grid.Column="0" Text="{Binding #Root.FilterText, Mode=TwoWay}"
-                 Watermark="Filter…" MinHeight="22" Padding="6,2" FontSize="11" />
-        <Button Grid.Column="1" Classes="ghost icon" Margin="2,0,0,0"
-                Click="OnClearClick" Padding="4"
-                IsVisible="{Binding #Root.HasFilter}"
-                ToolTip.Tip="Clear">
-          <Path Data="{DynamicResource IcoX}" Width="9" Height="9" Stretch="Uniform"
-                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
-        </Button>
-      </Grid>
-    </Border>
-  </StackPanel>
+  <!-- Single Grid that fills the entire column header rect (DataGridColumnHeader has Padding=0
+       and stretches content). No nested Borders, no negative margins. -->
+  <Grid RowDefinitions="Auto,*" Background="Transparent">
+
+    <!-- Title row: ellipsis on overflow + tooltip for the full text. Left/right margin matches the
+         cell content padding (10px in DataGridCell) so column titles align with row text. -->
+    <TextBlock Grid.Row="0"
+               Text="{Binding #Root.Title}"
+               FontWeight="SemiBold" FontSize="11"
+               Foreground="{DynamicResource TextSec}"
+               TextTrimming="CharacterEllipsis"
+               ToolTip.Tip="{Binding #Root.Title}"
+               Margin="10,6,10,2"
+               VerticalAlignment="Center" />
+
+    <!-- Filter row: TextBox stretches to fill; clear button overlays the right edge so the textbox
+         width doesn't change when the button appears/disappears (no cursor jump on first keystroke).
+         The textbox reserves icon width via right padding=22. -->
+    <Grid Grid.Row="1" Margin="6,0,6,6">
+      <TextBox Text="{Binding #Root.FilterText, Mode=TwoWay}"
+               Watermark="Filter…"
+               FontSize="11"
+               MinHeight="22"
+               Padding="6,2,22,2"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch" />
+      <Button Classes="ghost icon"
+              HorizontalAlignment="Right" VerticalAlignment="Center"
+              Margin="0,0,2,0" Padding="3"
+              Click="OnClearClick"
+              IsVisible="{Binding #Root.HasFilter}"
+              ToolTip.Tip="Clear">
+        <Path Data="{DynamicResource IcoX}" Width="8" Height="8" Stretch="Uniform"
+              Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+      </Button>
+    </Grid>
+  </Grid>
 </UserControl>

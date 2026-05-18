@@ -13,8 +13,7 @@
       <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
                 SelectedItem="{Binding Selected, Mode=TwoWay}"
                 AutoGenerateColumns="False" SelectionMode="Single"
-                GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                ColumnHeaderHeight="62" Classes="filterable">
+                GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable">
         <DataGrid.Columns>
           <DataGridTextColumn Binding="{Binding State}" Width="110">
             <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>

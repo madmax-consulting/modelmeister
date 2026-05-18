@@ -395,8 +395,12 @@
     <Setter Property="RowBackground" Value="Transparent" />
     <Setter Property="HeadersVisibility" Value="Column" />
     <Setter Property="RowHeight" Value="28" />
-    <Setter Property="ColumnHeaderHeight" Value="30" />
+    <Setter Property="ColumnHeaderHeight" Value="58" />
+    <Setter Property="CanUserResizeColumns" Value="True" />
     <Setter Property="ClipToBounds" Value="True" />
+    <!-- Always-on vertical scrollbar gutter: prevents row data from shifting horizontally when a
+         filter changes the row count and the scrollbar would otherwise appear/disappear. -->
+    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Visible" />
     <Setter Property="(svc:GridCopyBehavior.Enable)" Value="True" />
   </Style>
 
@@ -410,10 +414,22 @@
     <Setter Property="Background" Value="{DynamicResource Surface1}" />
     <Setter Property="Foreground" Value="{DynamicResource TextSec}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
-    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="BorderThickness" Value="0,0,1,1" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Padding" Value="10,5" />
+    <!-- Padding=0 so header content (FilterableHeader, plain text) owns the full column rect and
+         supplies its own internal spacing. Avoids the old negative-margin hack that clipped. -->
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="VerticalContentAlignment" Value="Stretch" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <!-- Visible drag-grip on each column's right edge so users can find the resize affordance. -->
+  <Style Selector="DataGridColumnHeader /template/ Thumb#PART_RightHeaderGripper">
+    <Setter Property="Background" Value="{DynamicResource Border}" />
+    <Setter Property="Width" Value="3" />
   </Style>
 
   <Style Selector="DataGridRow">

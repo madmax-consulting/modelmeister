@@ -54,7 +54,6 @@
                   AutoGenerateColumns="False"
                   GridLinesVisibility="Horizontal"
                   HeadersVisibility="Column"
-                  ColumnHeaderHeight="62"
                   Margin="0" BorderThickness="0" CornerRadius="0"
                   DoubleTapped="OnRowDoubleTapped">
           <DataGrid.ContextMenu>
