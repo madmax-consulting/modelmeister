@@ -208,7 +208,7 @@ public partial class HistoryViewModel : ViewModelBase
             }
             catch (Exception ex)
             {
-                _log.Warn("History", $"Could not delete {r.Path}: {ex.Message}");
+                _log.Warn("History", $"Could not delete {r.Path}: {ex.Message}", ex);
             }
         }
         return removed;

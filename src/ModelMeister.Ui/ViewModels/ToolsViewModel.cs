@@ -167,7 +167,7 @@ public partial class ToolsViewModel : ViewModelBase
                 ScaffoldDetectBaseClasses, !ScaffoldNoCvlValues, _cts.Token).ConfigureAwait(true);
 
             ApplyScaffoldResult(result, ScaffoldWarnings, n => ScaffoldFilesCount = n);
-            ScaffoldLastCsproj = Directory.EnumerateFiles(ScaffoldOutputDir!, "*.csproj").FirstOrDefault();
+            ScaffoldLastCsproj = Directory.EnumerateFiles(ScaffoldOutputDir!, "*.csproj", SearchOption.AllDirectories).FirstOrDefault();
             ScaffoldDone = true;
             StatusMessage = "Scaffold complete.";
             _log.Success("Scaffold", $"Scaffold complete: {result.Files.Count} files.");
@@ -180,7 +180,7 @@ public partial class ToolsViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusMessage = $"Scaffold failed: {ex.Message}";
-            _log.Error("Scaffold", ex.Message);
+            _log.Error("Scaffold", ex.Message, ex);
         }
         finally
         {
@@ -214,7 +214,7 @@ public partial class ToolsViewModel : ViewModelBase
                 EnvScaffoldDetectBaseClasses, !EnvScaffoldNoCvlValues, _cts.Token).ConfigureAwait(true);
 
             ApplyScaffoldResult(result, EnvScaffoldWarnings, n => EnvScaffoldFilesCount = n);
-            EnvScaffoldLastCsproj = Directory.EnumerateFiles(EnvScaffoldOutputDir!, "*.csproj").FirstOrDefault();
+            EnvScaffoldLastCsproj = Directory.EnumerateFiles(EnvScaffoldOutputDir!, "*.csproj", SearchOption.AllDirectories).FirstOrDefault();
             EnvScaffoldDone = true;
             StatusMessage = "Scaffold from environment complete.";
             _log.Success("Scaffold", $"Scaffold from env complete: {result.Files.Count} files.");
@@ -227,7 +227,7 @@ public partial class ToolsViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusMessage = $"Scaffold from environment failed: {ex.Message}";
-            _log.Error("Scaffold", ex.Message);
+            _log.Error("Scaffold", ex.Message, ex);
         }
         finally
         {
@@ -290,7 +290,7 @@ public partial class ToolsViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusMessage = $"Merge failed: {ex.Message}";
-            _log.Error("Merge", ex.Message);
+            _log.Error("Merge", ex.Message, ex);
         }
         finally
         {
@@ -334,7 +334,7 @@ public partial class ToolsViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusMessage = $"Export failed: {ex.Message}";
-            _log.Error("Export", ex.Message);
+            _log.Error("Export", ex.Message, ex);
         }
         finally
         {
@@ -368,7 +368,7 @@ public partial class ToolsViewModel : ViewModelBase
             _log.Toast(LogLevel.Success, "Scaffold complete", $"{result.Files.Count} files");
         }
         catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
-        catch (Exception ex) { StatusMessage = "Excel scaffold failed: " + ex.Message; _log.Error("Excel", ex.Message); }
+        catch (Exception ex) { StatusMessage = "Excel scaffold failed: " + ex.Message; _log.Error("Excel", ex.Message, ex); }
         finally { Busy = false; }
     }
 

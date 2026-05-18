@@ -500,7 +500,7 @@ public partial class DashboardViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _log.Error("Backup", $"Full snapshot failed: {ex.Message}");
+            _log.Error("Backup", $"Full snapshot failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Backup failed", ex.Message);
         }
     }

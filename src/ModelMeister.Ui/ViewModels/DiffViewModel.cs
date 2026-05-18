@@ -171,7 +171,7 @@ public partial class DiffViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusMessage = $"Compare failed: {ex.Message}";
-            _log.Error("Compare", ex.Message);
+            _log.Error("Compare", ex.Message, ex);
             _log.Toast(LogLevel.Error, "Compare failed", ex.Message);
         }
         finally

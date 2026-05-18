@@ -368,7 +368,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _log.Warn("Startup", $"Auto-connect to '{entry.Name}' failed: {ex.Message}");
+            _log.Warn("Startup", $"Auto-connect to '{entry.Name}' failed: {ex.Message}", ex);
         }
     }
 
@@ -656,7 +656,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _log.Error("Restore", $"Restore failed: {ex.Message}");
+            _log.Error("Restore", $"Restore failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Restore failed", ex.Message);
         }
         finally

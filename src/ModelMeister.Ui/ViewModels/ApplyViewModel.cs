@@ -253,7 +253,7 @@ public partial class ApplyViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusMessage = $"Failed: {ex.Message}";
-            _log.Error("Apply", $"Failed: {ex.Message}");
+            _log.Error("Apply", $"Failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Apply failed", ex.Message);
         }
         finally
@@ -310,7 +310,7 @@ public partial class ApplyViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusMessage = $"Backup failed (aborting apply): {ex.Message}";
-            _log.Error("Apply", $"Backup failed: {ex.Message}");
+            _log.Error("Apply", $"Backup failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Apply aborted", $"Backup snapshot failed: {ex.Message}");
             Busy = false;
             return false;

@@ -165,7 +165,7 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
         catch (Exception ex)
         {
             Status = "Compare failed: " + ex.Message;
-            _log.Error("CompareExtensions", ex.Message);
+            _log.Error("CompareExtensions", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -286,7 +286,7 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
         catch (Exception ex)
         {
             Status = "Promote failed: " + ex.Message;
-            _log.Error("CompareExtensions", ex.Message);
+            _log.Error("CompareExtensions", ex.Message, ex);
         }
         finally { Busy = false; }
 

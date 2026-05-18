@@ -10,22 +10,25 @@ public enum LogLevel { Info, Success, Warn, Error }
 /// <summary>A single line in the in-app log drawer.</summary>
 public sealed class LogEntry
 {
-    public LogEntry(LogLevel level, string source, string message, DateTime? timestamp = null)
+    public LogEntry(LogLevel level, string source, string message, string? detail = null, DateTime? timestamp = null)
     {
         Level = level;
         Source = source;
         Message = message;
+        Detail = detail;
         TimestampLocal = timestamp ?? DateTime.Now;
     }
 
     public LogLevel Level { get; }
     public string Source { get; }
     public string Message { get; }
+    public string? Detail { get; }
     public DateTime TimestampLocal { get; }
     public string LevelText => Level.ToString();
     public string Time => TimestampLocal.ToString("HH:mm:ss");
     public bool IsWarnOrError => Level is LogLevel.Warn or LogLevel.Error;
     public bool IsError => Level is LogLevel.Error;
+    public bool HasDetail => !string.IsNullOrEmpty(Detail);
 }
 
 /// <summary>An ephemeral toast notification surfaced at the top of the window.</summary>
@@ -59,8 +62,8 @@ public interface IAppLog
 
     void Info(string source, string message);
     void Success(string source, string message);
-    void Warn(string source, string message);
-    void Error(string source, string message);
+    void Warn(string source, string message, Exception? exception = null);
+    void Error(string source, string message, Exception? exception = null);
 
     void Toast(LogLevel level, string title, string? detail = null, Action? onClick = null);
     void DismissToast(ToastEntry entry);
@@ -83,10 +86,12 @@ public sealed class AppLog : IAppLog
     /// <inheritdoc/>
     public ObservableCollection<ToastEntry> Toasts { get; } = [];
 
-    public void Info(string source, string message)    => Append(LogLevel.Info, source, message);
-    public void Success(string source, string message) => Append(LogLevel.Success, source, message);
-    public void Warn(string source, string message)    => Append(LogLevel.Warn, source, message);
-    public void Error(string source, string message)   => Append(LogLevel.Error, source, message);
+    public void Info(string source, string message)    => Append(LogLevel.Info, source, message, null);
+    public void Success(string source, string message) => Append(LogLevel.Success, source, message, null);
+    public void Warn(string source, string message, Exception? exception = null)
+        => Append(LogLevel.Warn, source, message, exception?.ToString());
+    public void Error(string source, string message, Exception? exception = null)
+        => Append(LogLevel.Error, source, message, exception?.ToString());
 
     /// <inheritdoc/>
     public void Toast(LogLevel level, string title, string? detail = null, Action? onClick = null)
@@ -109,9 +114,9 @@ public sealed class AppLog : IAppLog
     /// <inheritdoc/>
     public void Clear() => Marshal(() => Entries.Clear());
 
-    private void Append(LogLevel level, string source, string message) => Marshal(() =>
+    private void Append(LogLevel level, string source, string message, string? detail) => Marshal(() =>
     {
-        Entries.Add(new LogEntry(level, source, message));
+        Entries.Add(new LogEntry(level, source, message, detail));
         while (Entries.Count > MaxEntries) Entries.RemoveAt(0);
     });
 

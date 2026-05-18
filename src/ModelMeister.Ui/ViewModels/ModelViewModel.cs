@@ -212,7 +212,7 @@ public partial class ModelViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusMessage = $"Load failed: {ex.Message}";
-            _log.Error("Model", $"Load failed: {ex.Message}");
+            _log.Error("Model", $"Load failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Model load failed", ex.Message);
             HasModel = false;
         }

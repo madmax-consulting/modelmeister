@@ -182,7 +182,7 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
         catch (Exception ex)
         {
             Status = "Compare failed: " + ex.Message;
-            _log.Error("CvlCompare", ex.Message);
+            _log.Error("CvlCompare", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -309,7 +309,7 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
         catch (Exception ex)
         {
             Status = "Promote failed: " + ex.Message;
-            _log.Error("CvlCompare", ex.Message);
+            _log.Error("CvlCompare", ex.Message, ex);
         }
         finally { Busy = false; }
 

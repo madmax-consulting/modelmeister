@@ -476,23 +476,31 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="svc:LogEntry">
                   <Border Classes="logEntry">
-                    <Grid ColumnDefinitions="64,80,140,*">
-                      <TextBlock Grid.Column="0" Text="{Binding Time}" Classes="mono"
-                                 Foreground="{DynamicResource TextDim}" />
-                      <Border Grid.Column="1" Classes="pill"
-                              Background="Transparent"
-                              BorderBrush="{Binding LevelText, Converter={StaticResource LogLevelBrush}}"
-                              BorderThickness="1"
-                              HorizontalAlignment="Left">
-                        <TextBlock Text="{Binding LevelText}"
-                                   Foreground="{Binding LevelText, Converter={StaticResource LogLevelBrush}}" />
-                      </Border>
-                      <TextBlock Grid.Column="2" Text="{Binding Source}"
-                                 FontWeight="SemiBold" Foreground="{DynamicResource TextSec}"
-                                 VerticalAlignment="Center" Margin="10,0,0,0" />
-                      <TextBlock Grid.Column="3" Text="{Binding Message}" TextWrapping="Wrap"
-                                 VerticalAlignment="Center" Margin="6,0,0,0" />
-                    </Grid>
+                    <StackPanel>
+                      <Grid ColumnDefinitions="64,80,140,*">
+                        <TextBlock Grid.Column="0" Text="{Binding Time}" Classes="mono"
+                                   Foreground="{DynamicResource TextDim}" />
+                        <Border Grid.Column="1" Classes="pill"
+                                Background="Transparent"
+                                BorderBrush="{Binding LevelText, Converter={StaticResource LogLevelBrush}}"
+                                BorderThickness="1"
+                                HorizontalAlignment="Left">
+                          <TextBlock Text="{Binding LevelText}"
+                                     Foreground="{Binding LevelText, Converter={StaticResource LogLevelBrush}}" />
+                        </Border>
+                        <TextBlock Grid.Column="2" Text="{Binding Source}"
+                                   FontWeight="SemiBold" Foreground="{DynamicResource TextSec}"
+                                   VerticalAlignment="Center" Margin="10,0,0,0" />
+                        <TextBlock Grid.Column="3" Text="{Binding Message}" TextWrapping="Wrap"
+                                   VerticalAlignment="Center" Margin="6,0,0,0" />
+                      </Grid>
+                      <Expander Header="details" IsVisible="{Binding HasDetail}"
+                                Margin="64,2,0,4" Padding="0">
+                        <TextBox Text="{Binding Detail, Mode=OneWay}" IsReadOnly="True"
+                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                 Classes="mono" MaxHeight="240" />
+                      </Expander>
+                    </StackPanel>
                   </Border>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>

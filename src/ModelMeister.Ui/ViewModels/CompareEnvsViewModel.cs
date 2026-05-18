@@ -187,7 +187,7 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
         catch (Exception ex)
         {
             Status = "Compare failed: " + ex.Message;
-            _log.Error("Compare", ex.Message);
+            _log.Error("Compare", ex.Message, ex);
         }
         finally { Busy = false; }
     }
