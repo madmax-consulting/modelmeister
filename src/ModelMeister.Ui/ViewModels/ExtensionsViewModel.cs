@@ -41,7 +41,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         }
         catch (Exception ex)
         {
-            _log.Error("Backup", $"Extensions backup failed: {ex.Message}");
+            _log.Error("Backup", $"Extensions backup failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Backup failed", ex.Message);
         }
     }
@@ -103,7 +103,9 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
             {
                 OnPropertyChanged(nameof(HasRestKey));
-                if (_main.IsConnected) _ = RefreshAsync();
+                // Connection change invalidates the cache; flag so EnsureLoadedAsync re-fetches.
+                MarkDataDirty();
+                if (_main.IsConnected) _ = EnsureLoadedAsync();
             }
         };
     }
@@ -130,7 +132,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         catch (Exception ex)
         {
             StatusMessage = "Failed: " + ex.Message;
-            _log.Error("Extensions", ex.Message);
+            _log.Error("Extensions", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -150,7 +152,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         catch (Exception ex)
         {
             StatusMessage = "Latest events failed: " + ex.Message;
-            _log.Error("Extensions", ex.Message);
+            _log.Error("Extensions", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -217,7 +219,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         catch (Exception ex)
         {
             StatusMessage = "Events failed: " + ex.Message;
-            _log.Error("Extensions", ex.Message);
+            _log.Error("Extensions", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -237,7 +239,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         catch (Exception ex)
         {
             StatusMessage = "States failed: " + ex.Message;
-            _log.Error("Extensions", ex.Message);
+            _log.Error("Extensions", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -346,7 +348,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         }
         catch (Exception ex)
         {
-            _log.Warn("Extensions", $"Reload details failed: {ex.Message}");
+            _log.Warn("Extensions", $"Reload details failed: {ex.Message}", ex);
         }
     }
 }

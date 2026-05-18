@@ -45,9 +45,34 @@ public abstract partial class FeaturePageViewModel : ViewModelBase
     /// <summary>Uniform toolbar command: import an Excel workbook into slot A.</summary>
     public IAsyncRelayCommand ImportExcelCommand { get; }
 
+    /// <summary>
+    /// Dirty-flag reload gate. Starts <c>true</c> (data has not been loaded yet), is flipped to
+    /// <c>false</c> after <see cref="RefreshAsync"/> succeeds, and back to <c>true</c> whenever the
+    /// page-VM detects a state change that invalidates its cache (mutation, connection switch).
+    /// <see cref="EnsureLoadedAsync"/> consults this flag; the toolbar Refresh button bypasses it.
+    /// </summary>
+    protected bool IsDataDirty { get; private set; } = true;
+
+    /// <summary>Mark the page's data as stale — the next <see cref="EnsureLoadedAsync"/> call will re-fetch.</summary>
+    protected void MarkDataDirty() => IsDataDirty = true;
+
+    /// <summary>Refresh only when the dirty flag is set; cheap no-op otherwise.</summary>
+    public async Task EnsureLoadedAsync()
+    {
+        if (!IsDataDirty) return;
+        await RefreshAsync().ConfigureAwait(true);
+        IsDataDirty = false;
+    }
+
     protected FeaturePageViewModel()
     {
-        RefreshCommand     = new AsyncRelayCommand(RefreshAsync);
+        // The Refresh button always forces a reload — gating the toolbar button on the dirty flag
+        // would defeat its purpose (user clicks it specifically to bypass any cache).
+        RefreshCommand     = new AsyncRelayCommand(async () =>
+        {
+            await RefreshAsync().ConfigureAwait(true);
+            IsDataDirty = false;
+        });
         BackupCommand      = new AsyncRelayCommand(BackupAsync);
         ExportExcelCommand = new AsyncRelayCommand(ExportExcelAsync);
         ImportExcelCommand = new AsyncRelayCommand(ImportExcelAsync);

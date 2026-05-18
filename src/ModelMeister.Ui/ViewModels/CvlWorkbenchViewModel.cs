@@ -56,7 +56,12 @@ public partial class CvlWorkbenchViewModel : FeaturePageViewModel
         _main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
+            {
+                // Different env → CVL set is different. Flag so EnsureLoadedAsync re-fetches.
+                MarkDataDirty();
+                if (_main.IsConnected) _ = EnsureLoadedAsync();
                 ExportFullWorkbookCommand.NotifyCanExecuteChanged();
+            }
         };
     }
 
@@ -75,7 +80,7 @@ public partial class CvlWorkbenchViewModel : FeaturePageViewModel
                 Cvls.Add(new CvlRow(c.Id, c.DataType.ToString(), c.Values.Count, c.ParentId ?? "", c.CustomValueList));
             Status = $"{Cvls.Count} CVLs · {Cvls.Sum(r => r.ValueCount)} values";
         }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Cvl", ex.Message); }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Cvl", ex.Message, ex); }
         finally { Busy = false; }
     }
 
@@ -95,7 +100,7 @@ public partial class CvlWorkbenchViewModel : FeaturePageViewModel
             Status = $"Wrote {Path.GetFileName(path)}";
             _log.Success("Cvl", $"Exported CVL workbook: {path}");
         }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Cvl", ex.Message); }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Cvl", ex.Message, ex); }
         finally { Busy = false; }
     }
 
