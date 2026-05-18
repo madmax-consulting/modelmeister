@@ -26,8 +26,14 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
     readonly IEnvironmentVault _vault;
 
     public ObservableCollection<EnvironmentEntry> AvailableEnvs { get; } = [];
+    /// <summary>Full row set — drives the bucket counts. Rows are projected into <see cref="Rows"/> through the bucket filter.</summary>
+    private readonly List<UserCompareRow> _allRows = new();
     public ObservableCollection<UserCompareRow> Rows { get; } = [];
     public ObservableCollection<ConceptDiffCount> Counts { get; } = [];
+
+    /// <summary>Bottom-chart bucket toggle. Hiding a bucket removes its rows from <see cref="Rows"/>.</summary>
+    public BucketToggleState Buckets { get; } = new();
+    public string BucketPath => "State";
 
     [ObservableProperty] private EnvironmentEntry? _leftEnv;
     [ObservableProperty] private EnvironmentEntry? _rightEnv;
@@ -55,6 +61,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         _log = log;
         _vault = main.Vault;
         _vault.Changed += RefreshEnvList;
+        Buckets.Changed += _ => RebuildVisibleRows();
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -138,8 +145,10 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         { Status = $"No API key on file for '{RightEnv.Name}'."; return; }
 
         Busy = true;
+        _allRows.Clear();
         Rows.Clear();
         Counts.Clear();
+        Buckets.Reset(Counts);
         HasRows = false;
         Summary = "";
         try
@@ -170,13 +179,28 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         catch (Exception ex)
         {
             Status = "Compare failed: " + ex.Message;
-            _log.Error("UsersCompare", ex.Message);
+            _log.Error("UsersCompare", ex.Message, ex);
         }
         finally { Busy = false; }
     }
 
+    /// <summary>Re-project <see cref="_allRows"/> into <see cref="Rows"/> after the bucket filter changes.</summary>
+    private void RebuildVisibleRows()
+    {
+        Rows.Clear();
+        var hidden = Buckets;
+        foreach (var r in _allRows)
+        {
+            // BucketToggleState owns the hidden set internally; expose via Toggle/IsHidden flags.
+            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Title, r.State, StringComparison.OrdinalIgnoreCase));
+            if (bucketRow is { IsHidden: true }) continue;
+            Rows.Add(r);
+        }
+    }
+
     private void PopulateRows(IReadOnlyList<UserSummary> leftUsers, IReadOnlyList<UserSummary> rightUsers)
     {
+        _allRows.Clear();
         var leftMap = leftUsers.ToDictionary(u => u.Username, StringComparer.OrdinalIgnoreCase);
         var rightMap = rightUsers.ToDictionary(u => u.Username, StringComparer.OrdinalIgnoreCase);
 
@@ -195,7 +219,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
             if (l is null)
             {
                 // only-right: L→R would mean "delete on right", which Remoting cannot do. Hide it.
-                Rows.Add(new UserCompareRow(name, "only-right", r?.Email ?? "", string.Join(", ", r?.Roles ?? []),
+                _allRows.Add(new UserCompareRow(name, "only-right", r?.Email ?? "", string.Join(", ", r?.Roles ?? []),
                     $"only in {rightName}",
                     CanPromoteLeftToRight: false,
                     CanPromoteRightToLeft: true));
@@ -204,7 +228,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
             if (r is null)
             {
                 // only-left: R→L would mean "delete on left" — same Remoting limitation, hide it.
-                Rows.Add(new UserCompareRow(name, "only-left", l.Email ?? "", string.Join(", ", l.Roles),
+                _allRows.Add(new UserCompareRow(name, "only-left", l.Email ?? "", string.Join(", ", l.Roles),
                     $"only in {leftName}",
                     CanPromoteLeftToRight: true,
                     CanPromoteRightToLeft: false));
@@ -222,7 +246,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
                 diffs.Add($"roles: [{leftRoles}] → [{rightRoles}]");
 
             var state = diffs.Count == 0 ? "identical" : "changed";
-            Rows.Add(new UserCompareRow(
+            _allRows.Add(new UserCompareRow(
                 name,
                 state,
                 l.Email ?? "",
@@ -231,6 +255,8 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
                 CanPromoteLeftToRight: state == "changed",
                 CanPromoteRightToLeft: state == "changed"));
         }
+
+        RebuildVisibleRows();
     }
 
     /// <summary>Promote <paramref name="row"/>'s left-side user into the right env.</summary>
@@ -250,6 +276,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         if (_leftCapture is null || _rightCapture is null) { Status = "Run a compare first."; return; }
 
         var sourceList = sourceFromLeft ? _leftCapture : _rightCapture;
+        var sourceEnv = sourceFromLeft ? LeftEnv : RightEnv;
         var targetEnv = sourceFromLeft ? RightEnv : LeftEnv;
         var label = sourceFromLeft ? "left→right" : "right→left";
 
@@ -259,6 +286,20 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         var targetSecret = _vault.GetSecret(targetEnv.Id);
         if (targetSecret is null || string.IsNullOrEmpty(targetSecret.ApiKey))
         { Status = $"No API key on file for target '{targetEnv.Name}'."; return; }
+
+        // Per-row promote is destructive — confirm before doing it. Production targets get the
+        // red banner inside the dialog.
+        var confirmed = await DialogHost.ConfirmPromoteAsync(
+            conceptLabel: "User",
+            itemLabel: row.Username,
+            sourceEnv: sourceEnv.Name,
+            targetEnv: targetEnv.Name,
+            targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
+        if (!confirmed)
+        {
+            Status = "Promote cancelled.";
+            return;
+        }
 
         Busy = true;
         Status = $"Promoting '{row.Username}' {label} → '{targetEnv.Name}'…";
@@ -293,7 +334,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         catch (Exception ex)
         {
             Status = "Promote failed: " + ex.Message;
-            _log.Error("UsersCompare", ex.Message);
+            _log.Error("UsersCompare", ex.Message, ex);
         }
         finally { Busy = false; }
 

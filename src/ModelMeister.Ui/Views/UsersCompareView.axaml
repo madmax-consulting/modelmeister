@@ -14,7 +14,8 @@
     <conv:StageToTextConverter x:Key="StageText" />
   </UserControl.Resources>
 
-  <views:CompareLayoutView>
+  <views:CompareLayoutView Eyebrow="USERS · COMPARE"
+                           Subtitle="Compare users across two environments — promote per-row">
     <views:CompareLayoutView.Body>
       <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"

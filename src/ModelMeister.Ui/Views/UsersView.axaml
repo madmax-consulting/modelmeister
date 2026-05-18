@@ -3,14 +3,31 @@
              xmlns:vm="using:ModelMeister.Ui.ViewModels"
              xmlns:svc="using:ModelMeister.Ui.Services"
              xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
              x:Class="ModelMeister.Ui.Views.UsersView"
              x:DataType="vm:UsersViewModel">
 
-  <c:PageShell Subtitle="Inspect the live environment's user list — export/import via the icons above"
+  <c:PageShell Eyebrow="USERS"
+               Subtitle="Inspect the live environment's user list — export/import via the icons above"
                Status="{Binding Status}"
                IsBusy="{Binding Busy}">
     <c:PageShell.Actions>
-      <c:PageActions DataContext="{Binding}" />
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <!-- Download dropdown: list vs blank template — the previous Export icon offered only one
+             option, which made the template (one example row, no real users) hard to discover. -->
+        <Button Classes="ghost icon" ToolTip.Tip="Download…">
+          <Button.Flyout>
+            <MenuFlyout Placement="Bottom">
+              <MenuItem Header="Download list"     Command="{Binding DownloadListCommand}" />
+              <MenuItem Header="Download template" Command="{Binding DownloadTemplateCommand}" />
+            </MenuFlyout>
+          </Button.Flyout>
+          <Path Data="{DynamicResource IcoDownload}" Width="14" Height="14" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <c:PageActions DataContext="{Binding}" />
+      </StackPanel>
     </c:PageShell.Actions>
 
     <Border Classes="card flush" Padding="0">
@@ -41,19 +58,19 @@
           </ContextMenu>
         </DataGrid.ContextMenu>
         <DataGrid.Columns>
-          <DataGridTextColumn Binding="{Binding Username}" Width="180">
+          <!-- Username + Email are identical in inriver for most orgs; only Username is shown.
+               If you need to see Email separately, right-click → Copy email or re-add the column. -->
+          <DataGridTextColumn Binding="{Binding Username}" Width="200">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Username" Path="Username" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding FirstName}" Width="120">
-            <DataGridTextColumn.Header><c:FilterableHeader Title="Name" Path="FirstName" /></DataGridTextColumn.Header>
+          <DataGridTextColumn Binding="{Binding FirstName}" Width="140">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="First name" Path="FirstName" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding LastName}" Width="120">
-            <DataGridTextColumn.Header><c:FilterableHeader Title="Last" Path="LastName" /></DataGridTextColumn.Header>
+          <DataGridTextColumn Binding="{Binding LastName}" Width="140">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Last name" Path="LastName" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding Email}" Width="220">
-            <DataGridTextColumn.Header><c:FilterableHeader Title="Email" Path="Email" /></DataGridTextColumn.Header>
-          </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding Roles, Converter={x:Static StringConverters.IsNullOrEmpty}}" Width="*">
+          <!-- Roles column: comma-joined for read; copy via context menu. -->
+          <DataGridTextColumn Binding="{Binding Roles, Converter={x:Static conv:JoinStringsConverter.Instance}}" Width="*">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Roles" Path="Roles" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
         </DataGrid.Columns>

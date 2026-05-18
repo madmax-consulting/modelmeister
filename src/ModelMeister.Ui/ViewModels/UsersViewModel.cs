@@ -44,7 +44,7 @@ public partial class UsersViewModel : FeaturePageViewModel
         }
         catch (Exception ex)
         {
-            _log.Error("Backup", $"Users backup failed: {ex.Message}");
+            _log.Error("Backup", $"Users backup failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Backup failed", ex.Message);
         }
     }
@@ -88,6 +88,9 @@ public partial class UsersViewModel : FeaturePageViewModel
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
             {
+                // Switching envs invalidates the user list — flag it so next visit re-fetches.
+                MarkDataDirty();
+                if (_main.IsConnected) _ = EnsureLoadedAsync();
                 ExportTemplateCommand.NotifyCanExecuteChanged();
                 ProvisionCommand.NotifyCanExecuteChanged();
             }
@@ -117,7 +120,7 @@ public partial class UsersViewModel : FeaturePageViewModel
         catch (Exception ex)
         {
             Status = "Failed: " + ex.Message;
-            _log.Error("Users", ex.Message);
+            _log.Error("Users", ex.Message, ex);
         }
         finally { Busy = false; }
     }
@@ -126,33 +129,67 @@ public partial class UsersViewModel : FeaturePageViewModel
     [RelayCommand] private Task CopyEmail(UserSummary? u)    => ClipboardHelpers.CopyAsync(u?.Email);
     [RelayCommand] private Task CopyRoles(UserSummary? u)    => ClipboardHelpers.CopyAsync(u is null ? null : string.Join(", ", u.Roles));
 
+    /// <summary>Download the current user list as an xlsx workbook.</summary>
     [RelayCommand(CanExecute = nameof(CanExportTemplate))]
-    public async Task ExportTemplateAsync()
+    public async Task DownloadListAsync() => await ExportWorkbookAsync(seedSingleExample: false).ConfigureAwait(true);
+
+    /// <summary>Download a minimal example workbook (one row) callers can edit + re-import.</summary>
+    [RelayCommand(CanExecute = nameof(CanExportTemplate))]
+    public async Task DownloadTemplateAsync() => await ExportWorkbookAsync(seedSingleExample: true).ConfigureAwait(true);
+
+    /// <summary>Back-compat alias retained for the toolbar Export button; behaves as Download list.</summary>
+    [RelayCommand(CanExecute = nameof(CanExportTemplate))]
+    public Task ExportTemplateAsync() => DownloadListAsync();
+
+    private async Task ExportWorkbookAsync(bool seedSingleExample)
     {
         if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        var path = await PickSaveAsync("users.xlsx").ConfigureAwait(true);
+        var path = await PickSaveAsync(seedSingleExample ? "users-template.xlsx" : "users.xlsx").ConfigureAwait(true);
         if (path is null) return;
 
         Busy = true;
         try
         {
-            var users = await _shell.ListUsersAsync().ConfigureAwait(true);
             var roles = await _shell.ListRoleNamesAsync().ConfigureAwait(true);
-            var rows = users.Select(u => new UsersWorkbook.UserRow
+            List<UsersWorkbook.UserRow> rows;
+            if (seedSingleExample)
             {
-                Username = u.Username,
-                Email = u.Email ?? "",
-                FirstName = u.FirstName ?? "",
-                LastName = u.LastName ?? "",
-                Company = u.Company ?? "",
-                Roles = u.Roles.ToList(),
-                Language = "en",
-            }).ToList();
+                // Template: one example row so the workbook columns are obvious. Username
+                // intentionally a placeholder so accidental re-import without edits creates
+                // exactly one harmless user (or fails validation), never overwrites a real one.
+                rows = new List<UsersWorkbook.UserRow>
+                {
+                    new()
+                    {
+                        Username = "example.user",
+                        Email = "example.user@example.com",
+                        FirstName = "Example",
+                        LastName = "User",
+                        Company = "",
+                        Roles = new List<string>(),
+                        Language = "en",
+                    },
+                };
+            }
+            else
+            {
+                var users = await _shell.ListUsersAsync().ConfigureAwait(true);
+                rows = users.Select(u => new UsersWorkbook.UserRow
+                {
+                    Username = u.Username,
+                    Email = u.Email ?? "",
+                    FirstName = u.FirstName ?? "",
+                    LastName = u.LastName ?? "",
+                    Company = u.Company ?? "",
+                    Roles = u.Roles.ToList(),
+                    Language = "en",
+                }).ToList();
+            }
             UsersWorkbook.Save(rows, roles.ToList(), path);
             Status = $"Wrote {Path.GetFileName(path)}";
-            _log.Success("Users", $"Exported template: {path}");
+            _log.Success("Users", $"Exported {(seedSingleExample ? "template" : "list")}: {path}");
         }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Users", ex.Message); }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Users", ex.Message, ex); }
         finally { Busy = false; }
     }
 
@@ -171,13 +208,37 @@ public partial class UsersViewModel : FeaturePageViewModel
         {
             var env = _main.ConnectedEnv;
             var secret = env is null ? null : _main.Vault.GetSecret(env.Id);
+            // Provisioning needs both a REST endpoint and a REST API key. Diagnose up-front so the
+            // user sees a clear "set the REST key" message instead of a generic backend exception
+            // 30 seconds in.
+            if (!DryRun)
+            {
+                if (env is null || string.IsNullOrWhiteSpace(env.RestBaseUrl))
+                {
+                    Status = "Real import requires a REST base URL on the connected environment.";
+                    _log.Warn("Users", Status);
+                    return;
+                }
+                if (secret is null || string.IsNullOrWhiteSpace(secret.RestApiKey))
+                {
+                    Status = "Real import requires a REST API key on the connected environment.";
+                    _log.Warn("Users", Status);
+                    return;
+                }
+            }
+
             var users = UsersWorkbook.Load(WorkbookPath);
-            int created = 0, updated = 0, errors = 0;
+            int created = 0, updated = 0, errors = 0, warnings = 0;
+            var resultRows = new List<ProvisionResultRow>();
 
             foreach (var u in users)
             {
                 if (DryRun)
                 {
+                    resultRows.Add(new ProvisionResultRow(
+                        u.Username,
+                        "would-create",
+                        $"roles: {string.Join(", ", u.Roles)}"));
                     _log.Info("Users", $"dry: would provision {u.Username} -> {string.Join(", ", u.Roles)}");
                     continue;
                 }
@@ -187,14 +248,36 @@ public partial class UsersViewModel : FeaturePageViewModel
                 if (result.Created) created++;
                 else updated++;
                 if (result.Errors.Count > 0) errors += result.Errors.Count;
+
+                var outcome = result.Errors.Count > 0
+                    ? "error"
+                    : (result.Created ? "created" : "updated");
+                var detail = result.Errors.Count > 0
+                    ? string.Join(" · ", result.Errors)
+                    : $"roles: {string.Join(", ", u.Roles)}";
+                resultRows.Add(new ProvisionResultRow(u.Username, outcome, detail));
                 foreach (var err in result.Errors) _log.Warn("Users", $"{u.Username}: {err}");
             }
+
+            // The dry-run / real-import result is shown via the same modal dialog so the user gets
+            // a structured row-by-row view instead of a one-line status string.
+            var resultVm = new ProvisionResultViewModel(
+                dryRun: DryRun,
+                created: DryRun ? users.Count : created,
+                updated: DryRun ? 0 : updated,
+                errors: errors,
+                warnings: warnings,
+                rows: resultRows);
+            await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
+
             Status = DryRun
                 ? $"Dry run complete · {users.Count} users would be processed."
                 : $"Provisioned · created {created}, updated {updated}, errors {errors}";
+            // Real provisioning changed remote state; force a reload to reflect the new user list.
+            if (!DryRun) MarkDataDirty();
             await RefreshAsync().ConfigureAwait(true);
         }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Users", ex.Message); }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Users", ex.Message, ex); }
         finally { Busy = false; }
     }
 
