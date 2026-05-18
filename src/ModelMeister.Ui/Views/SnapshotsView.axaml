@@ -13,36 +13,46 @@
                 CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
   </UserControl.KeyBindings>
 
+  <!-- Single-row PageShell header: Eyebrow + Subtitle on the left; Capture + standard PageActions
+       (Refresh) on the right. Scope is filtered in-place via the column header below — no second
+       toolbar row. -->
   <c:PageShell Eyebrow="BACKUP LIBRARY"
                Subtitle="Every scoped or full snapshot the app has captured, in one place"
-               Status="{Binding Summary}">
+               Status="{Binding Summary}"
+               IsBusy="{Binding Busy}">
     <c:PageShell.Actions>
-      <c:PageActions DataContext="{Binding}" />
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button Classes="primary"
+                Content="Capture full snapshot"
+                Command="{Binding CaptureFullCommand}" />
+        <c:PageActions DataContext="{Binding}" />
+      </StackPanel>
     </c:PageShell.Actions>
 
-    <Grid RowDefinitions="Auto,*">
+    <Border Classes="card flush" Padding="0">
+      <Grid>
+        <!-- Empty state: shown when no backups have been captured yet. Mirrors UsersView's pattern
+             (centered text + cta) so an empty library no longer renders as a blank dark surface. -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Spacing="6" Margin="0,40"
+                    IsVisible="{Binding Rows.Count, Converter={x:Static svc:Eq.IsZero}}">
+          <TextBlock Text="No backups captured yet"
+                     FontWeight="SemiBold" FontSize="14"
+                     HorizontalAlignment="Center" />
+          <TextBlock Text="Use Capture full snapshot to take one."
+                     Classes="subtle"
+                     HorizontalAlignment="Center" />
+          <Button Content="Capture full snapshot"
+                  Command="{Binding CaptureFullCommand}"
+                  Classes="primary"
+                  HorizontalAlignment="Center"
+                  Margin="0,4,0,0" />
+        </StackPanel>
 
-      <!-- Toolbar: spacer pushes the page-level primary action (Capture) to the right. Scope is
-           now applied as a per-column filter on the Scope column below, not a separate dropdown. -->
-      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8" VerticalAlignment="Center">
-        <Button Grid.Column="1" Classes="primary" Content="Capture full snapshot" Command="{Binding CaptureFullCommand}" />
-      </Grid>
-
-      <!-- Backup library grid -->
-      <Border Grid.Row="1" Classes="card flush" Padding="0">
-        <Grid>
-          <!-- Empty state -->
-          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                      Spacing="6" Margin="0,40"
-                      IsVisible="{Binding Rows.Count, Converter={x:Static svc:Eq.IsZero}}">
-            <TextBlock Text="No backups yet" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
-            <TextBlock Text="Capture a full snapshot to populate the library." Classes="subtle" HorizontalAlignment="Center" />
-            <Button Content="Capture full snapshot" Command="{Binding CaptureFullCommand}" Classes="primary"
-                    HorizontalAlignment="Center" Margin="0,4,0,0" />
-          </StackPanel>
         <DataGrid Name="BackupsGrid"
                   ItemsSource="{Binding Rows}" IsReadOnly="True"
-                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
+                  AutoGenerateColumns="False"
+                  GridLinesVisibility="Horizontal"
                   HeadersVisibility="Column"
                   ColumnHeaderHeight="62"
                   Margin="0" BorderThickness="0" CornerRadius="0"
@@ -66,22 +76,25 @@
             </ContextMenu>
           </DataGrid.ContextMenu>
           <DataGrid.Columns>
-            <DataGridTextColumn Binding="{Binding Scope}" Width="120">
+            <!-- Scope-as-column-filter (preserves commit 51ec2fc). MinWidth lets columns size to
+                 content while keeping a sensible floor; only File gets Width="*" so it absorbs
+                 the slack rather than every column fighting for it. -->
+            <DataGridTextColumn Binding="{Binding Scope}" MinWidth="110">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Scope" Path="Scope" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTextColumn Binding="{Binding EnvName}" Width="*">
+            <DataGridTextColumn Binding="{Binding EnvName}" MinWidth="180">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Env" Path="EnvName" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTextColumn Binding="{Binding CapturedAt}" Width="160">
+            <DataGridTextColumn Binding="{Binding CapturedAt}" MinWidth="150">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Captured" Path="CapturedAt" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTextColumn Binding="{Binding KindLabel}" Width="70">
+            <DataGridTextColumn Binding="{Binding KindLabel}" MinWidth="80">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Kind" Path="KindLabel" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTextColumn Binding="{Binding Size}" Width="90">
+            <DataGridTextColumn Binding="{Binding Size}" MinWidth="80">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Size" Path="Size" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTextColumn Binding="{Binding FileName}" Width="*">
+            <DataGridTextColumn Binding="{Binding FileName}" Width="*" MinWidth="200">
               <DataGridTextColumn.Header><c:FilterableHeader Title="File" Path="FileName" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
             <DataGridTemplateColumn Header="" Width="180">
@@ -102,10 +115,8 @@
             </DataGridTemplateColumn>
           </DataGrid.Columns>
         </DataGrid>
-        </Grid>
-      </Border>
-
-    </Grid>
+      </Grid>
+    </Border>
 
   </c:PageShell>
 </UserControl>
