@@ -10,14 +10,24 @@ public sealed class ProjectScaffolder
 {
     /// <summary>Scaffold from a JSON model export file.</summary>
     public ScaffoldResult Scaffold(string jsonPath, string outDir, string rootNamespace, bool detectBaseClasses = true, bool emitCvlValues = true)
-        => Scaffold(InriverModelJson.Load(jsonPath), outDir, rootNamespace, detectBaseClasses, emitCvlValues);
+        => Scaffold(InriverModelJson.Load(jsonPath), outDir, rootNamespace, detectBaseClasses, emitCvlValues, sourceLabel: jsonPath);
 
     /// <summary>Scaffold from an already-loaded <see cref="InriverModelJson"/>.</summary>
-    public ScaffoldResult Scaffold(InriverModelJson model, string outDir, string rootNamespace, bool detectBaseClasses = true, bool emitCvlValues = true)
+    public ScaffoldResult Scaffold(
+        InriverModelJson model,
+        string outDir,
+        string rootNamespace,
+        bool detectBaseClasses = true,
+        bool emitCvlValues = true,
+        string? sourceLabel = null,
+        DateTime? generatedAt = null)
     {
+        // The project root lives one level inside outDir so the .slnx + project layout looks like
+        // a normal Visual Studio solution. The csproj sits at projectDir/<rootNamespace>.csproj.
+        var projectDir = Path.Combine(outDir, rootNamespace);
         var dirs = new[] { "EntityTypes", "Cvls", "Categories", "Fieldsets", "LinkTypes", "Roles" };
-        Directory.CreateDirectory(outDir);
-        foreach (var d in dirs) Directory.CreateDirectory(Path.Combine(outDir, d));
+        Directory.CreateDirectory(projectDir);
+        foreach (var d in dirs) Directory.CreateDirectory(Path.Combine(projectDir, d));
 
         // Emit fields in the order inriver renders them (Index ascending) rather than whatever the
         // JSON export happens to serialize — typically alphabetical by id. Ties fall back to id for
@@ -35,10 +45,10 @@ public sealed class ProjectScaffolder
 
         var result = new ScaffoldResult();
 
-        // Helper: write a file under outDir and record it in the result.
+        // Helper: write a file under projectDir and record it in the result.
         void Write(string relPath, string content)
         {
-            var full = Path.Combine(outDir, relPath);
+            var full = Path.Combine(projectDir, relPath);
             File.WriteAllText(full, content);
             result.Files.Add(full);
         }
@@ -106,7 +116,7 @@ public sealed class ProjectScaffolder
         // alternative — relying on $(ModelMeisterModelDll) injected by ModelAssemblyLoader — only
         // worked when the model was built via the loader, not when the customer ran `dotnet build`
         // themselves.
-        var libDir = Path.Combine(outDir, "lib");
+        var libDir = Path.Combine(projectDir, "lib");
         Directory.CreateDirectory(libDir);
         var modelDllSrc = typeof(ModelMeister.Model.Cvl).Assembly.Location;
         var modelDllDest = Path.Combine(libDir, "ModelMeister.Model.dll");
@@ -115,6 +125,17 @@ public sealed class ProjectScaffolder
 
         // csproj
         Write(rootNamespace + ".csproj", CsprojEmitter.Emit(rootNamespace));
+
+        // README — generation metadata that callers (and future readers of the scaffolded code)
+        // want at a glance.
+        var stamp = generatedAt ?? DateTime.UtcNow;
+        Write("README.md", ReadmeEmitter.Emit(rootNamespace, sourceLabel, stamp, model));
+
+        // .slnx sibling — sits alongside the project dir so opening outDir in an IDE picks up the
+        // whole solution. .slnx is the XML solution format VS 17.10+ understands.
+        var slnxPath = Path.Combine(outDir, rootNamespace + ".slnx");
+        File.WriteAllText(slnxPath, SlnxEmitter.Emit(rootNamespace));
+        result.Files.Add(slnxPath);
 
         return result;
     }

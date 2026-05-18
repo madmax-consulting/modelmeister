@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace ModelMeister.Scaffolder;
@@ -315,12 +316,36 @@ public static class EntityTypeEmitter
             .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>();
         var ctx = exprContext ?? ExpressionContext.Empty;
 
-        var fieldLines = (e.FieldTypes ?? new())
+        // Group fields by category and emit a "// CategoryName" separator comment between groups.
+        // Index order is preserved within each group; uncategorized fields lead. The category id
+        // (not display name — display name lookup isn't in scope here) labels each group.
+        var visibleFields = (e.FieldTypes ?? new())
             .Select(f => (Field: f, PropName: PropertyNameFor(f, e.Id)))
             .Where(x => !inheritedMembers.Contains(x.PropName))
-            .Select(x => EmitField(e, x.Field, x.PropName, ns, entityTypeNames, ctx));
+            .ToList();
 
-        var fieldsBlock = string.Concat(fieldLines);
+        var groups = visibleFields
+            .GroupBy(x => x.Field.CategoryId ?? string.Empty)
+            .OrderBy(g => string.IsNullOrEmpty(g.Key) ? 0 : 1) // uncategorized first
+            .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var sb = new StringBuilder();
+        var first = true;
+        foreach (var group in groups)
+        {
+            if (!string.IsNullOrEmpty(group.Key))
+            {
+                if (!first) sb.AppendLine();
+                sb.AppendLine("    //");
+                sb.AppendLine($"    // {group.Key}");
+                sb.AppendLine("    //");
+            }
+            foreach (var x in group)
+                sb.Append(EmitField(e, x.Field, x.PropName, ns, entityTypeNames, ctx));
+            first = false;
+        }
+        var fieldsBlock = sb.ToString();
 
         return $$"""
             using ModelMeister.Model;

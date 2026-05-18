@@ -90,8 +90,9 @@ public class LiveModelConverterTests
         {
             var json = LiveModelConverter.ToJsonModel(BuildLive());
             var result = new ProjectScaffolder().Scaffold(json, outDir, "ConvTest.Model");
-            File.Exists(Path.Combine(outDir, "EntityTypes", "Product.cs")).ShouldBeTrue();
-            File.Exists(Path.Combine(outDir, "Cvls", "BrandCvl.cs")).ShouldBeTrue();
+            var projectDir = Path.Combine(outDir, "ConvTest.Model");
+            File.Exists(Path.Combine(projectDir, "EntityTypes", "Product.cs")).ShouldBeTrue();
+            File.Exists(Path.Combine(projectDir, "Cvls", "BrandCvl.cs")).ShouldBeTrue();
             result.Files.Count.ShouldBeGreaterThan(2);
         }
         finally

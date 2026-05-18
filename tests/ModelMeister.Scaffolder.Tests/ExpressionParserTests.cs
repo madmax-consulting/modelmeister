@@ -159,4 +159,45 @@ public class ExpressionParserTests
         var (cvl, _) = ExpressionParser.ParseTopLevel("=CVLVALUE(\"X\", \"k\")", ctx);
         cvl.ShouldBe("Ex.CvlValue(\"X\", \"k\")");
     }
+
+    [Fact]
+    public void Char_emits_typed_call()
+    {
+        var (cs, warns) = ExpressionParser.ParseTopLevel("=CHAR(10)");
+        cs.ShouldBe("Ex.Char(10)");
+        warns.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void LocaleStringValue_emits_typed_call_without_context()
+    {
+        var (cs, warns) = ExpressionParser.ParseTopLevel("=LOCALESTRINGVALUE(\"ProductDescription\", \"en\")");
+        cs.ShouldBe("Ex.LocaleStringValue(\"ProductDescription\", \"en\")");
+        warns.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void LocaleStringValue_emits_typed_selector_when_field_known()
+    {
+        var ctx = new ExpressionContext(
+            fields: new Dictionary<string, FieldRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ProductDescription"] = new FieldRef("Product", "Description"),
+            },
+            linkTypes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+            cvls: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+        var (cs, warns) = ExpressionParser.ParseTopLevel("=LOCALESTRINGVALUE(\"ProductDescription\", \"en\")", ctx);
+        cs.ShouldBe("Ex.LocaleStringValue((Product r) => r.Description, \"en\")");
+        warns.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void TextJoin_emits_typed_call_with_bool_literal()
+    {
+        var (cs, warns) = ExpressionParser.ParseTopLevel("=TEXTJOIN(\", \", TRUE, FIELDVALUE(\"A\"), FIELDVALUE(\"B\"))");
+        cs.ShouldContain("Ex.TextJoin(\", \", true, ");
+        cs.ShouldContain("Ex.FieldValue<string>(\"A\")");
+        cs.ShouldNotContain("Ex.Raw");
+        warns.ShouldBeEmpty();
+    }
 }

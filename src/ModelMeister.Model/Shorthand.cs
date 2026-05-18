@@ -40,8 +40,10 @@ public static class Mm
     {
         if (selector.Body is not MemberExpression { Member: PropertyInfo prop })
             throw new ArgumentException("Selector must be a simple property access, e.g. p => p.Name", nameof(selector));
-        var entityId = new TEntity().EntityTypeId;
-        return entityId + prop.Name;
+        // typeof(TEntity).Name (not new TEntity().EntityTypeId): instantiating TEntity at expression
+        // build time can recurse forever when the entity's own DefaultExpression references its own
+        // fields. EntityType's ctor defaults EntityTypeId to GetType().Name anyway.
+        return typeof(TEntity).Name + prop.Name;
     }
 
     /// <summary>
@@ -49,7 +51,7 @@ public static class Mm
     /// id. Useful for inheritance-aware references when the same property lives on a base class.
     /// </summary>
     public static string FieldOn<TEntity>(string propertyName) where TEntity : EntityType, new()
-        => new TEntity().EntityTypeId + propertyName;
+        => typeof(TEntity).Name + propertyName;
 
     /// <summary>
     /// Resolves the inriver link-type id for <typeparamref name="TLinkType"/>. Reads

@@ -336,6 +336,14 @@ public static class Ex
     /// node (the C# compiler inserts one when the selector's return type is wider than
     /// <c>Field&lt;TData&gt;</c>, though for our selector signature it generally doesn't).
     /// </summary>
+    /// <remarks>
+    /// Uses <c>typeof(TEntity).Name</c> — the same convention <see cref="EntityType"/>'s ctor uses
+    /// to default <see cref="EntityType.EntityTypeId"/>. We deliberately avoid <c>new TEntity()</c>
+    /// here because property initializers on <c>TEntity</c> may themselves construct expressions
+    /// (e.g. <c>DefaultExpression = Ex.Concatenate(Ex.FieldValue((Self r) =&gt; r.X))</c>), which
+    /// would recurse infinitely. If an entity overrides <c>EntityTypeId</c> via init, callers
+    /// must use the string-id overload of <c>FieldValue</c>.
+    /// </remarks>
     private static string FieldIdFromSelector<TEntity, TField>(Expression<Func<TEntity, TField>> selector)
         where TEntity : EntityType, new()
     {
@@ -344,6 +352,6 @@ public static class Ex
         if (body is not MemberExpression { Member: PropertyInfo prop })
             throw new ArgumentException(
                 "Selector must be a simple property access, e.g. r => r.MimeType", nameof(selector));
-        return new TEntity().EntityTypeId + prop.Name;
+        return typeof(TEntity).Name + prop.Name;
     }
 }

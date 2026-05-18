@@ -47,11 +47,14 @@ public class ExcelScaffolderTests
             ModelWorkbook.Save(src, xlsx);
             var result = ExcelScaffolder.ScaffoldFromExcel(xlsx, outDir, "Acme.PimModel", detectBaseClasses: false, emitCvlValues: true);
 
+            // Output now lives under outDir/<projectName>/ so the layout matches a normal .sln/.slnx
+            // workspace (sibling .slnx, project dir, etc.).
+            var projectDir = Path.Combine(outDir, "Acme.PimModel");
             result.Files.Count.ShouldBeGreaterThan(0);
-            Directory.Exists(Path.Combine(outDir, "EntityTypes")).ShouldBeTrue();
-            Directory.Exists(Path.Combine(outDir, "Cvls")).ShouldBeTrue();
-            Directory.GetFiles(outDir, "*.csproj").ShouldNotBeEmpty();
-            var productFile = Path.Combine(outDir, "EntityTypes", "Product.cs");
+            Directory.Exists(Path.Combine(projectDir, "EntityTypes")).ShouldBeTrue();
+            Directory.Exists(Path.Combine(projectDir, "Cvls")).ShouldBeTrue();
+            Directory.GetFiles(projectDir, "*.csproj").ShouldNotBeEmpty();
+            var productFile = Path.Combine(projectDir, "EntityTypes", "Product.cs");
             File.Exists(productFile).ShouldBeTrue();
             var content = File.ReadAllText(productFile);
             content.ShouldContain("DisplayName", customMessage: $"Product.cs:\n{content}");
@@ -83,7 +86,7 @@ public class ExcelScaffolderTests
             ModelWorkbook.Save(src, xlsx);
             ExcelScaffolder.ScaffoldFromExcel(xlsx, outDir, "Acme.PimModel", detectBaseClasses: false, emitCvlValues: false);
 
-            var cvlFile = Path.Combine(outDir, "Cvls", "MarketsCvl.cs");
+            var cvlFile = Path.Combine(outDir, "Acme.PimModel", "Cvls", "MarketsCvl.cs");
             File.Exists(cvlFile).ShouldBeTrue();
             File.ReadAllText(cvlFile).ShouldNotContain("\"EU\"");
         }

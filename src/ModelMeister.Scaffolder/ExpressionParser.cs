@@ -251,6 +251,7 @@ public sealed class ExpressionParser
         "LINKEDENTITIES" => 1,
         "FIRSTLINKEDENTITY" => 1,
         "CVLVALUE" => 2,
+        "LOCALESTRINGVALUE" => 1,
         _ => 0,
     };
 
@@ -263,6 +264,8 @@ public sealed class ExpressionParser
     {
         "REGEXTEST" or "REGEXEXTRACT" => argIndex == 1,
         "REGEXREPLACE" => argIndex is 1 or 2,
+        "LOCALESTRINGVALUE" => argIndex == 1, // language code
+        "TEXTJOIN" => argIndex == 0,          // delimiter
         _ => false,
     };
 
@@ -349,6 +352,13 @@ public sealed class ExpressionParser
             "LEFT" => args.Count == 1 ? $"Ex.Left({args[0]})" : args.Count == 2 ? $"Ex.Left({args[0]}, {args[1]})" : Fallback(),
             "RIGHT" => args.Count == 1 ? $"Ex.Right({args[0]})" : args.Count == 2 ? $"Ex.Right({args[0]}, {args[1]})" : Fallback(),
             "TEXT" => args.Count == 1 ? $"Ex.Text({args[0]})" : Fallback(),
+            "CHAR" => args.Count == 1 ? $"Ex.Char({args[0]})" : Fallback(),
+            "LOCALESTRINGVALUE" when fieldRef0 is { } lf && args.Count >= 2 =>
+                args.Count == 2
+                    ? $"Ex.LocaleStringValue(({lf.EntityClass} r) => r.{lf.PropertyName}, {args[1]})"
+                    : $"Ex.LocaleStringValue(({lf.EntityClass} r) => r.{lf.PropertyName}, {args[1]}, {args[2]})",
+            "LOCALESTRINGVALUE" => args.Count is 2 or 3 ? $"Ex.LocaleStringValue({string.Join(", ", args)})" : Fallback(),
+            "TEXTJOIN" => args.Count >= 2 ? EmitTextJoin(args) : Fallback(),
             "TRUE" => "(Expr<bool>)true",
             "FALSE" => "(Expr<bool>)false",
             _ => Fallback(),
@@ -359,6 +369,21 @@ public sealed class ExpressionParser
             _warnings.Add($"Unknown function {fn} (arity {args.Count}) — emitted as Ex.Raw.");
             var raw = $"={fn}({string.Join(", ", args.Select(a => a))})";
             return $"Ex.Raw<string>({Quote(raw)})";
+        }
+
+        string EmitTextJoin(List<string> a)
+        {
+            // Ex.TextJoin(string delimiter, bool ignoreEmpty, params Expr[] inputs).
+            // Strip the (Expr<bool>) cast our identifier parser emits for bare TRUE/FALSE so the
+            // bool slot type-checks against the method signature.
+            var ignore = a[1] switch
+            {
+                "(Expr<bool>)true" => "true",
+                "(Expr<bool>)false" => "false",
+                _ => a[1],
+            };
+            var rest = a.Count > 2 ? ", " + string.Join(", ", a.Skip(2)) : "";
+            return $"Ex.TextJoin({a[0]}, {ignore}{rest})";
         }
 
         string EmitIfs(List<string> a)
