@@ -31,7 +31,7 @@ jobs:
         id: diff
         run: |
           dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
-            diff \
+            model diff \
             --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
             --url "$INRIVER_URL" \
             --format json --out diff.json \
@@ -42,7 +42,7 @@ jobs:
         if: always()
         run: |
           dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
-            diff \
+            model diff \
             --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
             --url "$INRIVER_URL" \
             --format text --no-color > diff.txt || true

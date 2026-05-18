@@ -32,7 +32,7 @@ jobs:
         id: validate
         run: |
           dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
-            validate \
+            model validate \
             --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
             --json --no-color \
             > validation.json

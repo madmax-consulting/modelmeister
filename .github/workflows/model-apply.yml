@@ -39,7 +39,7 @@ jobs:
       - name: Dry-run first
         run: |
           dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
-            apply \
+            model apply \
             --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
             --url "$INRIVER_URL" \
             --yes --dry-run --no-color \
@@ -48,7 +48,7 @@ jobs:
       - name: Apply
         run: |
           dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
-            apply \
+            model apply \
             --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
             --url "$INRIVER_URL" \
             --yes --no-color \
@@ -57,7 +57,7 @@ jobs:
       - name: Verify (post-apply diff must be empty)
         run: |
           dotnet run --project src/ModelMeister.Cli --configuration Release --no-build -- \
-            diff \
+            model diff \
             --model examples/ModelMeister.ExampleModel/ModelMeister.ExampleModel.csproj \
             --url "$INRIVER_URL" \
             --format json --no-color --fail-on-changes

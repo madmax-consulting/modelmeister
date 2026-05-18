@@ -1,4 +1,7 @@
 using System.CommandLine;
+using System.CommandLine.Builder;
+using System.CommandLine.Parsing;
+using System.Reflection;
 using Spectre.Console;
 using ModelMeister.Cli;
 using ModelMeister.Cli.Commands;
@@ -14,368 +17,441 @@ if (args.Contains("--no-color") || !string.IsNullOrEmpty(Environment.GetEnvironm
 }
 
 // --- No-args -> interactive mode --------------------------------------------
-// (`--no-color` on its own counts as no-args.)
+// `--no-color` on its own counts as no-args. `--version` is intercepted before help so the
+// command tree doesn't have to declare it as an option on every subcommand.
 if (args is [] or ["--no-color"])
     return await new InteractiveSession().RunAsync(CancellationToken.None).ConfigureAwait(false);
 
+if (args is ["--version"] or ["-v"])
+{
+    AnsiConsole.WriteLine(GetVersion());
+    return ExitCodes.Success;
+}
+
 // --- Root + per-command wiring ----------------------------------------------
 var root = new RootCommand(
-    "ModelMeister — inriver model management CLI. " +
-    "Exit codes: 0=success, 1=changes pending, 2=usage error, 3=validation failed, 4=operation failed.");
+    "ModelMeister — inriver model management CLI.\n" +
+    "Exit codes: 0 success · 1 changes pending · 2 usage error · 3 validation failed · 4 operation failed.");
 
 root.AddGlobalOption(new Option<bool>("--no-color", "Disable ANSI colour output (also: NO_COLOR env var)"));
 
+root.AddCommand(BuildModel());
+root.AddCommand(BuildEnv());
 root.AddCommand(BuildScaffold());
-root.AddCommand(BuildValidate());
-root.AddCommand(BuildDescribe());
-root.AddCommand(BuildStatus());
-root.AddCommand(BuildDiff());
-root.AddCommand(BuildApply());
-root.AddCommand(BuildExport());
-root.AddCommand(BuildMerge());
 root.AddCommand(BuildExcel());
 root.AddCommand(BuildCvl());
-root.AddCommand(BuildCompare());
+root.AddCommand(BuildJson());
 root.AddCommand(BuildUsers());
 root.AddCommand(BuildExtensions());
+root.AddCommand(BuildWorkflows());
 root.AddCommand(BuildInteractive());
 
-return await root.InvokeAsync(args).ConfigureAwait(false);
+root.WithPreamble(
+    """
+    Common workflows:
+      Daily dev          model validate  →  model diff  →  model apply
+      CI gating          model diff --format json --fail-on-changes
+      Capture a snapshot env snapshot --url <U> --out snap.json
+      Compare two envs   env compare --left-url <U1> --right-url <U2>
+      Excel handoff      excel export --url <U> --out m.xlsx  (edit)  scaffold --excel m.xlsx --out ./Model
+
+    Run `modelmeister workflows` for the full cheat-sheet, or `modelmeister <command> --help` for examples.
+    """);
+
+var parser = new CommandLineBuilder(root)
+    .UseDefaults()
+    .UseHelpBuilder(CliHelp.Build)
+    .Build();
+
+return await parser.InvokeAsync(args).ConfigureAwait(false);
 
 // --- Command builders --------------------------------------------------------
-// Each builder is a local function so wiring stays declarative; the handlers
-// store their exit code in Environment.ExitCode (the System.CommandLine idiom).
+// Each builder is a local function so wiring stays declarative; handlers store
+// their exit code in Environment.ExitCode (the System.CommandLine idiom).
+
+static Command BuildModel()
+{
+    var cmd = new Command("model", "Operate on a code-defined inriver model.");
+
+    // ---- model validate
+    var validate = new Command("validate", "Statically validate a code-defined model.");
+    var vModel = ModelOpt();
+    var vJson = new Option<bool>("--json", "Emit machine-readable JSON output");
+    validate.AddOption(vModel);
+    validate.AddOption(vJson);
+    validate.SetHandler((m, j) => Environment.ExitCode = ValidateCommand.Run(m, j), vModel, vJson);
+    validate
+        .WithExamples(
+            ("Validate during development", "modelmeister model validate --model ./MyModel.csproj"),
+            ("CI: machine-readable output for the step summary",
+             "modelmeister model validate --model ./MyModel.csproj --json --no-color"))
+        .WithSeeAlso(
+            ("model diff", "compare validated model to a live env"),
+            ("model describe", "print a human summary of the model"));
+
+    // ---- model describe
+    var describe = new Command("describe", "Print a summary of a code-defined model.");
+    var dModel = ModelOpt();
+    var dJson = new Option<bool>("--json", "Emit machine-readable JSON output");
+    describe.AddOption(dModel);
+    describe.AddOption(dJson);
+    describe.SetHandler((m, j) => Environment.ExitCode = DescribeCommand.Run(m, j), dModel, dJson);
+    describe
+        .WithExamples(
+            ("Quick overview of a model project", "modelmeister model describe --model ./MyModel.csproj"))
+        .WithSeeAlso(("model validate", "check the model for errors"));
+
+    // ---- model diff
+    var diff = new Command("diff", "Compare a code-defined model against a live inriver environment.");
+    var dfModel = ModelOpt();
+    var dfConn = new ConnectionOptions();
+    var dfFormat = new Option<string>("--format", () => "tree", "Output format: tree | text | json");
+    var dfOut = new Option<string?>("--out", "Also write the diff to this file");
+    var dfFail = new Option<bool>("--fail-on-changes", () => false, "Exit 1 if any changes are detected (for CI gating)");
+    var dfAllowDel = new Option<bool>("--allow-deletes", () => false, "Treat code-side removals as deletes rather than warnings");
+    var dfAllowDt = new Option<bool>("--allow-datatype-change", () => false, "Permit field datatype changes (destructive)");
+    diff.AddOption(dfModel);
+    dfConn.AddTo(diff);
+    foreach (var o in new Option[] { dfFormat, dfOut, dfFail, dfAllowDel, dfAllowDt })
+        diff.AddOption(o);
+    diff.SetHandler(async ctx =>
+    {
+        var policy = MergePolicy.Default with
+        {
+            AllowDeletes = ctx.ParseResult.GetValueForOption(dfAllowDel),
+            AllowDatatypeChange = ctx.ParseResult.GetValueForOption(dfAllowDt),
+        };
+        Environment.ExitCode = await DiffCommand.RunAsync(
+            ctx.ParseResult.GetValueForOption(dfModel)!,
+            ctx.ParseResult.GetValueForOption(dfConn.Url)!,
+            dfConn.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(dfFormat) ?? "tree",
+            ctx.ParseResult.GetValueForOption(dfOut),
+            ctx.ParseResult.GetValueForOption(dfFail),
+            policy,
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    diff
+        .WithExamples(
+            ("Inspect pending changes during development",
+             "modelmeister model diff --model ./MyModel.csproj --url $URL"),
+            ("CI gate: fail the build when the env drifts from code",
+             "modelmeister model diff --model ./MyModel.csproj --url $URL --format json --out diff.json --fail-on-changes"))
+        .WithSeeAlso(
+            ("model apply", "push the diff to the env"),
+            ("env compare", "compare two live envs (not code-vs-env)"));
+
+    // ---- model apply
+    var apply = new Command("apply", "Apply a code-defined model to an inriver environment.");
+    var apModel = ModelOpt();
+    var apConn = new ConnectionOptions();
+    var apYes = new Option<bool>("--yes", () => false, "Skip the confirmation prompt (required for CI)");
+    var apDry = new Option<bool>("--dry-run", () => false, "Report what would change but don't write");
+    var apAllowDel = new Option<bool>("--allow-deletes", () => false, "Permit deletions");
+    var apAllowDt = new Option<bool>("--allow-datatype-change", () => false, "Permit field datatype changes (destructive)");
+    var apAllowRen = new Option<bool>("--allow-cvl-value-rename", () => false, "Permit renaming existing CVL value keys");
+    apply.AddOption(apModel);
+    apConn.AddTo(apply);
+    foreach (var o in new Option[] { apYes, apDry, apAllowDel, apAllowDt, apAllowRen })
+        apply.AddOption(o);
+    apply.SetHandler(async ctx =>
+    {
+        var policy = MergePolicy.Default with
+        {
+            AllowDeletes = ctx.ParseResult.GetValueForOption(apAllowDel),
+            AllowDatatypeChange = ctx.ParseResult.GetValueForOption(apAllowDt),
+            AllowCvlValueRename = ctx.ParseResult.GetValueForOption(apAllowRen),
+        };
+        Environment.ExitCode = await ApplyCommand.RunAsync(
+            ctx.ParseResult.GetValueForOption(apModel)!,
+            ctx.ParseResult.GetValueForOption(apConn.Url)!,
+            apConn.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(apYes),
+            ctx.ParseResult.GetValueForOption(apDry),
+            policy,
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    apply
+        .WithExamples(
+            ("Dry-run first to inspect what would change",
+             "modelmeister model apply --model ./MyModel.csproj --url $URL --yes --dry-run"),
+            ("Then apply for real (CI flow)",
+             "modelmeister model apply --model ./MyModel.csproj --url $URL --yes"))
+        .WithSeeAlso(
+            ("model diff", "preview the change set without writing"));
+
+    cmd.AddCommand(validate);
+    cmd.AddCommand(describe);
+    cmd.AddCommand(diff);
+    cmd.AddCommand(apply);
+    return cmd;
+
+    static Option<string> ModelOpt() =>
+        new("--model", "Path to model project (csproj), built DLL, or directory") { IsRequired = true };
+}
+
+static Command BuildEnv()
+{
+    var cmd = new Command("env", "Operate against a live inriver environment.");
+
+    // ---- env status
+    var status = new Command("status", "Ping an environment and show concept counts.");
+    var sConn = new ConnectionOptions();
+    sConn.AddTo(status);
+    status.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await StatusCommand.RunAsync(
+            ctx.ParseResult.GetValueForOption(sConn.Url)!,
+            sConn.ToAuth(ctx),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    status.WithExamples(("Sanity-check a connection", "modelmeister env status --url $URL"));
+
+    // ---- env snapshot (formerly: export)
+    var snapshot = new Command("snapshot", "Capture a live model to a JSON file.");
+    var snConn = new ConnectionOptions();
+    snConn.AddTo(snapshot);
+    var snOut = new Option<string>("--out", "Output JSON path") { IsRequired = true };
+    snapshot.AddOption(snOut);
+    snapshot.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await ExportCommand.RunAsync(
+            ctx.ParseResult.GetValueForOption(snConn.Url)!,
+            snConn.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(snOut)!,
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    snapshot
+        .WithExamples(("Save the live model for offline diffing",
+                       "modelmeister env snapshot --url $URL --out snap.json"))
+        .WithSeeAlso(
+            ("env compare", "compare a snapshot to another env"),
+            ("excel export", "snapshot to a workbook instead of JSON"));
+
+    // ---- env compare (formerly: compare-envs)
+    var compare = new Command("compare", "Compare two environments (or a JSON snapshot vs a live env).");
+    var lJson = new Option<string?>("--left-json", "JSON snapshot for the left side");
+    var lUrl = new Option<string?>("--left-url", "Live URL for the left side (omit if using --left-json)");
+    var lKey = new Option<string?>("--left-api-key", "API key for the left URL");
+    var rUrl = new Option<string>("--right-url", "Live URL for the right side") { IsRequired = true };
+    var rKey = new Option<string?>("--right-api-key", "API key for the right URL (falls back to INRIVER_API_KEY)");
+    var cOut = new Option<string?>("--out", "Write the report to this file");
+    var cFormat = new Option<string>("--format", () => "text", "Output format: text | json");
+    foreach (var o in new Option[] { lJson, lUrl, lKey, rUrl, rKey, cOut, cFormat })
+        compare.AddOption(o);
+    compare.SetHandler(async ctx =>
+    {
+        var lu = ctx.ParseResult.GetValueForOption(lUrl);
+        var ru = ctx.ParseResult.GetValueForOption(rUrl)!;
+        var lk = ctx.ParseResult.GetValueForOption(lKey);
+        var rk = ctx.ParseResult.GetValueForOption(rKey) ?? Environment.GetEnvironmentVariable("INRIVER_API_KEY");
+        InriverAuth? lAuth = lu is not null ? new InriverAuth(lk, null, null, null) : null;
+        var rAuth = new InriverAuth(rk, null, null, null);
+
+        Environment.ExitCode = await CompareEnvsCommand.RunAsync(
+            ctx.ParseResult.GetValueForOption(lJson), lu, lAuth, ru, rAuth,
+            ctx.ParseResult.GetValueForOption(cOut) ?? "",
+            ctx.ParseResult.GetValueForOption(cFormat) ?? "text",
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    compare
+        .WithExamples(
+            ("Snapshot-vs-live comparison",
+             "modelmeister env compare --left-json snap.json --right-url $URL"),
+            ("Two live envs",
+             "modelmeister env compare --left-url $TEST --right-url $PROD"))
+        .WithSeeAlso(("model diff", "compare code to env (not env to env)"));
+
+    cmd.AddCommand(status);
+    cmd.AddCommand(snapshot);
+    cmd.AddCommand(compare);
+    return cmd;
+}
 
 static Command BuildScaffold()
 {
-    var cmd = new Command("scaffold", "Generate a starter C# model project from an inriver JSON export, Excel workbook, or live environment.");
-
-    var json = new Option<string?>("--json", "Path to inriver export JSON");
-    var excel = new Option<string?>("--excel", "Path to an Excel workbook produced by `excel export`");
-    var url = new Option<string?>("--url", "Inriver URL (fetches the live model via the Remoting API)");
-    var apiKey = new Option<string?>("--api-key", "Inriver API key (falls back to INRIVER_API_KEY env var)");
-    var user = new Option<string?>("--username", "Inriver username");
-    var pw = new Option<string?>("--password", "Inriver password");
-    var env = new Option<string?>("--environment", "Inriver environment name");
+    var cmd = new Command("scaffold", "Generate a starter C# model project from JSON, Excel, or a live env.");
+    var src = new SourceOptions(SourceKind.Json, SourceKind.Excel, SourceKind.Url);
+    src.AddTo(cmd);
     var outOpt = new Option<string>("--out", () => "./GeneratedModel", "Output directory");
     var ns = new Option<string>("--namespace", () => "Generated.Model", "Root namespace");
-    var detect = new Option<bool>("--detect-base-classes", () => true, "Detect shared field sets and emit abstract base classes");
-    var noCvlValues = new Option<bool>("--no-cvl-values", "Skip emitting CVL values (the generated Cvl classes inherit the empty default)");
-
-    foreach (var opt in new Option[] { json, excel, url, apiKey, user, pw, env, outOpt, ns, detect, noCvlValues })
-        cmd.AddOption(opt);
-
+    var detect = new Option<bool>("--detect-base-classes", () => true, "Factor shared field-sets into abstract base classes");
+    var noCvlValues = new Option<bool>("--no-cvl-values", "Skip emitting CVL values (smaller project, faster build)");
+    foreach (var o in new Option[] { outOpt, ns, detect, noCvlValues })
+        cmd.AddOption(o);
     cmd.SetHandler(async ctx =>
     {
-        var jsonVal = ctx.ParseResult.GetValueForOption(json);
-        var excelVal = ctx.ParseResult.GetValueForOption(excel);
-        var urlVal = ctx.ParseResult.GetValueForOption(url);
-        var outVal = ctx.ParseResult.GetValueForOption(outOpt) ?? "./GeneratedModel";
+        ResolvedSource picked;
+        try { picked = src.Resolve(ctx); }
+        catch (SourceResolutionException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]{ex.Message.EscapeMarkup()}[/]");
+            Environment.ExitCode = ExitCodes.UsageError;
+            return;
+        }
+
+        var outDir = ctx.ParseResult.GetValueForOption(outOpt) ?? "./GeneratedModel";
         var nsVal = ctx.ParseResult.GetValueForOption(ns) ?? "Generated.Model";
         var detectVal = ctx.ParseResult.GetValueForOption(detect);
-        var emitCvlValues = !ctx.ParseResult.GetValueForOption(noCvlValues);
+        var emitCvls = !ctx.ParseResult.GetValueForOption(noCvlValues);
 
-        var sources = new[] { jsonVal, excelVal, urlVal }.Count(s => !string.IsNullOrEmpty(s));
-        if (sources != 1)
+        Environment.ExitCode = picked.Kind switch
         {
-            AnsiConsole.MarkupLine("[red]Specify exactly one of --json, --excel, or --url.[/]");
-            Environment.ExitCode = ExitCodes.UsageError;
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(jsonVal))
-        {
-            Environment.ExitCode = ScaffoldCommand.Run(jsonVal, outVal, nsVal, detectVal, emitCvlValues);
-            return;
-        }
-        if (!string.IsNullOrEmpty(excelVal))
-        {
-            Environment.ExitCode = ScaffoldCommand.RunFromExcel(excelVal, outVal, nsVal, detectVal, emitCvlValues);
-            return;
-        }
-
-        var auth = new InriverAuth(
-            ctx.ParseResult.GetValueForOption(apiKey),
-            ctx.ParseResult.GetValueForOption(user),
-            ctx.ParseResult.GetValueForOption(pw),
-            ctx.ParseResult.GetValueForOption(env));
-        Environment.ExitCode = await ScaffoldCommand
-            .RunFromEnvAsync(urlVal!, auth, outVal, nsVal, detectVal, ctx.GetCancellationToken(), emitCvlValues)
-            .ConfigureAwait(false);
-    });
-
-    return cmd;
-}
-
-static Command BuildValidate()
-{
-    var cmd = new Command("validate", "Statically validate a code-defined model.");
-    var model = new Option<string>("--model", "Path to model DLL or csproj") { IsRequired = true };
-    var json = new Option<bool>("--json", "Emit machine-readable JSON output");
-    cmd.AddOption(model);
-    cmd.AddOption(json);
-    cmd.SetHandler((m, j) => Environment.ExitCode = ValidateCommand.Run(m, j), model, json);
-    return cmd;
-}
-
-static Command BuildDescribe()
-{
-    var cmd = new Command("describe", "Print a summary of a code-defined model.");
-    var model = new Option<string>("--model", "Path to model DLL or csproj") { IsRequired = true };
-    var json = new Option<bool>("--json", "Emit machine-readable JSON output");
-    cmd.AddOption(model);
-    cmd.AddOption(json);
-    cmd.SetHandler((m, j) => Environment.ExitCode = DescribeCommand.Run(m, j), model, json);
-    return cmd;
-}
-
-static Command BuildStatus()
-{
-    var cmd = new Command("status", "Ping an inriver environment and show concept counts.");
-    var conn = new ConnectionOptions();
-    conn.AddTo(cmd);
-    cmd.SetHandler(async ctx =>
-    {
-        var url = ctx.ParseResult.GetValueForOption(conn.Url)!;
-        Environment.ExitCode = await StatusCommand
-            .RunAsync(url, conn.ToAuth(ctx), ctx.GetCancellationToken())
-            .ConfigureAwait(false);
-    });
-    return cmd;
-}
-
-static Command BuildDiff()
-{
-    var cmd = new Command("diff", "Diff a code-defined model against a live inriver environment.");
-    var model = new Option<string>("--model", "Path to model DLL or csproj") { IsRequired = true };
-    var conn = new ConnectionOptions();
-    var format = new Option<string>("--format", () => "tree", "Output format: tree | text | json");
-    var outOpt = new Option<string?>("--out", "Also write the diff to this file (text or json based on --format)");
-    var fail = new Option<bool>("--fail-on-changes", () => false, "Exit with code 1 if any changes are detected (for CI gating)");
-    var allowDeletes = new Option<bool>("--allow-deletes", () => false);
-    var allowDt = new Option<bool>("--allow-datatype-change", () => false);
-
-    cmd.AddOption(model);
-    conn.AddTo(cmd);
-    foreach (var opt in new Option[] { format, outOpt, fail, allowDeletes, allowDt })
-        cmd.AddOption(opt);
-
-    cmd.SetHandler(async ctx =>
-    {
-        var policy = MergePolicy.Default with
-        {
-            AllowDeletes = ctx.ParseResult.GetValueForOption(allowDeletes),
-            AllowDatatypeChange = ctx.ParseResult.GetValueForOption(allowDt),
+            SourceKind.Json => ScaffoldCommand.Run(picked.Path!, outDir, nsVal, detectVal, emitCvls),
+            SourceKind.Excel => ScaffoldCommand.RunFromExcel(picked.Path!, outDir, nsVal, detectVal, emitCvls),
+            SourceKind.Url => await ScaffoldCommand.RunFromEnvAsync(
+                picked.Url!, picked.Auth!, outDir, nsVal, detectVal,
+                ctx.GetCancellationToken(), emitCvls).ConfigureAwait(false),
+            _ => ExitCodes.UsageError,
         };
-        Environment.ExitCode = await DiffCommand.RunAsync(
-            ctx.ParseResult.GetValueForOption(model)!,
-            ctx.ParseResult.GetValueForOption(conn.Url)!,
-            conn.ToAuth(ctx),
-            ctx.ParseResult.GetValueForOption(format) ?? "tree",
-            ctx.ParseResult.GetValueForOption(outOpt),
-            ctx.ParseResult.GetValueForOption(fail),
-            policy,
-            ctx.GetCancellationToken()).ConfigureAwait(false);
     });
-
+    cmd
+        .WithExamples(
+            ("From a JSON export",
+             "modelmeister scaffold --json export.json --out ./Model --namespace Acme.PimModel"),
+            ("From an Excel workbook (round-trip back from `excel export`)",
+             "modelmeister scaffold --excel model.xlsx --out ./Model"),
+            ("Directly from a live env",
+             "modelmeister scaffold --url $URL --out ./Model"))
+        .WithSeeAlso(("excel export", "round-trip a model back out to a workbook"));
     return cmd;
 }
 
-static Command BuildApply()
-{
-    var cmd = new Command("apply", "Apply a code-defined model to an inriver environment.");
-    var model = new Option<string>("--model", "Path to model DLL or csproj") { IsRequired = true };
-    var conn = new ConnectionOptions();
-    var yes = new Option<bool>("--yes", () => false, "Skip the confirmation prompt");
-    var dry = new Option<bool>("--dry-run", () => false, "Report what would change but don't write");
-    var allowDeletes = new Option<bool>("--allow-deletes", () => false);
-    var allowDt = new Option<bool>("--allow-datatype-change", () => false);
-    var allowRename = new Option<bool>("--allow-cvl-value-rename", () => false);
-
-    cmd.AddOption(model);
-    conn.AddTo(cmd);
-    foreach (var opt in new Option[] { yes, dry, allowDeletes, allowDt, allowRename })
-        cmd.AddOption(opt);
-
-    cmd.SetHandler(async ctx =>
-    {
-        var policy = MergePolicy.Default with
-        {
-            AllowDeletes = ctx.ParseResult.GetValueForOption(allowDeletes),
-            AllowDatatypeChange = ctx.ParseResult.GetValueForOption(allowDt),
-            AllowCvlValueRename = ctx.ParseResult.GetValueForOption(allowRename),
-        };
-        Environment.ExitCode = await ApplyCommand.RunAsync(
-            ctx.ParseResult.GetValueForOption(model)!,
-            ctx.ParseResult.GetValueForOption(conn.Url)!,
-            conn.ToAuth(ctx),
-            ctx.ParseResult.GetValueForOption(yes),
-            ctx.ParseResult.GetValueForOption(dry),
-            policy,
-            ctx.GetCancellationToken()).ConfigureAwait(false);
-    });
-
-    return cmd;
-}
-
-static Command BuildExport()
-{
-    var cmd = new Command("export", "Snapshot a live inriver model to JSON.");
-    var conn = new ConnectionOptions();
-    conn.AddTo(cmd);
-    var outOpt = new Option<string>("--out", "Output JSON path") { IsRequired = true };
-    cmd.AddOption(outOpt);
-    cmd.SetHandler(async ctx =>
-    {
-        Environment.ExitCode = await ExportCommand.RunAsync(
-            ctx.ParseResult.GetValueForOption(conn.Url)!,
-            conn.ToAuth(ctx),
-            ctx.ParseResult.GetValueForOption(outOpt)!,
-            ctx.GetCancellationToken()).ConfigureAwait(false);
-    });
-    return cmd;
-}
-
-static Command BuildMerge()
-{
-    var cmd = new Command("merge", "Merge two inriver JSON exports into one.");
-    var baseOpt = new Option<string>("--base", "Base (lower-priority) JSON path") { IsRequired = true };
-    var overlayOpt = new Option<string>("--overlay", "Overlay (higher-priority) JSON path") { IsRequired = true };
-    var outOpt = new Option<string>("--out", "Output JSON path") { IsRequired = true };
-    var policy = new Option<string>("--on-conflict", () => "overlay-wins", "Conflict policy: overlay-wins | base-wins | fail");
-
-    foreach (var opt in new Option[] { baseOpt, overlayOpt, outOpt, policy })
-        cmd.AddOption(opt);
-
-    cmd.SetHandler(
-        (b, o, p, pol) => Environment.ExitCode = MergeCommand.Run(b, o, p, pol),
-        baseOpt, overlayOpt, outOpt, policy);
-
-    return cmd;
-}
-
-static Command BuildInteractive()
-{
-    var cmd = new Command("interactive", "Launch the interactive menu.");
-    cmd.SetHandler(async ctx =>
-    {
-        Environment.ExitCode = await new InteractiveSession()
-            .RunAsync(ctx.GetCancellationToken())
-            .ConfigureAwait(false);
-    });
-    return cmd;
-}
-
-// --- Excel ------------------------------------------------------------------
 static Command BuildExcel()
 {
-    var cmd = new Command("excel", "Excel workbook export/import for the inriver model.");
+    var cmd = new Command("excel", "Excel workbook export and import.");
 
-    var exportCmd = new Command("export", "Write a workbook from a JSON export or a live environment.");
-    var jsonOpt = new Option<string?>("--json", "Source JSON file");
+    // ---- excel export
+    var exportCmd = new Command("export", "Write an .xlsx from a JSON file, a live env, or a C# model project.");
+    var src = new SourceOptions(SourceKind.Json, SourceKind.Model, SourceKind.Url);
+    src.AddTo(exportCmd);
     var outOpt = new Option<string>("--out", "Output .xlsx path") { IsRequired = true };
-    var conn = new ConnectionOptions();
-    exportCmd.AddOption(jsonOpt);
     exportCmd.AddOption(outOpt);
-    conn.AddTo(exportCmd);
     exportCmd.SetHandler(async ctx =>
     {
-        var j = ctx.ParseResult.GetValueForOption(jsonOpt);
-        var o = ctx.ParseResult.GetValueForOption(outOpt)!;
-        var url = ctx.ParseResult.GetValueForOption(conn.Url);
-        if (!string.IsNullOrEmpty(j) && string.IsNullOrEmpty(url))
-            Environment.ExitCode = ExcelCommand.ExportFromJson(j, o);
-        else if (!string.IsNullOrEmpty(url))
-            Environment.ExitCode = await ExcelCommand.ExportFromEnvAsync(url, conn.ToAuth(ctx), o, ctx.GetCancellationToken()).ConfigureAwait(false);
-        else
+        ResolvedSource picked;
+        try { picked = src.Resolve(ctx); }
+        catch (SourceResolutionException ex)
         {
-            AnsiConsole.MarkupLine("[red]Specify --json or --url.[/]");
+            AnsiConsole.MarkupLine($"[red]{ex.Message.EscapeMarkup()}[/]");
             Environment.ExitCode = ExitCodes.UsageError;
+            return;
         }
+        var o = ctx.ParseResult.GetValueForOption(outOpt)!;
+        Environment.ExitCode = picked.Kind switch
+        {
+            SourceKind.Json => ExcelCommand.ExportFromJson(picked.Path!, o),
+            SourceKind.Model => ExcelCommand.ExportFromModel(picked.Path!, o),
+            SourceKind.Url => await ExcelCommand.ExportFromEnvAsync(
+                picked.Url!, picked.Auth!, o, ctx.GetCancellationToken()).ConfigureAwait(false),
+            _ => ExitCodes.UsageError,
+        };
     });
+    exportCmd
+        .WithExamples(
+            ("Workbook from a JSON export", "modelmeister excel export --json export.json --out model.xlsx"),
+            ("Workbook from a C# model project", "modelmeister excel export --model ./MyModel.csproj --out model.xlsx"),
+            ("Workbook from a live env", "modelmeister excel export --url $URL --out model.xlsx"))
+        .WithSeeAlso(("scaffold", "use the workbook as a source for a generated project"));
 
+    // ---- excel import
     var importCmd = new Command("import", "Convert an Excel workbook to an inriver JSON export.");
-    var xlsxOpt = new Option<string>("--xlsx", "Excel workbook path") { IsRequired = true };
+    var excel = new Option<string>("--excel", "Excel workbook path") { IsRequired = true };
+    excel.AddAlias("--xlsx");
     var importOut = new Option<string>("--out", "Output JSON path") { IsRequired = true };
-    importCmd.AddOption(xlsxOpt);
+    importCmd.AddOption(excel);
     importCmd.AddOption(importOut);
-    importCmd.SetHandler((x, o) => Environment.ExitCode = ExcelCommand.ImportToJson(x, o), xlsxOpt, importOut);
+    importCmd.SetHandler((x, o) => Environment.ExitCode = ExcelCommand.ImportToJson(x, o), excel, importOut);
+    importCmd
+        .WithExamples(("Workbook → JSON", "modelmeister excel import --excel model.xlsx --out model.json"))
+        .WithSeeAlso(("scaffold", "skip the JSON detour and scaffold straight from .xlsx"));
 
     cmd.AddCommand(exportCmd);
     cmd.AddCommand(importCmd);
     return cmd;
 }
 
-// --- CVL --------------------------------------------------------------------
 static Command BuildCvl()
 {
     var cmd = new Command("cvl", "CVL value workflows: export, import, sync between environments.");
 
-    var exportCmd = new Command("export", "Write a per-CVL workbook from a JSON export or a live env.");
-    var jsonOpt = new Option<string?>("--json", "Source JSON file");
+    // ---- cvl export
+    var exportCmd = new Command("export", "Write a per-CVL workbook from a JSON file or a live env.");
+    var src = new SourceOptions(SourceKind.Json, SourceKind.Url);
+    src.AddTo(exportCmd);
     var outOpt = new Option<string>("--out", "Output .xlsx path") { IsRequired = true };
-    var conn1 = new ConnectionOptions();
-    exportCmd.AddOption(jsonOpt);
     exportCmd.AddOption(outOpt);
-    conn1.AddTo(exportCmd);
     exportCmd.SetHandler(async ctx =>
     {
-        var j = ctx.ParseResult.GetValueForOption(jsonOpt);
-        var o = ctx.ParseResult.GetValueForOption(outOpt)!;
-        var url = ctx.ParseResult.GetValueForOption(conn1.Url);
-        if (!string.IsNullOrEmpty(j) && string.IsNullOrEmpty(url))
-            Environment.ExitCode = CvlCommand.ExportJson(j, o);
-        else if (!string.IsNullOrEmpty(url))
-            Environment.ExitCode = await CvlCommand.ExportEnvAsync(url, conn1.ToAuth(ctx), o, ctx.GetCancellationToken()).ConfigureAwait(false);
-        else
+        ResolvedSource picked;
+        try { picked = src.Resolve(ctx); }
+        catch (SourceResolutionException ex)
         {
-            AnsiConsole.MarkupLine("[red]Specify --json or --url.[/]");
+            AnsiConsole.MarkupLine($"[red]{ex.Message.EscapeMarkup()}[/]");
             Environment.ExitCode = ExitCodes.UsageError;
+            return;
         }
+        var o = ctx.ParseResult.GetValueForOption(outOpt)!;
+        Environment.ExitCode = picked.Kind == SourceKind.Json
+            ? CvlCommand.ExportJson(picked.Path!, o)
+            : await CvlCommand.ExportEnvAsync(picked.Url!, picked.Auth!, o, ctx.GetCancellationToken()).ConfigureAwait(false);
     });
+    exportCmd
+        .WithExamples(
+            ("From a JSON snapshot", "modelmeister cvl export --json snap.json --out cvls.xlsx"),
+            ("From a live env", "modelmeister cvl export --url $URL --out cvls.xlsx"));
 
+    // ---- cvl import
     var importCmd = new Command("import", "Push CVL values from a workbook to a live env.");
-    var xlsxOpt = new Option<string>("--xlsx", "Workbook path") { IsRequired = true };
-    var conn2 = new ConnectionOptions();
-    var allowDeactivate = new Option<bool>("--allow-deactivate", () => false, "Allow deactivating values that exist in target but not in source.");
+    var excel = new Option<string>("--excel", "Excel workbook path") { IsRequired = true };
+    excel.AddAlias("--xlsx");
+    var iConn = new ConnectionOptions();
+    var allowDeact = new Option<bool>("--allow-deactivate", () => false, "Allow deactivating values that exist in the target but not in the source");
     var dry = new Option<bool>("--dry-run", () => false);
-    importCmd.AddOption(xlsxOpt);
-    conn2.AddTo(importCmd);
-    importCmd.AddOption(allowDeactivate);
+    importCmd.AddOption(excel);
+    iConn.AddTo(importCmd);
+    importCmd.AddOption(allowDeact);
     importCmd.AddOption(dry);
     importCmd.SetHandler(async ctx =>
     {
         Environment.ExitCode = await CvlCommand.ImportAsync(
-            ctx.ParseResult.GetValueForOption(conn2.Url)!,
-            conn2.ToAuth(ctx),
-            ctx.ParseResult.GetValueForOption(xlsxOpt)!,
-            ctx.ParseResult.GetValueForOption(allowDeactivate),
+            ctx.ParseResult.GetValueForOption(iConn.Url)!,
+            iConn.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(excel)!,
+            ctx.ParseResult.GetValueForOption(allowDeact),
             ctx.ParseResult.GetValueForOption(dry),
             ctx.GetCancellationToken()).ConfigureAwait(false);
     });
+    importCmd.WithExamples(
+        ("Dry-run first", "modelmeister cvl import --excel cvls.xlsx --url $URL --dry-run"),
+        ("Apply for real", "modelmeister cvl import --excel cvls.xlsx --url $URL"));
 
-    var syncCmd = new Command("sync", "Sync CVL values from a JSON snapshot to a live target env.");
-    var srcJson = new Option<string>("--source-json", "Source JSON snapshot (use 'modelmeister export' to capture)") { IsRequired = true };
-    var conn3 = new ConnectionOptions();
+    // ---- cvl sync
+    var syncCmd = new Command("sync", "Sync CVL values from a JSON snapshot into a live target env.");
+    var srcJson = new Option<string>("--source-json", "Source JSON snapshot (see `env snapshot`)") { IsRequired = true };
+    var syConn = new ConnectionOptions();
     var only = new Option<string?>("--cvl", "Sync only this CVL id (otherwise all)");
-    var allow2 = new Option<bool>("--allow-deactivate", () => false);
+    var allowDeact2 = new Option<bool>("--allow-deactivate", () => false);
     var dry2 = new Option<bool>("--dry-run", () => false);
     syncCmd.AddOption(srcJson);
-    conn3.AddTo(syncCmd);
+    syConn.AddTo(syncCmd);
     syncCmd.AddOption(only);
-    syncCmd.AddOption(allow2);
+    syncCmd.AddOption(allowDeact2);
     syncCmd.AddOption(dry2);
     syncCmd.SetHandler(async ctx =>
     {
         Environment.ExitCode = await CvlCommand.SyncAsync(
             ctx.ParseResult.GetValueForOption(srcJson)!,
-            ctx.ParseResult.GetValueForOption(conn3.Url)!,
-            conn3.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(syConn.Url)!,
+            syConn.ToAuth(ctx),
             ctx.ParseResult.GetValueForOption(only),
-            ctx.ParseResult.GetValueForOption(allow2),
+            ctx.ParseResult.GetValueForOption(allowDeact2),
             ctx.ParseResult.GetValueForOption(dry2),
             ctx.GetCancellationToken()).ConfigureAwait(false);
     });
+    syncCmd.WithExamples(
+        ("Promote prod CVL values to staging",
+         "modelmeister cvl sync --source-json prod.json --url $STAGING --allow-deactivate"));
 
     cmd.AddCommand(exportCmd);
     cmd.AddCommand(importCmd);
@@ -383,43 +459,28 @@ static Command BuildCvl()
     return cmd;
 }
 
-// --- Compare envs -----------------------------------------------------------
-static Command BuildCompare()
+static Command BuildJson()
 {
-    var cmd = new Command("compare-envs", "Compare two inriver environments (or a JSON snapshot vs a live env).");
+    var cmd = new Command("json", "JSON-file utilities for inriver model exports.");
 
-    var leftJson = new Option<string?>("--left-json", "JSON snapshot for the left side");
-    var leftUrl = new Option<string?>("--left-url", "Live URL for the left side (omit if using --left-json)");
-    var leftKey = new Option<string?>("--left-api-key", "API key for the left URL");
-    var rightUrl = new Option<string>("--right-url", "Live URL for the right side") { IsRequired = true };
-    var rightKey = new Option<string?>("--right-api-key", "API key for the right URL (falls back to INRIVER_API_KEY)");
-    var outOpt = new Option<string?>("--out", "Write the report to this file");
-    var format = new Option<string>("--format", () => "text", "Output format: text | json");
+    var merge = new Command("merge", "Merge two inriver JSON exports into one.");
+    var baseOpt = new Option<string>("--base", "Base (lower-priority) JSON path") { IsRequired = true };
+    var overlayOpt = new Option<string>("--overlay", "Overlay (higher-priority) JSON path") { IsRequired = true };
+    var outOpt = new Option<string>("--out", "Output JSON path") { IsRequired = true };
+    var policy = new Option<string>("--on-conflict", () => "overlay-wins", "Conflict policy: overlay-wins | base-wins | fail");
+    foreach (var o in new Option[] { baseOpt, overlayOpt, outOpt, policy })
+        merge.AddOption(o);
+    merge.SetHandler(
+        (b, o, p, pol) => Environment.ExitCode = MergeCommand.Run(b, o, p, pol),
+        baseOpt, overlayOpt, outOpt, policy);
+    merge.WithExamples(
+        ("Apply per-env overlay to a base model",
+         "modelmeister json merge --base base.json --overlay env-prod.json --out merged.json"));
 
-    foreach (var opt in new Option[] { leftJson, leftUrl, leftKey, rightUrl, rightKey, outOpt, format })
-        cmd.AddOption(opt);
-
-    cmd.SetHandler(async ctx =>
-    {
-        var lj = ctx.ParseResult.GetValueForOption(leftJson);
-        var lu = ctx.ParseResult.GetValueForOption(leftUrl);
-        var lk = ctx.ParseResult.GetValueForOption(leftKey);
-        var ru = ctx.ParseResult.GetValueForOption(rightUrl)!;
-        var rk = ctx.ParseResult.GetValueForOption(rightKey) ?? Environment.GetEnvironmentVariable("INRIVER_API_KEY");
-
-        InriverAuth? lAuth = lu is not null ? new InriverAuth(lk, null, null, null) : null;
-        var rAuth = new InriverAuth(rk, null, null, null);
-
-        Environment.ExitCode = await CompareEnvsCommand.RunAsync(
-            lj, lu, lAuth, ru, rAuth,
-            ctx.ParseResult.GetValueForOption(outOpt) ?? "",
-            ctx.ParseResult.GetValueForOption(format) ?? "text",
-            ctx.GetCancellationToken()).ConfigureAwait(false);
-    });
+    cmd.AddCommand(merge);
     return cmd;
 }
 
-// --- Users ------------------------------------------------------------------
 static Command BuildUsers()
 {
     var cmd = new Command("users", "List, export, and provision inriver users.");
@@ -433,29 +494,33 @@ static Command BuildUsers()
             ctx.ParseResult.GetValueForOption(conn1.Url)!,
             conn1.ToAuth(ctx), ctx.GetCancellationToken()).ConfigureAwait(false);
     });
+    listCmd.WithExamples(("Print every user with their roles", "modelmeister users list --url $URL"));
 
-    var exportCmd = new Command("export-template", "Write a users workbook seeded with the env's users + roles.");
+    var templateCmd = new Command("template", "Write a users workbook seeded with the env's users + roles.");
     var conn2 = new ConnectionOptions();
-    var outOpt = new Option<string>("--out", "Output .xlsx path") { IsRequired = true };
-    conn2.AddTo(exportCmd);
-    exportCmd.AddOption(outOpt);
-    exportCmd.SetHandler(async ctx =>
+    var tOut = new Option<string>("--out", "Output .xlsx path") { IsRequired = true };
+    conn2.AddTo(templateCmd);
+    templateCmd.AddOption(tOut);
+    templateCmd.SetHandler(async ctx =>
     {
         Environment.ExitCode = await UsersCommand.ExportTemplateAsync(
             ctx.ParseResult.GetValueForOption(conn2.Url)!,
             conn2.ToAuth(ctx),
-            ctx.ParseResult.GetValueForOption(outOpt)!,
+            ctx.ParseResult.GetValueForOption(tOut)!,
             ctx.GetCancellationToken()).ConfigureAwait(false);
     });
+    templateCmd.WithExamples(
+        ("Pull current users to edit offline", "modelmeister users template --url $URL --out users.xlsx"));
 
-    var provCmd = new Command("provision", "Provision users from an Excel workbook (REST for create, Remoting for role assignment).");
+    var provCmd = new Command("provision", "Provision users from a workbook (REST for create, Remoting for roles).");
     var conn3 = new ConnectionOptions();
-    var xlsx = new Option<string>("--excel", "Excel workbook path") { IsRequired = true };
+    var excel = new Option<string>("--excel", "Excel workbook path") { IsRequired = true };
+    excel.AddAlias("--xlsx");
     var restBase = new Option<string?>("--rest-base-url", "Base URL of the inriver REST API (e.g. https://apieuw.productmarketingcloud.com)");
     var restKey = new Option<string?>("--rest-api-key", "REST API key with APIManageUsers permission");
     var dry = new Option<bool>("--dry-run", () => false);
     conn3.AddTo(provCmd);
-    foreach (var opt in new Option[] { xlsx, restBase, restKey, dry }) provCmd.AddOption(opt);
+    foreach (var o in new Option[] { excel, restBase, restKey, dry }) provCmd.AddOption(o);
     provCmd.SetHandler(async ctx =>
     {
         Environment.ExitCode = await UsersCommand.ProvisionAsync(
@@ -463,18 +528,22 @@ static Command BuildUsers()
             conn3.ToAuth(ctx),
             ctx.ParseResult.GetValueForOption(restBase),
             ctx.ParseResult.GetValueForOption(restKey),
-            ctx.ParseResult.GetValueForOption(xlsx)!,
+            ctx.ParseResult.GetValueForOption(excel)!,
             ctx.ParseResult.GetValueForOption(dry),
             ctx.GetCancellationToken()).ConfigureAwait(false);
     });
+    provCmd.WithExamples(
+        ("Dry-run before pushing",
+         "modelmeister users provision --excel users.xlsx --url $URL --rest-base-url $REST --rest-api-key $REST_KEY --dry-run"),
+        ("Push for real",
+         "modelmeister users provision --excel users.xlsx --url $URL --rest-base-url $REST --rest-api-key $REST_KEY"));
 
     cmd.AddCommand(listCmd);
-    cmd.AddCommand(exportCmd);
+    cmd.AddCommand(templateCmd);
     cmd.AddCommand(provCmd);
     return cmd;
 }
 
-// --- Extensions -------------------------------------------------------------
 static Command BuildExtensions()
 {
     var cmd = new Command("extensions", "List, start, stop, configure inriver extensions (Connectors).");
@@ -495,8 +564,9 @@ static Command BuildExtensions()
             ctx.ParseResult.GetValueForOption(rk1),
             ctx.GetCancellationToken()).ConfigureAwait(false);
     });
+    listCmd.WithExamples(("List extensions and their status", "modelmeister extensions list --url $URL"));
 
-    Command BuildAction(string name, string desc, Func<string, InriverAuth, string?, string?, string, CancellationToken, Task<int>> handler)
+    Command BuildAction(string name, string desc, Func<string, InriverAuth, string?, string?, string, CancellationToken, Task<int>> handler, string example)
     {
         var c = new Command(name, desc);
         var conn = new ConnectionOptions();
@@ -517,17 +587,20 @@ static Command BuildExtensions()
                 ctx.ParseResult.GetValueForOption(id)!,
                 ctx.GetCancellationToken()).ConfigureAwait(false);
         });
+        c.WithExamples((desc, example));
         return c;
     }
 
     cmd.AddCommand(listCmd);
-    cmd.AddCommand(BuildAction("start", "Start (resume) an extension.", ExtensionsCommand.StartAsync));
-    cmd.AddCommand(BuildAction("stop",  "Stop (pause) an extension.",  ExtensionsCommand.StopAsync));
+    cmd.AddCommand(BuildAction("start", "Start (resume) an extension.", ExtensionsCommand.StartAsync,
+        "modelmeister extensions start --url $URL --id MyConnector"));
+    cmd.AddCommand(BuildAction("stop", "Stop (pause) an extension.", ExtensionsCommand.StopAsync,
+        "modelmeister extensions stop --url $URL --id MyConnector"));
 
     var logsCmd = new Command("logs", "Show recent events for an extension.");
     var connL = new ConnectionOptions();
     var idL = new Option<string>("--id", "Extension id") { IsRequired = true };
-    var count = new Option<int>("--count", () => 50);
+    var count = new Option<int>("--count", () => 50, "Maximum events to print");
     connL.AddTo(logsCmd);
     logsCmd.AddOption(idL);
     logsCmd.AddOption(count);
@@ -540,6 +613,7 @@ static Command BuildExtensions()
             ctx.ParseResult.GetValueForOption(count),
             ctx.GetCancellationToken()).ConfigureAwait(false);
     });
+    logsCmd.WithExamples(("Tail recent events", "modelmeister extensions logs --url $URL --id MyConnector --count 200"));
     cmd.AddCommand(logsCmd);
 
     var setCmd = new Command("set", "Set a single configuration value on an extension.");
@@ -561,7 +635,76 @@ static Command BuildExtensions()
             ctx.ParseResult.GetValueForOption(value)!,
             ctx.GetCancellationToken()).ConfigureAwait(false);
     });
+    setCmd.WithExamples(("Update one setting",
+        "modelmeister extensions set --url $URL --id MyConnector --key BatchSize --value 100"));
     cmd.AddCommand(setCmd);
 
     return cmd;
+}
+
+static Command BuildWorkflows()
+{
+    var cmd = new Command("workflows", "Print a cheat-sheet of common command sequences.");
+    cmd.SetHandler(() =>
+    {
+        // Bypass AnsiConsole's wrapping so the cheat-sheet stays column-aligned regardless of terminal width.
+        Console.Out.WriteLine("""
+            Common workflows
+
+              Daily development
+                modelmeister model validate --model ./MyModel.csproj
+                modelmeister model diff     --model ./MyModel.csproj --url $URL
+                modelmeister model apply    --model ./MyModel.csproj --url $URL --yes --dry-run
+                modelmeister model apply    --model ./MyModel.csproj --url $URL --yes
+
+              CI gating
+                modelmeister model validate --model ./MyModel.csproj --json --no-color
+                modelmeister model diff     --model ./MyModel.csproj --url $URL --format json --out diff.json --fail-on-changes
+
+              Snapshots and comparisons
+                modelmeister env snapshot --url $URL --out snap.json
+                modelmeister env compare  --left-json snap.json --right-url $URL2
+                modelmeister env compare  --left-url $TEST --right-url $PROD
+
+              Excel handoff (subject-matter experts edit offline)
+                modelmeister excel export --url $URL --out model.xlsx
+                # (someone edits model.xlsx)
+                modelmeister scaffold --excel model.xlsx --out ./Model
+
+              CVL value workflows
+                modelmeister cvl export --url $URL --out cvls.xlsx
+                modelmeister cvl import --excel cvls.xlsx --url $URL --dry-run
+                modelmeister cvl sync   --source-json prod.json --url $STAGING
+
+              Bootstrapping a new project
+                modelmeister scaffold --url $URL --out ./Model --namespace Acme.PimModel
+
+              Run `modelmeister <command> --help` for per-command flags and examples.
+            """);
+        Environment.ExitCode = ExitCodes.Success;
+    });
+    return cmd;
+}
+
+static Command BuildInteractive()
+{
+    var cmd = new Command("interactive", "Launch the interactive menu.")
+    {
+        IsHidden = true, // surfaced via `modelmeister` with no args; not advertised in --help
+    };
+    cmd.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await new InteractiveSession()
+            .RunAsync(ctx.GetCancellationToken())
+            .ConfigureAwait(false);
+    });
+    return cmd;
+}
+
+static string GetVersion()
+{
+    var asm = Assembly.GetExecutingAssembly();
+    return asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? asm.GetName().Version?.ToString()
+        ?? "0.0.0";
 }

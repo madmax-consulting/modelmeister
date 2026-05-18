@@ -23,14 +23,14 @@ live env ────┘                                           └─► des
 modelmeister scaffold --url $env:INRIVER_URL --out .\PimModel --namespace Acme.Pim
 
 # 2. Validate it (static, no env needed)
-modelmeister validate --model .\PimModel\PimModel.csproj
+modelmeister model validate --model .\PimModel\PimModel.csproj
 
 # 3. Preview changes against an environment
-modelmeister diff --model .\PimModel\PimModel.csproj --url $env:INRIVER_URL
+modelmeister model diff --model .\PimModel\PimModel.csproj --url $env:INRIVER_URL
 
 # 4. Push them (with backup + receipt)
-modelmeister apply --model .\PimModel\PimModel.csproj --url $env:INRIVER_URL --dry-run
-modelmeister apply --model .\PimModel\PimModel.csproj --url $env:INRIVER_URL --yes
+modelmeister model apply --model .\PimModel\PimModel.csproj --url $env:INRIVER_URL --dry-run
+modelmeister model apply --model .\PimModel\PimModel.csproj --url $env:INRIVER_URL --yes
 ```
 
 Auth is either `--api-key` (or the `INRIVER_API_KEY` env var) or `--username` / `--password`
