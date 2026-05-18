@@ -222,6 +222,14 @@ public partial class EnvEditorViewModel : ViewModelBase
             Validation = "API key is required.";
             return false;
         }
+        // When the user has supplied a REST base URL they intend to use REST features (user
+        // provisioning, Extensions trigger). Catch the missing key at the dialog instead of
+        // letting the feature blow up later.
+        if (!string.IsNullOrWhiteSpace(RestBaseUrl) && string.IsNullOrWhiteSpace(RestApiKey))
+        {
+            Validation = "REST API key is required when a REST base URL is set.";
+            return false;
+        }
 
         Validation = "";
         return true;

@@ -178,14 +178,23 @@ public partial class EnvironmentsViewModel : ViewModelBase
         _log.Info("Environments", $"Deleted environment '{name}'.");
     }
 
-    /// <summary>Toggle: connect when disconnected, disconnect when connected.</summary>
+    /// <summary>
+    /// Toggle: when connected to the *selected* env, disconnect. When connected to a *different*
+    /// env (or none), connect to the selected env — disconnecting first if needed. Single click
+    /// always achieves the user's intent.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(CanConnectOrDisconnect))]
     public async Task ConnectOrDisconnectAsync()
     {
         if (_connection.State == ConnectionState.Connected)
         {
+            // Same env selected → disconnect. Different env (or no selection) → switch.
+            if (SelectedRow is null || _connection.Connected?.Id == SelectedRow.Entry.Id)
+            {
+                await DisconnectAsync().ConfigureAwait(true);
+                return;
+            }
             await DisconnectAsync().ConfigureAwait(true);
-            return;
         }
         await ConnectAsync().ConfigureAwait(true);
     }
