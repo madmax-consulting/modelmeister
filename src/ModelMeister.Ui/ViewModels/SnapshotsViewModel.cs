@@ -45,10 +45,14 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
         // Captures from elsewhere (Dashboard tile, Apply pre-capture, etc.) raise this — without it
         // the table only refreshed when the user captured from this page.
         _main.Backups.Changed += OnBackupsChanged;
-        _ = RefreshAsync();
+        _ = EnsureLoadedAsync();
     }
 
-    private void OnBackupsChanged() => Dispatcher.UIThread.Post(() => _ = RefreshAsync());
+    private void OnBackupsChanged() => Dispatcher.UIThread.Post(() =>
+    {
+        MarkDataDirty();
+        _ = EnsureLoadedAsync();
+    });
 
     private bool CanCaptureFull() => !Busy && _main.IsConnected;
     private bool CanDeleteRow(BackupRow? row) => !Busy && row is not null;
@@ -83,7 +87,7 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
         }
         catch (Exception ex)
         {
-            _log.Error("Backup", $"Full snapshot failed: {ex.Message}");
+            _log.Error("Backup", $"Full snapshot failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Backup failed", ex.Message);
         }
         finally { Busy = false; }
@@ -115,7 +119,7 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
         }
         catch (Exception ex)
         {
-            _log.Error("Backup", $"Delete failed: {ex.Message}");
+            _log.Error("Backup", $"Delete failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Delete failed", ex.Message);
         }
         finally { Busy = false; }

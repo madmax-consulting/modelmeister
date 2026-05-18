@@ -22,20 +22,10 @@
 
     <Grid RowDefinitions="Auto,*">
 
-      <!-- Toolbar: page-level primary action (Capture) + scope filter -->
-      <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*" Margin="0,0,0,8" VerticalAlignment="Center">
-        <Button Grid.Column="0" Classes="primary" Content="Capture full snapshot" Command="{Binding CaptureFullCommand}" />
-
-        <TextBlock Grid.Column="1" Text="Scope:" Classes="label" VerticalAlignment="Center" Margin="14,0,6,0" />
-        <ComboBox Grid.Column="2" SelectedItem="{Binding ScopeFilter, Mode=TwoWay}" MinWidth="140">
-          <ComboBoxItem Content="All" />
-          <ComboBoxItem Content="Full" />
-          <ComboBoxItem Content="Users" />
-          <ComboBoxItem Content="ServerSettings" />
-          <ComboBoxItem Content="Extensions" />
-          <ComboBoxItem Content="Cvls" />
-          <ComboBoxItem Content="Model" />
-        </ComboBox>
+      <!-- Toolbar: spacer pushes the page-level primary action (Capture) to the right. Scope is
+           now applied as a per-column filter on the Scope column below, not a separate dropdown. -->
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8" VerticalAlignment="Center">
+        <Button Grid.Column="1" Classes="primary" Content="Capture full snapshot" Command="{Binding CaptureFullCommand}" />
       </Grid>
 
       <!-- Backup library grid -->
