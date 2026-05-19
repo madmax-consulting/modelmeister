@@ -202,29 +202,46 @@ public partial class EnvironmentsViewModel : ViewModelBase
     private async Task ConnectAsync()
     {
         if (SelectedRow is null) return;
+        SelectedRow.IsTesting = true;
+        try
+        {
+            await ConnectToEnvironmentAsync(SelectedRow.Entry).ConfigureAwait(true);
+        }
+        finally
+        {
+            if (SelectedRow is not null) SelectedRow.IsTesting = false;
+        }
+    }
 
-        var secret = _vault.GetSecret(SelectedRow.Entry.Id);
+    /// <summary>
+    /// Connect to <paramref name="entry"/> directly (no <see cref="SelectedRow"/> dependency).
+    /// Surfaced for the title-bar chip's environment-picker flyout, which targets the entry the
+    /// user clicked rather than whatever row is selected on the Environments page.
+    /// </summary>
+    public async Task ConnectToEnvironmentAsync(EnvironmentEntry entry)
+    {
+        var secret = _vault.GetSecret(entry.Id);
         if (secret is null)
         {
-            StatusMessage = "No stored secret for this environment — open Edit and re-enter it.";
-            _log.Warn("Connection", $"No stored secret for '{SelectedRow.Entry.Name}'.");
+            var msg = $"No stored secret for '{entry.Name}' — open Edit and re-enter it.";
+            StatusMessage = msg;
+            _log.Warn("Connection", msg);
             return;
         }
 
         Busy = true;
-        SelectedRow.IsTesting = true;
-        StatusMessage = $"Connecting to {SelectedRow.Entry.Url}…";
-        _log.Info("Connection", $"Connecting to '{SelectedRow.Entry.Name}' ({SelectedRow.Entry.Url})…");
+        StatusMessage = $"Connecting to {entry.Url}…";
+        _log.Info("Connection", $"Connecting to '{entry.Name}' ({entry.Url})…");
 
         try
         {
-            await _connection.ConnectAsync(SelectedRow.Entry, secret).ConfigureAwait(true);
+            await _connection.ConnectAsync(entry, secret).ConfigureAwait(true);
             if (_connection.State == ConnectionState.Connected)
             {
-                _vault.Touch(SelectedRow.Entry.Id);
-                _settings.Current.LastUsedEnvId = SelectedRow.Entry.Id;
+                _vault.Touch(entry.Id);
+                _settings.Current.LastUsedEnvId = entry.Id;
                 _settings.Save();
-                StatusMessage = $"Connected to '{SelectedRow.Entry.Name}'.";
+                StatusMessage = $"Connected to '{entry.Name}'.";
                 Refresh();
             }
             else
@@ -234,7 +251,6 @@ public partial class EnvironmentsViewModel : ViewModelBase
         }
         finally
         {
-            if (SelectedRow is not null) SelectedRow.IsTesting = false;
             Busy = false;
         }
     }

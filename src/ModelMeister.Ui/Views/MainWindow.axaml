@@ -130,39 +130,68 @@
           </Button.Content>
           <Button.Flyout>
             <Flyout Placement="Bottom">
-              <Border Padding="14,12" MinWidth="280">
-                <StackPanel Spacing="10">
-                  <!-- Connected state -->
-                  <StackPanel Spacing="6" IsVisible="{Binding IsConnected}">
-                    <TextBlock Text="CONNECTED TO" Classes="eyebrow" />
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                      <TextBlock Text="{Binding ConnectedEnv.Name}" FontWeight="SemiBold" FontSize="14" />
-                      <Border Classes="stage"
-                              Background="{Binding ConnectedStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
-                              BorderBrush="{Binding ConnectedStage, Converter={StaticResource StageBrush}}">
-                        <TextBlock Text="{Binding ConnectedStage, Converter={StaticResource StageText}}"
-                                   Foreground="{Binding ConnectedStage, Converter={StaticResource StageBrush}}" />
-                      </Border>
-                    </StackPanel>
-                    <TextBlock Text="{Binding ConnectedEnv.Url}" Classes="mono dim" TextWrapping="Wrap" />
-                  </StackPanel>
+              <Border Padding="6" MinWidth="300">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="CONNECT TO" Classes="eyebrow" Margin="8,4,8,4" />
 
-                  <!-- Disconnected state -->
-                  <StackPanel Spacing="6" IsVisible="{Binding !IsConnected}">
-                    <TextBlock Text="NOT CONNECTED" Classes="eyebrow" />
-                    <TextBlock Text="Pick an environment from the Environments hub to connect."
-                               Classes="subtle" TextWrapping="Wrap" />
-                  </StackPanel>
+                  <!-- Empty-state when the vault has no environments yet -->
+                  <TextBlock Text="No environments saved yet."
+                             Classes="subtle" Margin="8,2,8,6"
+                             IsVisible="{Binding EnvironmentsVm.Rows.Count, Converter={x:Static svc:Eq.IsZero}}" />
 
-                  <Border Classes="divider" />
+                  <!-- One clickable row per environment. Clicking connects (or switches). The currently
+                       connected env is highlighted via the leading accent dot. -->
+                  <ItemsControl ItemsSource="{Binding EnvironmentsVm.Rows}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:EnvironmentRow">
+                        <Button Classes="ghost"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Stretch"
+                                Padding="8,5" Margin="0,1"
+                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ConnectToEnvCommand}"
+                                CommandParameter="{Binding Entry}">
+                          <Grid ColumnDefinitions="10,*,Auto,Auto">
+                            <!-- Leading dot: filled accent when this is the currently connected env -->
+                            <Ellipse Grid.Column="0" Width="7" Height="7"
+                                     VerticalAlignment="Center"
+                                     Fill="{DynamicResource Accent}"
+                                     IsVisible="{Binding IsConnected}" />
+                            <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                       Margin="6,0,8,0" VerticalAlignment="Center"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="2" Text="★" Margin="0,0,6,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource Accent}"
+                                       ToolTip.Tip="Auto-connect on startup"
+                                       IsVisible="{Binding IsDefault}" />
+                            <Border Grid.Column="3" Classes="stage"
+                                    VerticalAlignment="Center"
+                                    Background="{Binding Stage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                                    BorderBrush="{Binding Stage, Converter={StaticResource StageBrush}}">
+                              <TextBlock Text="{Binding Stage, Converter={StaticResource StageText}}"
+                                         Foreground="{Binding Stage, Converter={StaticResource StageBrush}}" />
+                            </Border>
+                          </Grid>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
 
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Disconnect" Classes="danger"
-                            Command="{Binding DisconnectCommand}"
-                            IsVisible="{Binding IsConnected}" />
-                    <Button Content="Manage environments" Classes="ghost"
-                            Command="{Binding GoToEnvironmentsCommand}" />
-                  </StackPanel>
+                  <Border Classes="divider" Margin="0,6,0,4" />
+
+                  <!-- Disconnect (only while connected), then the always-visible Manage entry -->
+                  <Button Classes="ghost"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                          Padding="8,5" Margin="0,1"
+                          Command="{Binding DisconnectCommand}"
+                          IsVisible="{Binding IsConnected}">
+                    <TextBlock Text="Disconnect" Foreground="{DynamicResource Danger}" />
+                  </Button>
+                  <Button Classes="ghost"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                          Padding="8,5" Margin="0,1"
+                          Content="Manage connections"
+                          Command="{Binding GoToEnvironmentsCommand}" />
                 </StackPanel>
               </Border>
             </Flyout>

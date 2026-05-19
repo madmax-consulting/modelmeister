@@ -669,6 +669,21 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public async Task DisconnectAsync() => await _connection.DisconnectAsync().ConfigureAwait(true);
 
+    /// <summary>
+    /// Connect (or switch) to the given environment from the title-bar chip's environment-picker
+    /// flyout. Clicking the currently-connected env is a no-op; clicking a different env
+    /// disconnects first, then connects.
+    /// </summary>
+    [RelayCommand]
+    public async Task ConnectToEnvAsync(Models.EnvironmentEntry? entry)
+    {
+        if (entry is null) return;
+        if (_connection.Connected?.Id == entry.Id) return;
+        if (_connection.State == ConnectionState.Connected)
+            await _connection.DisconnectAsync().ConfigureAwait(true);
+        await EnvironmentsVm.ConnectToEnvironmentAsync(entry).ConfigureAwait(true);
+    }
+
     /// <summary>Navigate to the Environments hub. Surfaced by the title-bar connection chip's flyout.</summary>
     [RelayCommand]
     public void GoToEnvironments() => GoToHub(Hub.Environments);
