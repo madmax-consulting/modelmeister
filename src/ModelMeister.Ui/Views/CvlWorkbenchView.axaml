@@ -26,11 +26,21 @@
           </ContextMenu>
         </DataGrid.ContextMenu>
         <DataGrid.Columns>
-          <DataGridTextColumn Header="Id"       Binding="{Binding Id}"       Width="*" />
-          <DataGridTextColumn Header="DataType" Binding="{Binding DataType}" Width="120" />
-          <DataGridTextColumn Header="Values"   Binding="{Binding ValueCount}" Width="90" />
-          <DataGridTextColumn Header="Parent"   Binding="{Binding ParentId}" Width="160" />
-          <DataGridCheckBoxColumn Header="Custom" Binding="{Binding CustomValueList}" Width="80" />
+          <DataGridTextColumn Binding="{Binding Id}" Width="*" MinWidth="160">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Id" Path="Id" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding DataType}" Width="120" MinWidth="90">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="DataType" Path="DataType" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding ValueCount}" Width="90" MinWidth="60">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Values" Path="ValueCount" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding ParentId}" Width="160" MinWidth="100">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Parent" Path="ParentId" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridCheckBoxColumn Binding="{Binding CustomValueList}" Width="80" MinWidth="70">
+            <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="Custom" Path="CustomValueList" /></DataGridCheckBoxColumn.Header>
+          </DataGridCheckBoxColumn>
         </DataGrid.Columns>
       </DataGrid>
     </Border>

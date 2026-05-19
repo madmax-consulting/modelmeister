@@ -139,7 +139,8 @@
               </DataTemplate>
             </DataGrid.RowDetailsTemplate>
             <DataGrid.Columns>
-              <DataGridTemplateColumn Header="Status" Width="100">
+              <DataGridTemplateColumn Width="100" MinWidth="80">
+                <DataGridTemplateColumn.Header><c:FilterableHeader Title="Status" Path="Succeeded" /></DataGridTemplateColumn.Header>
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>
                     <Border Classes="pill"
@@ -161,10 +162,18 @@
                   </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
-              <DataGridTextColumn Header="Kind"        Width="160" Binding="{Binding Kind}" />
-              <DataGridTextColumn Header="Description" Width="*"   Binding="{Binding Description}" />
-              <DataGridTextColumn Header="ms"          Width="80"  Binding="{Binding DurationMs}" />
-              <DataGridTextColumn Header="Error"       Width="300" Binding="{Binding Error}" />
+              <DataGridTextColumn Width="160" MinWidth="100" Binding="{Binding Kind}">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="Kind" Path="Kind" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
+              <DataGridTextColumn Width="*" MinWidth="160" Binding="{Binding Description}">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="Description" Path="Description" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
+              <DataGridTextColumn Width="80" MinWidth="60" Binding="{Binding DurationMs}">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="ms" Path="DurationMs" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
+              <DataGridTextColumn Width="300" MinWidth="160" Binding="{Binding Error}">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="Error" Path="Error" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
             </DataGrid.Columns>
           </DataGrid>
         </DockPanel>

@@ -146,21 +146,39 @@
                 <DataGridTextColumn Width="110" Binding="{Binding DataType}">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="Datatype" Path="DataType" /></DataGridTextColumn.Header>
                 </DataGridTextColumn>
-                <DataGridCheckBoxColumn Header="Mandatory"   Width="90"  Binding="{Binding Mandatory}" />
-                <DataGridCheckBoxColumn Header="ReadOnly"    Width="90"  Binding="{Binding ReadOnly}" />
-                <DataGridCheckBoxColumn Header="MultiValue"  Width="90"  Binding="{Binding MultiValue}" />
-                <DataGridCheckBoxColumn Header="Unique"      Width="70"  Binding="{Binding Unique}" />
-                <DataGridCheckBoxColumn Header="Hidden"      Width="70"  Binding="{Binding Hidden}" />
-                <DataGridCheckBoxColumn Header="TrackChanges"     Width="100" Binding="{Binding TrackChanges}" />
-                <DataGridCheckBoxColumn Header="ExcludeFromDefaultView" Width="140" Binding="{Binding ExcludeFromDefaultView}" />
-                <DataGridTextColumn     Header="Index"       Width="70"  Binding="{Binding Index}" />
+                <DataGridCheckBoxColumn Width="90" MinWidth="80" Binding="{Binding Mandatory}">
+                  <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="Mandatory" Path="Mandatory" /></DataGridCheckBoxColumn.Header>
+                </DataGridCheckBoxColumn>
+                <DataGridCheckBoxColumn Width="90" MinWidth="80" Binding="{Binding ReadOnly}">
+                  <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="ReadOnly" Path="ReadOnly" /></DataGridCheckBoxColumn.Header>
+                </DataGridCheckBoxColumn>
+                <DataGridCheckBoxColumn Width="90" MinWidth="80" Binding="{Binding MultiValue}">
+                  <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="MultiValue" Path="MultiValue" /></DataGridCheckBoxColumn.Header>
+                </DataGridCheckBoxColumn>
+                <DataGridCheckBoxColumn Width="70" MinWidth="60" Binding="{Binding Unique}">
+                  <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="Unique" Path="Unique" /></DataGridCheckBoxColumn.Header>
+                </DataGridCheckBoxColumn>
+                <DataGridCheckBoxColumn Width="70" MinWidth="60" Binding="{Binding Hidden}">
+                  <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="Hidden" Path="Hidden" /></DataGridCheckBoxColumn.Header>
+                </DataGridCheckBoxColumn>
+                <DataGridCheckBoxColumn Width="100" MinWidth="90" Binding="{Binding TrackChanges}">
+                  <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="TrackChanges" Path="TrackChanges" /></DataGridCheckBoxColumn.Header>
+                </DataGridCheckBoxColumn>
+                <DataGridCheckBoxColumn Width="140" MinWidth="120" Binding="{Binding ExcludeFromDefaultView}">
+                  <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="ExcludeFromDefaultView" Path="ExcludeFromDefaultView" /></DataGridCheckBoxColumn.Header>
+                </DataGridCheckBoxColumn>
+                <DataGridTextColumn Width="70" MinWidth="60" Binding="{Binding Index}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Index" Path="Index" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
                 <DataGridTextColumn Width="140" Binding="{Binding CvlId}">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="CVL" Path="CvlId" /></DataGridTextColumn.Header>
                 </DataGridTextColumn>
                 <DataGridTextColumn Width="140" Binding="{Binding Category}">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="Category" Path="Category" /></DataGridTextColumn.Header>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Default" Width="*" Binding="{Binding DefaultValue}" />
+                <DataGridTextColumn Width="*" MinWidth="120" Binding="{Binding DefaultValue}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Default" Path="DefaultValue" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
               </DataGrid.Columns>
             </DataGrid>
 
@@ -178,11 +196,15 @@
                   <DataGridTextColumn Width="120" Binding="{Binding DataType}">
                     <DataGridTextColumn.Header><c:FilterableHeader Title="Data type" Path="DataType" /></DataGridTextColumn.Header>
                   </DataGridTextColumn>
-                  <DataGridTextColumn Header="Value count" Width="110" Binding="{Binding ValueCount}" />
+                  <DataGridTextColumn Width="110" MinWidth="90" Binding="{Binding ValueCount}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Value count" Path="ValueCount" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
                   <DataGridTextColumn Width="180" Binding="{Binding ParentCvlId}">
                     <DataGridTextColumn.Header><c:FilterableHeader Title="Parent CVL" Path="ParentCvlId" /></DataGridTextColumn.Header>
                   </DataGridTextColumn>
-                  <DataGridCheckBoxColumn Header="Custom" Width="80" Binding="{Binding CustomValueList}" />
+                  <DataGridCheckBoxColumn Width="80" MinWidth="70" Binding="{Binding CustomValueList}">
+                    <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="Custom" Path="CustomValueList" /></DataGridCheckBoxColumn.Header>
+                  </DataGridCheckBoxColumn>
                 </DataGrid.Columns>
               </DataGrid>
               <Border DockPanel.Dock="Top" Padding="14,8,14,4"
@@ -204,9 +226,15 @@
                   <DataGridTextColumn Width="*" Binding="{Binding Value}">
                     <DataGridTextColumn.Header><c:FilterableHeader Title="Value" Path="Value" /></DataGridTextColumn.Header>
                   </DataGridTextColumn>
-                  <DataGridTextColumn Header="Parent" Width="160" Binding="{Binding Parent}" />
-                  <DataGridTextColumn Header="Index" Width="80" Binding="{Binding Index}" />
-                  <DataGridCheckBoxColumn Header="Deactivated" Width="100" Binding="{Binding Deactivated}" />
+                  <DataGridTextColumn Width="160" MinWidth="120" Binding="{Binding Parent}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Parent" Path="Parent" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Width="80" MinWidth="60" Binding="{Binding Index}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Index" Path="Index" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridCheckBoxColumn Width="100" MinWidth="90" Binding="{Binding Deactivated}">
+                    <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="Deactivated" Path="Deactivated" /></DataGridCheckBoxColumn.Header>
+                  </DataGridCheckBoxColumn>
                 </DataGrid.Columns>
               </DataGrid>
             </DockPanel>
@@ -226,8 +254,12 @@
                 <DataGridTextColumn Width="180" Binding="{Binding Target}">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="Target" Path="Target" /></DataGridTextColumn.Header>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Link entity" Width="160" Binding="{Binding LinkEntity}" />
-                <DataGridTextColumn Header="Index" Width="80" Binding="{Binding Index}" />
+                <DataGridTextColumn Width="160" MinWidth="120" Binding="{Binding LinkEntity}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Link entity" Path="LinkEntity" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="80" MinWidth="60" Binding="{Binding Index}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Index" Path="Index" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
               </DataGrid.Columns>
             </DataGrid>
 
@@ -240,7 +272,9 @@
                 <DataGridTextColumn Width="200" Binding="{Binding Name}">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="Role" Path="Name" /></DataGridTextColumn.Header>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="# perms" Width="90" Binding="{Binding PermissionCount}" />
+                <DataGridTextColumn Width="90" MinWidth="70" Binding="{Binding PermissionCount}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="# perms" Path="PermissionCount" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
                 <DataGridTextColumn Width="*" Binding="{Binding Permissions}">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="Permissions" Path="Permissions" /></DataGridTextColumn.Header>
                 </DataGridTextColumn>

@@ -146,9 +146,15 @@
                         IsReadOnly="True" BorderThickness="0"
                         IsVisible="{Binding HasDeltas}">
                 <DataGrid.Columns>
-                  <DataGridTextColumn Header="Property"             Width="180" Binding="{Binding Property}" />
-                  <DataGridTextColumn Header="Live (current)"       Width="*"   Binding="{Binding LiveValue}" />
-                  <DataGridTextColumn Header="Code (will become)"   Width="*"   Binding="{Binding CodeValue}" />
+                  <DataGridTextColumn Width="180" MinWidth="120" Binding="{Binding Property}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Property" Path="Property" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Width="*" MinWidth="120" Binding="{Binding LiveValue}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Live (current)" Path="LiveValue" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Width="*" MinWidth="120" Binding="{Binding CodeValue}">
+                    <DataGridTextColumn.Header><c:FilterableHeader Title="Code (will become)" Path="CodeValue" /></DataGridTextColumn.Header>
+                  </DataGridTextColumn>
                 </DataGrid.Columns>
               </DataGrid>
             </Grid>
@@ -206,8 +212,12 @@
             <DataGrid ItemsSource="{Binding WarningRows}" AutoGenerateColumns="False"
                       IsReadOnly="True" BorderThickness="0">
               <DataGrid.Columns>
-                <DataGridTextColumn Header="Code"    Width="80"  Binding="{Binding Code}" />
-                <DataGridTextColumn Header="Message" Width="*"   Binding="{Binding Message}" />
+                <DataGridTextColumn Width="80" MinWidth="60" Binding="{Binding Code}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Code" Path="Code" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Width="*" MinWidth="160" Binding="{Binding Message}">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Message" Path="Message" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
               </DataGrid.Columns>
             </DataGrid>
           </DockPanel>

@@ -139,7 +139,8 @@
             <DataGridTextColumn Width="180" Binding="{Binding LastUsed}">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Last used" Path="LastUsed" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTemplateColumn Header="Health" Width="180">
+            <DataGridTemplateColumn Width="180" MinWidth="120">
+              <DataGridTemplateColumn.Header><c:FilterableHeader Title="Health" Path="TestResult" /></DataGridTemplateColumn.Header>
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="vm:EnvironmentRow">
                   <Grid VerticalAlignment="Center">

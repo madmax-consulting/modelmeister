@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        xmlns:c="using:ModelMeister.Ui.Controls"
         x:Class="ModelMeister.Ui.Views.ProvisionResultDialog"
         x:DataType="vm:ProvisionResultViewModel"
         Title="{Binding Title}"
@@ -67,9 +68,15 @@
                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                   BorderThickness="0">
           <DataGrid.Columns>
-            <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="200" />
-            <DataGridTextColumn Header="Outcome"  Binding="{Binding Outcome}"  Width="120" />
-            <DataGridTextColumn Header="Detail"   Binding="{Binding Detail}"   Width="*" />
+            <DataGridTextColumn Binding="{Binding Username}" Width="200" MinWidth="120">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Username" Path="Username" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding Outcome}" Width="120" MinWidth="90">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Outcome" Path="Outcome" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding Detail}" Width="*" MinWidth="160">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Detail" Path="Detail" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
           </DataGrid.Columns>
         </DataGrid>
       </Border>
