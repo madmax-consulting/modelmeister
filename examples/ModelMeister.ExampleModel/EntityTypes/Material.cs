@@ -11,19 +11,12 @@ namespace ModelMeister.ExampleModel.EntityTypes;
 /// </summary>
 public sealed class Material : TranslatableEntity
 {
-    public Field<string, MaterialFamilyCvl> Family { get; init; } = new()
-    {
-        Fieldset = typeof(ChemistryFieldset),
-    };
+    [Fieldset(typeof(ChemistryFieldset))]
+    public Field<string, MaterialFamilyCvl> Family { get; init; } = new();
 
-    public Field<double> WeightGrams { get; init; } = new()
-    {
-        Mandatory = true,
-        Fieldset = typeof(ChemistryFieldset),
-    };
+    [Mandatory, Fieldset(typeof(ChemistryFieldset))]
+    public Field<double> WeightGrams { get; init; } = new();
 
-    public Field<double> Density { get; init; } = new()
-    {
-        Fieldset = typeof(ChemistryFieldset),
-    };
+    [Fieldset(typeof(ChemistryFieldset))]
+    public Field<double> Density { get; init; } = new();
 }

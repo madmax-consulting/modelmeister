@@ -13,8 +13,8 @@ namespace ModelMeister.ExampleModel.EntityTypes;
 /// </summary>
 public sealed class ProductSpec : EntityType
 {
-    [DisplayName]
-    public Field<string> SpecKey { get; init; } = new() { Unique = true };
+    [DisplayName, Unique]
+    public Field<string> SpecKey { get; init; } = new();
 
     public Field<string, BrandsCvl> Brand { get; init; } = new();
 

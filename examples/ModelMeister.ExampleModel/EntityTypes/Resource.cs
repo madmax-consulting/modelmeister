@@ -13,18 +13,18 @@ namespace ModelMeister.ExampleModel.EntityTypes;
 public sealed class Resource : EntityType
 {
     // File and Xml are not expression-eligible, so no DefaultExpression on these.
-    public Field<FileRef> Asset { get; init; } = new()
-    {
-        Mandatory = true,
-        Category = typeof(FileInformation),
-    };
+    [Mandatory, FieldCategory(typeof(FileInformation))]
+    public Field<FileRef> Asset { get; init; } = new();
 
-    public Field<XElement> ExifXml { get; init; } = new() { Category = typeof(FileInformation) };
+    [FieldCategory(typeof(FileInformation))]
+    public Field<XElement> ExifXml { get; init; } = new();
 
-    public Field<DateTime> CapturedAt { get; init; } = new() { Category = typeof(FileInformation) };
+    [FieldCategory(typeof(FileInformation))]
+    public Field<DateTime> CapturedAt { get; init; } = new();
 
     /// <summary>DateTimeOffset coerces to Datatype.DateTime — same wire shape as DateTime.</summary>
-    public Field<DateTimeOffset> UploadedAt { get; init; } = new() { Category = typeof(FileInformation) };
+    [FieldCategory(typeof(FileInformation))]
+    public Field<DateTimeOffset> UploadedAt { get; init; } = new();
 
     public Field<int> WidthPx { get; init; } = new();
 
@@ -40,7 +40,8 @@ public sealed class Resource : EntityType
     public Field<float> CompressionQuality { get; init; } = new();
 
     /// <summary>Multi-value strings — exercises <see cref="Field.MultiValue"/>.</summary>
-    public Field<string> Tags { get; init; } = new() { MultiValue = true };
+    [MultiValue]
+    public Field<string> Tags { get; init; } = new();
 
     /// <summary>Field with explicit DefaultValue — distinct from DefaultExpression.</summary>
     public Field<bool> IsPublished { get; init; } = new() { DefaultValue = false };

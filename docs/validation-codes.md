@@ -14,6 +14,7 @@ integrations can filter on the code; the codes never change meaning across versi
 | MM007  | Duplicate field ID                   | Within one entity type, two `Field` properties collide.                                                   | Rename one of the properties. |
 | MM010  | Multiple IsDisplayName               | More than one field on the same entity type has `IsDisplayName = true`.                                   | Pick a single canonical display-name field. |
 | MM011  | Multiple IsDisplayDescription        | More than one field has `IsDisplayDescription = true`.                                                    | Pick a single canonical display-description field. |
+| MM012  | Field flag specified twice           | A field flag (e.g. `Mandatory`, `Index`, `Category`) was set via both an attribute and the object initializer. | Pick one form — the attribute always wins at runtime. |
 | MM020  | Unknown CVL type                     | `Field<…, TCvl>` references a CVL class not registered in the model.                                      | Add the CVL to the project or fix the type parameter. |
 | MM024  | CVL DataType mismatch                | `Field<TData, TCvl>` where `TData` is incompatible with the CVL's `DataType` (e.g. `double` vs `String`). | Use `Field<CvlKey, TCvl>` or pick a TData matching the CVL's DataType. |
 | MM030  | LinkType.Source unknown              | `LinkType.Source` references an entity type not registered.                                               | Register the source entity type. |

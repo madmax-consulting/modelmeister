@@ -10,8 +10,8 @@ namespace ModelMeister.ExampleModel.EntityTypes;
 /// </summary>
 public abstract class TranslatableEntity : EntityType
 {
-    [DisplayName]
-    public Field<LocaleString> Name { get; init; } = new() { Mandatory = true };
+    [DisplayName, Mandatory]
+    public Field<LocaleString> Name { get; init; } = new();
 
     [DisplayDescription]
     public Field<LocaleString> Description { get; init; } = new();

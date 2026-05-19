@@ -96,6 +96,8 @@ public static class ModelLoader
         if (attrs.OfType<DisplayDescriptionAttribute>().Any() && !field.IsDisplayDescription)
             SetInit(field, nameof(Field.IsDisplayDescription), true);
 
+        var duplicates = ApplyFieldOptionAttributes(field, attrs);
+
         return new LoadedField
         {
             Field = field,
@@ -106,7 +108,86 @@ public static class ModelLoader
             DataType = field.DataType,
             Attributes = attrs,
             MarkedForDeletion = attrs.OfType<DeletedAttribute>().Any(),
+            DuplicateAttributeFlags = duplicates,
         };
+    }
+
+    /// <summary>
+    /// Stamps any <c>FieldOptionAttributes</c> present on the property onto the field instance,
+    /// returning the names of properties that were already set by the object initializer
+    /// (so a validator can warn — see MM012). Attribute wins at runtime in either case.
+    /// </summary>
+    private static IReadOnlyList<string> ApplyFieldOptionAttributes(Field field, Attribute[] attrs)
+    {
+        var duplicates = new List<string>();
+
+        // Boolean markers — the initializer-side property is non-nullable, so "already true" is the
+        // only signal that both forms were used.
+        ApplyBool<MandatoryAttribute>(field, nameof(Field.Mandatory), duplicates);
+        ApplyBool<UniqueAttribute>(field, nameof(Field.Unique), duplicates);
+        ApplyBool<ReadOnlyFieldAttribute>(field, nameof(Field.ReadOnly), duplicates);
+        ApplyBool<HiddenAttribute>(field, nameof(Field.Hidden), duplicates);
+        ApplyBool<MultiValueAttribute>(field, nameof(Field.MultiValue), duplicates);
+        ApplyBool<PerMarketAttribute>(field, nameof(Field.PerMarket), duplicates);
+        ApplyBool<SupportsExpressionAttribute>(field, nameof(Field.SupportsExpression), duplicates);
+        ApplyBool<ShowInEntityOverviewAttribute>(field, nameof(Field.ShowInEntityOverview), duplicates);
+        ApplyBool<IgnoreFieldInEpiserverExportAttribute>(field, nameof(Field.IgnoreFieldInEpiserverExport), duplicates);
+
+        // Nullable bool markers — only collide when the initializer also set the same value (true).
+        ApplyNullableBoolTrue<TrackChangesAttribute>(field, nameof(Field.TrackChanges), duplicates);
+        ApplyNullableBoolTrue<ExcludeFromDefaultViewAttribute>(field, nameof(Field.ExcludeFromDefaultView), duplicates);
+
+        // Scalar parameterized attributes.
+        if (attrs.OfType<IndexAttribute>().FirstOrDefault() is { } ix)
+        {
+            if (field.Index is not null) duplicates.Add(nameof(Field.Index));
+            SetInit(field, nameof(Field.Index), ix.Value);
+        }
+        if (attrs.OfType<NumberOfRowsAttribute>().FirstOrDefault() is { } nr)
+        {
+            // Default in the type is 1 — treat anything else as initializer-set for conflict detection.
+            if (field.NumberOfRows != 1) duplicates.Add(nameof(Field.NumberOfRows));
+            SetInit(field, nameof(Field.NumberOfRows), nr.Value);
+        }
+        if (attrs.OfType<RegExpAttribute>().FirstOrDefault() is { } rx)
+        {
+            if (!string.IsNullOrEmpty(field.RegExp)) duplicates.Add(nameof(Field.RegExp));
+            SetInit(field, nameof(Field.RegExp), rx.Pattern);
+        }
+        if (attrs.OfType<FieldCategoryAttribute>().FirstOrDefault() is { } cat)
+        {
+            if (field.Category is not null) duplicates.Add(nameof(Field.Category));
+            SetInit(field, nameof(Field.Category), cat.Category);
+        }
+
+        // [Fieldset] is AllowMultiple — collect all instances and merge with any initializer-set
+        // Fieldsets. The init-only Fieldset (singular) setter rewrites Fieldsets to a one-element
+        // list, so reading Field.Fieldsets is the authoritative source.
+        var fieldsetAttrs = attrs.OfType<FieldsetAttribute>().ToArray();
+        if (fieldsetAttrs.Length > 0)
+        {
+            if (field.Fieldsets.Count > 0) duplicates.Add(nameof(Field.Fieldsets));
+            var merged = field.Fieldsets.Concat(fieldsetAttrs.Select(fs => fs.Fieldset)).Distinct().ToArray();
+            SetInit(field, nameof(Field.Fieldsets), (IReadOnlyList<Type>)merged);
+        }
+
+        return duplicates;
+
+        void ApplyBool<TAttr>(Field f, string propName, List<string> dups) where TAttr : Attribute
+        {
+            if (!attrs.OfType<TAttr>().Any()) return;
+            var current = (bool)f.GetType().GetProperty(propName)!.GetValue(f)!;
+            if (current) dups.Add(propName);
+            else SetInit(f, propName, true);
+        }
+
+        void ApplyNullableBoolTrue<TAttr>(Field f, string propName, List<string> dups) where TAttr : Attribute
+        {
+            if (!attrs.OfType<TAttr>().Any()) return;
+            var current = (bool?)f.GetType().GetProperty(propName)!.GetValue(f);
+            if (current == true) dups.Add(propName);
+            else SetInit(f, propName, true);
+        }
     }
 
     /// <summary>Number of base steps from <paramref name="concrete"/> down to the property's declaring type.</summary>

@@ -399,12 +399,34 @@ public static class EntityTypeEmitter
         var inits = BuildFieldInits(e, f, sanePropName, ctx).ToList();
         var initText = inits.Count == 0 ? string.Empty : " { " + string.Join(", ", inits) + " }";
 
-        var attrs = new List<string>();
-        if (f.IsDisplayName) attrs.Add("    [DisplayName]");
-        if (f.IsDisplayDescription) attrs.Add("    [DisplayDescription]");
-        var attrText = attrs.Count == 0 ? string.Empty : string.Join("\n", attrs) + "\n";
+        // Flag attributes are emitted as a single comma-separated row so the eye scans one short
+        // line per field — see [Mandatory, Unique, Index(1)] form. Order matches the property's
+        // visual importance: data-shape flags first, behavior next, scalars last, display markers
+        // dead last (they're meta-information, not data).
+        var attrs = BuildFieldFlagAttributes(f).ToList();
+        if (f.IsDisplayName) attrs.Add("DisplayName");
+        if (f.IsDisplayDescription) attrs.Add("DisplayDescription");
+        var attrText = attrs.Count == 0 ? string.Empty : $"    [{string.Join(", ", attrs)}]\n";
 
         return $"{attrText}    public Field<{typeParams}> {sanePropName} {{ get; init; }} = new(){initText};\n";
+    }
+
+    /// <summary>
+    /// Flag attributes — one per non-default boolean field option. Mirrors the set of flags the
+    /// previous emitter wrote as <c>Mandatory = true</c> object-initializer entries, lifted into
+    /// attribute form so each field reads as a single visual row. <c>Index</c>, <c>TrackChanges</c>
+    /// and <c>ExcludeFromDefaultView</c> stay unset to preserve the "leave inriver's value alone"
+    /// read-through semantics (see CLAUDE.md). <c>CategoryId</c> and fieldsets ride in the
+    /// <see cref="Field{TData, TBinding}"/> type-parameter slots, not here.
+    /// </summary>
+    private static IEnumerable<string> BuildFieldFlagAttributes(JsonFieldType f)
+    {
+        if (f.Mandatory) yield return "Mandatory";
+        if (f.Unique) yield return "Unique";
+        if (f.ReadOnly) yield return "ReadOnlyField";
+        if (f.Hidden) yield return "Hidden";
+        if (f.Multivalue) yield return "MultiValue";
+        if (f.ExpressionSupport) yield return "SupportsExpression";
     }
 
     private static string BuildTypeParams(JsonFieldType f, string dt, string ns, ISet<string>? entityTypeNames)
@@ -444,13 +466,10 @@ public static class EntityTypeEmitter
         if (!string.Equals(f.Id, e.Id + sanePropName, StringComparison.Ordinal))
             yield return $"Id = {EmitHelpers.Quote(f.Id)}";
 
-        if (f.Mandatory) yield return "Mandatory = true";
-        if (f.Unique) yield return "Unique = true";
-        if (f.ReadOnly) yield return "ReadOnly = true";
-        if (f.Hidden) yield return "Hidden = true";
-        if (f.Multivalue) yield return "MultiValue = true";
-        // IsDisplayName / IsDisplayDescription are emitted as attributes on the property — see EmitField.
-        if (f.ExpressionSupport) yield return "SupportsExpression = true";
+        // Mandatory, Unique, ReadOnly, Hidden, MultiValue, SupportsExpression, Index, IsDisplayName,
+        // IsDisplayDescription are emitted as attributes on the property — see EmitField /
+        // BuildFieldFlagAttributes. The object initializer is reserved for complex values
+        // (LocaleStrings, expressions, the explicit DefaultValue) that don't fit in attribute literals.
 
         if (f.Name is not null && !f.Name.IsEmpty() && !EmitHelpers.IsRedundantNameOf(f.Name, sanePropName, f.Id))
             yield return $"Name = {EmitHelpers.LocaleString(f.Name)}";

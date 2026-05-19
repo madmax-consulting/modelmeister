@@ -20,8 +20,8 @@ public sealed class Channel : EntityType
         Settings["BackOfficeOnly"] = "true";
     }
 
-    [DisplayName]
-    public Field<string> ChannelCode { get; init; } = new() { Unique = true };
+    [DisplayName, Unique]
+    public Field<string> ChannelCode { get; init; } = new();
 
     [DisplayDescription]
     public Field<LocaleString> ChannelName { get; init; } = new();

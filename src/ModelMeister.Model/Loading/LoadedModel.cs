@@ -44,6 +44,14 @@ public sealed class LoadedField
     public IReadOnlyList<Attribute> Attributes { get; init; } = [];
     public bool MarkedForDeletion { get; init; }
 
+    /// <summary>
+    /// Names of <see cref="Field"/> properties that were specified both via attribute
+    /// (e.g. <c>[Mandatory]</c>) AND via the object initializer (<c>= new() { Mandatory = true }</c>).
+    /// Surfaced as validator code MM012. The attribute always wins at runtime — but having both is
+    /// redundant and confusing, so the model author should pick one form.
+    /// </summary>
+    public IReadOnlyList<string> DuplicateAttributeFlags { get; init; } = [];
+
     /// <summary>Source-location of the C# declaration that produced this field, when available.</summary>
     public string? SourceLocation => Field.SourceLocation;
 }

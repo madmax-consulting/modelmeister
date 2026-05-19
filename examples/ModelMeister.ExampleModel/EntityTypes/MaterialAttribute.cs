@@ -17,6 +17,7 @@ public sealed class MaterialAttribute : EntityType
         Settings["LinkRole"] = "Supplier";
     }
 
-    public Field<double> PurityPercent { get; init; } = new() { Mandatory = true };
+    [Mandatory]
+    public Field<double> PurityPercent { get; init; } = new();
     public Field<string> SourcePlant { get; init; } = new();
 }

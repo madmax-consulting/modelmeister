@@ -62,6 +62,7 @@ public static class ModelValidator
         var r = new ValidationResult();
 
         CheckUniqueIds(r, model);
+        CheckDuplicateFlagSpecifications(r, model);
         CheckDisplayNamesUnique(r, model);
         CheckCvlReferences(r, model);
         CheckCvlDataTypeCompatibility(r, model);
@@ -106,6 +107,21 @@ public static class ModelValidator
         var dups = ids.GroupBy(x => x, StringComparer.Ordinal).Where(g => g.Count() > 1);
         foreach (var d in dups)
             r.Error(code, $"Duplicate {what} ID '{d.Key}'.");
+    }
+
+    /// <summary>
+    /// MM012: a field flag was specified by BOTH an attribute (e.g. <c>[Mandatory]</c>) AND the
+    /// object initializer (<c>= new() { Mandatory = true }</c>). The attribute wins at runtime so
+    /// this isn't a correctness bug, but it's redundant and confusing — pick one form.
+    /// </summary>
+    private static void CheckDuplicateFlagSpecifications(ValidationResult r, LoadedModel m)
+    {
+        foreach (var (_, f) in AllFields(m))
+        {
+            foreach (var prop in f.DuplicateAttributeFlags)
+                r.ErrorOnField("MM012",
+                    $"Field '{f.Id}' specifies '{prop}' via both an attribute and the object initializer — pick one form.", f);
+        }
     }
 
     private static void CheckDisplayNamesUnique(ValidationResult r, LoadedModel m)
