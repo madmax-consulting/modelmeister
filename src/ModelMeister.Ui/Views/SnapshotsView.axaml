@@ -30,6 +30,8 @@
     </c:PageShell.Actions>
 
     <Border Classes="card flush" Padding="0">
+      <DockPanel LastChildFill="True">
+      <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #BackupsGrid}" />
       <Grid>
         <!-- Empty state: shown when no backups have been captured yet. Mirrors UsersView's pattern
              (centered text + cta) so an empty library no longer renders as a blank dark surface. -->
@@ -115,6 +117,7 @@
           </DataGrid.Columns>
         </DataGrid>
       </Grid>
+      </DockPanel>
     </Border>
 
   </c:PageShell>

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using ModelMeister.Model.Primitives;
 
 namespace ModelMeister.Scaffolder;
 
@@ -134,7 +135,7 @@ public static class CategoryEmitter
         var ctorLines = new List<string>();
         if (!sane.Equals(c.Id, StringComparison.Ordinal))
             ctorLines.Add($"CategoryId = {EmitHelpers.Quote(c.Id)};");
-        if (c.Name is not null && !c.Name.IsEmpty() && !EmitHelpers.IsRedundantNameOf(c.Name, sane, c.Id))
+        if (c.Name is not null && !c.Name.IsEmpty() && !EmitHelpers.IsRedundantNameOf(c.Name, sane, c.Id, NameHumanizer.Humanize(sane)))
             ctorLines.Add($"Name = {EmitHelpers.LocaleString(c.Name)};");
 
         var ctor = ctorLines.Count == 0
@@ -368,9 +369,9 @@ public static class EntityTypeEmitter
         var lines = new List<string>();
         if (!sane.Equals(e.Id, StringComparison.Ordinal))
             lines.Add($"EntityTypeId = {EmitHelpers.Quote(e.Id)};");
-        // EntityTypeName defaults to new LocaleString(EntityTypeId) in the EntityType base ctor —
-        // skip when it would only re-state the default.
-        if (e.Name is not null && !e.Name.IsEmpty() && !EmitHelpers.IsRedundantNameOf(e.Name, e.Id, sane))
+        // EntityTypeName defaults to new LocaleString(NameHumanizer.Humanize(EntityTypeId)) in the
+        // EntityType base ctor — skip when it would only re-state the (humanized) default.
+        if (e.Name is not null && !e.Name.IsEmpty() && !EmitHelpers.IsRedundantNameOf(e.Name, e.Id, sane, NameHumanizer.Humanize(sane)))
             lines.Add($"EntityTypeName = {EmitHelpers.LocaleString(e.Name)};");
 
         return lines.Count == 0
@@ -414,9 +415,11 @@ public static class EntityTypeEmitter
     /// <summary>
     /// Flag attributes — one per non-default boolean field option. Mirrors the set of flags the
     /// previous emitter wrote as <c>Mandatory = true</c> object-initializer entries, lifted into
-    /// attribute form so each field reads as a single visual row. <c>Index</c>, <c>TrackChanges</c>
-    /// and <c>ExcludeFromDefaultView</c> stay unset to preserve the "leave inriver's value alone"
-    /// read-through semantics (see CLAUDE.md). <c>CategoryId</c> and fieldsets ride in the
+    /// attribute form so each field reads as a single visual row. <c>Index</c> and
+    /// <c>ExcludeFromDefaultView</c> stay unset to preserve the "leave inriver's value alone"
+    /// read-through semantics (see CLAUDE.md). <c>TrackChanges</c> defaults to <c>true</c>, so it
+    /// is emitted (as an object-initializer <c>TrackChanges = false</c>) only when the source has
+    /// it off — see <see cref="BuildFieldInits"/>. <c>CategoryId</c> and fieldsets ride in the
     /// <see cref="Field{TData, TBinding}"/> type-parameter slots, not here.
     /// </summary>
     private static IEnumerable<string> BuildFieldFlagAttributes(JsonFieldType f)
@@ -471,11 +474,16 @@ public static class EntityTypeEmitter
         // BuildFieldFlagAttributes. The object initializer is reserved for complex values
         // (LocaleStrings, expressions, the explicit DefaultValue) that don't fit in attribute literals.
 
-        if (f.Name is not null && !f.Name.IsEmpty() && !EmitHelpers.IsRedundantNameOf(f.Name, sanePropName, f.Id))
+        if (f.Name is not null && !f.Name.IsEmpty() && !EmitHelpers.IsRedundantNameOf(f.Name, sanePropName, f.Id, NameHumanizer.Humanize(sanePropName)))
             yield return $"Name = {EmitHelpers.LocaleString(f.Name)}";
 
         if (f.Description is not null && !f.Description.IsEmpty() && !EmitHelpers.IsRedundantNameOf(f.Description, sanePropName, f.Id))
             yield return $"Description = {EmitHelpers.LocaleString(f.Description)}";
+
+        // TrackChanges defaults to true (the code model is authoritative). Only pin it when the
+        // source has it off, otherwise the default already covers it.
+        if (!f.TrackChanges)
+            yield return "TrackChanges = false";
 
         // Default value / default expression. inriver's JSON export stores expression text in the
         // top-level `DefaultValue` (leading `=`), not under Settings — older builds also put it in

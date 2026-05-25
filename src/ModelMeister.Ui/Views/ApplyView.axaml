@@ -124,9 +124,10 @@
               </StackPanel>
             </Grid>
           </Border>
+          <c:GridToolbar DockPanel.Dock="Top" Margin="8,6,8,4" TargetGrid="{Binding #LogGrid}" />
           <DataGrid Name="LogGrid"
                     ItemsSource="{Binding FilteredEntries}" AutoGenerateColumns="False" IsReadOnly="True"
-                    BorderThickness="0">
+                    BorderThickness="0" Classes="fit">
             <DataGrid.RowDetailsTemplate>
               <DataTemplate DataType="apply:ChangeReceiptEntry">
                 <Border Padding="20,10" Background="{DynamicResource Surface0}">
@@ -165,13 +166,13 @@
               <DataGridTextColumn Width="160" MinWidth="100" Binding="{Binding Kind}">
                 <DataGridTextColumn.Header><c:FilterableHeader Title="Kind" Path="Kind" /></DataGridTextColumn.Header>
               </DataGridTextColumn>
-              <DataGridTextColumn Width="*" MinWidth="160" Binding="{Binding Description}">
+              <DataGridTextColumn Width="1.6*" MinWidth="140" Binding="{Binding Description}">
                 <DataGridTextColumn.Header><c:FilterableHeader Title="Description" Path="Description" /></DataGridTextColumn.Header>
               </DataGridTextColumn>
-              <DataGridTextColumn Width="80" MinWidth="60" Binding="{Binding DurationMs}">
+              <DataGridTextColumn Width="70" MinWidth="56" Binding="{Binding DurationMs}">
                 <DataGridTextColumn.Header><c:FilterableHeader Title="ms" Path="DurationMs" /></DataGridTextColumn.Header>
               </DataGridTextColumn>
-              <DataGridTextColumn Width="300" MinWidth="160" Binding="{Binding Error}">
+              <DataGridTextColumn Width="1.4*" MinWidth="120" Binding="{Binding Error}">
                 <DataGridTextColumn.Header><c:FilterableHeader Title="Error" Path="Error" /></DataGridTextColumn.Header>
               </DataGridTextColumn>
             </DataGrid.Columns>

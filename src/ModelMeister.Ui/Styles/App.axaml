@@ -410,6 +410,14 @@
     <Setter Property="ClipToBounds" Value="True" />
   </Style>
 
+  <!-- Fit-to-viewport grids: never scroll horizontally, so star (*) columns compress (with
+       ellipsis) to keep every column on screen rather than pushing the rightmost column — the
+       per-row promote button — off the right edge. Such grids must keep their fixed (non-star)
+       columns narrow enough to fit the min window, and lean on * columns to absorb the slack. -->
+  <Style Selector="DataGrid.fit">
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+  </Style>
+
   <Style Selector="DataGridColumnHeader">
     <Setter Property="Background" Value="{DynamicResource Surface1}" />
     <Setter Property="Foreground" Value="{DynamicResource TextSec}" />
@@ -437,6 +445,13 @@
     <Setter Property="Foreground" Value="{DynamicResource TextPri}" />
   </Style>
 
+  <!-- Zebra striping: a subtle theme-adaptive tint on every other row so wide grids are easier to
+       scan. Hover/selection paint a Rectangle overlay on top, so they still read over the stripe.
+       Suppressed when the grid opts into compact density (see the .compact class below). -->
+  <Style Selector="DataGrid:not(.compact) DataGridRow:nth-child(2n) /template/ Rectangle#BackgroundRectangle">
+    <Setter Property="Fill" Value="{DynamicResource ZebraRow}" />
+  </Style>
+
   <Style Selector="DataGridRow:pointerover /template/ Rectangle#BackgroundRectangle">
     <Setter Property="Fill" Value="{DynamicResource RowHoverHighlight}" />
   </Style>
@@ -459,6 +474,15 @@
   <Style Selector="DataGridCell TextBlock">
     <Setter Property="Margin" Value="0" />
     <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Compact density: tighter rows for fitting more on screen. Toggled by the grid toolbar's
+       density button (adds/removes the .compact class). Zebra striping is suppressed in compact. -->
+  <Style Selector="DataGrid.compact">
+    <Setter Property="RowHeight" Value="22" />
+  </Style>
+  <Style Selector="DataGrid.compact DataGridCell">
+    <Setter Property="FontSize" Value="11" />
   </Style>
 
   <!-- ============== TreeView ============== -->

@@ -67,6 +67,10 @@ public partial class MainWindowViewModel : ViewModelBase
     public CvlCompareViewModel CvlCompareVm { get; }
     public UsersViewModel UsersVm { get; }
     public UsersCompareViewModel UsersCompareVm { get; }
+    public RolesViewModel RolesVm { get; }
+    public RolesCompareViewModel RolesCompareVm { get; }
+    public RestrictedFieldsViewModel RestrictedFieldsVm { get; }
+    public RestrictedFieldsCompareViewModel RestrictedFieldsCompareVm { get; }
     public ExtensionsViewModel ExtensionsVm { get; }
     public ServerSettingsViewModel ServerSettingsVm { get; }
     public ServerSettingsManageViewModel ServerSettingsManageVm { get; }
@@ -117,6 +121,24 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 new("manage",  "Manage",  NavTarget.Users, "List, export, and provision users in the connected env."),
                 new("compare", "Compare", NavTarget.Users, "Compare users across two environments."),
+            }),
+
+        new HubDescriptor(Hub.Roles, "Roles", "IcoUsers", HubGroup.Manage,
+            "ROLES · PERMISSIONS",
+            "List, export, and provision roles + their permission bindings in the connected env.",
+            new SubPageDescriptor[]
+            {
+                new("manage",  "Manage",  NavTarget.Roles, "List, export, and provision roles in the connected env."),
+                new("compare", "Compare", NavTarget.Roles, "Compare roles across two environments and promote per-row."),
+            }),
+
+        new HubDescriptor(Hub.RestrictedFields, "Restricted fields", "IcoShield", HubGroup.Manage,
+            "RESTRICTED FIELD PERMISSIONS",
+            "List, export, add, and delete restricted-field permissions in the connected env.",
+            new SubPageDescriptor[]
+            {
+                new("manage",  "Manage",  NavTarget.RestrictedFields, "List, add, and delete restricted-field permissions in the connected env."),
+                new("compare", "Compare", NavTarget.RestrictedFields, "Compare restricted-field permissions across two environments and promote per-row."),
             }),
 
         new HubDescriptor(Hub.Extensions, "Extensions", "IcoZap", HubGroup.Manage,
@@ -302,6 +324,10 @@ public partial class MainWindowViewModel : ViewModelBase
         CvlCompareVm = new CvlCompareViewModel(this, shell, log);
         UsersVm = new UsersViewModel(this, shell, log);
         UsersCompareVm = new UsersCompareViewModel(this, shell, log);
+        RolesVm = new RolesViewModel(this, shell, log);
+        RolesCompareVm = new RolesCompareViewModel(this, shell, log);
+        RestrictedFieldsVm = new RestrictedFieldsViewModel(this, shell, log);
+        RestrictedFieldsCompareVm = new RestrictedFieldsCompareViewModel(this, shell, log);
         ExtensionsVm = new ExtensionsViewModel(this, shell, log);
         ServerSettingsVm = new ServerSettingsViewModel(this, shell, vault, log);
         ServerSettingsManageVm = new ServerSettingsManageViewModel(this, shell, log);
@@ -559,6 +585,10 @@ public partial class MainWindowViewModel : ViewModelBase
             (Hub.Cvls, _)                    => CvlWorkbenchVm,
             (Hub.Users, "compare")           => UsersCompareVm,
             (Hub.Users, _)                   => UsersVm,
+            (Hub.Roles, "compare")           => RolesCompareVm,
+            (Hub.Roles, _)                   => RolesVm,
+            (Hub.RestrictedFields, "compare")=> RestrictedFieldsCompareVm,
+            (Hub.RestrictedFields, _)        => RestrictedFieldsVm,
             (Hub.Extensions, "compare")      => CompareExtensionsVm,
             (Hub.Extensions, _)              => ExtensionsVm,
             (Hub.ServerSettings, "compare")  => ServerSettingsVm,
@@ -591,6 +621,8 @@ public partial class MainWindowViewModel : ViewModelBase
         NavTarget.CompareEnvs       => CompareEnvsVm,
         NavTarget.CvlWorkbench      => CvlWorkbenchVm,
         NavTarget.Users             => UsersVm,
+        NavTarget.Roles             => RolesVm,
+        NavTarget.RestrictedFields  => RestrictedFieldsVm,
         NavTarget.Extensions        => ExtensionsVm,
         NavTarget.ServerSettings    => ServerSettingsVm,
         NavTarget.CompareExtensions => CompareExtensionsVm,
@@ -912,4 +944,4 @@ public partial class MainWindowViewModel : ViewModelBase
 
 /// <summary>Identifier for one of the main-window navigation sections. Retained for back-compat
 /// during the hub migration — legacy view-models still call <c>_main.GoTo(NavTarget.X)</c>.</summary>
-public enum NavTarget { Environments, Model, Policy, Diff, Apply, History, Tools, CompareEnvs, CvlWorkbench, Users, Extensions, ServerSettings, CompareExtensions }
+public enum NavTarget { Environments, Model, Policy, Diff, Apply, History, Tools, CompareEnvs, CvlWorkbench, Users, Roles, RestrictedFields, Extensions, ServerSettings, CompareExtensions }

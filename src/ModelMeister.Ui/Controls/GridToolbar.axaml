@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ModelMeister.Ui.Controls.GridToolbar">
+  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+    <TextBox Name="SearchBox" Width="240" MinHeight="28"
+             Watermark="Search all columns…" />
+    <Button Name="ColumnsButton" Content="Columns" Classes="ghost"
+            ToolTip.Tip="Show or hide columns">
+      <Button.Flyout>
+        <Flyout Placement="Bottom">
+          <ScrollViewer MaxHeight="320">
+            <StackPanel Name="ColumnsPanel" Width="220" Spacing="2" Margin="4" />
+          </ScrollViewer>
+        </Flyout>
+      </Button.Flyout>
+    </Button>
+    <ToggleButton Name="DensityToggle" Content="Compact" Classes="ghost"
+                  ToolTip.Tip="Tighter rows to fit more on screen" />
+    <Button Name="ClearButton" Content="Clear filters" Classes="ghost"
+            ToolTip.Tip="Clear the global search and every column filter" />
+  </StackPanel>
+</UserControl>

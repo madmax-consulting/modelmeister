@@ -4,6 +4,7 @@
              xmlns:m="using:ModelMeister.Ui.Models"
              xmlns:conv="using:ModelMeister.Ui.Converters"
              xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:svc="using:ModelMeister.Ui.Services"
              xmlns:views="using:ModelMeister.Ui.Views"
              x:Class="ModelMeister.Ui.Views.CompareEnvsView"
              x:DataType="vm:CompareEnvsViewModel"
@@ -17,30 +18,37 @@
   <views:CompareLayoutView Eyebrow="MODEL · COMPARE"
                            Subtitle="Compare model concepts across two environments">
     <views:CompareLayoutView.Body>
+      <DockPanel LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="2,0,0,8" TargetGrid="{Binding #MainGrid}" />
+        <CheckBox DockPanel.Dock="Top" Margin="6,4,0,8"
+                  IsChecked="{Binding AllowDeletesOnPromote, Mode=TwoWay}"
+                  Content="Allow deletes when promoting (push removal of concepts that exist only on the target)" />
       <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
-                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable">
+                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                SelectionMode="Extended" svc:MultiSelectBehavior.Selection="{Binding SelectedRows}"
+                Classes="filterable fit">
         <DataGrid.Columns>
-          <DataGridTextColumn Binding="{Binding Concept}" Width="140">
+          <DataGridTextColumn Binding="{Binding Concept}" Width="110">
             <DataGridTextColumn.Header>
               <c:ChecklistFilterHeader Title="Concept" Path="Concept" />
             </DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding Cvl}" Width="180">
+          <DataGridTextColumn Binding="{Binding Cvl}" Width="1*" MinWidth="60">
             <DataGridTextColumn.Header>
               <c:FilterableHeader Title="CVL" Path="Cvl" />
             </DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding Id}" Width="200">
+          <DataGridTextColumn Binding="{Binding Id}" Width="1.6*" MinWidth="90">
             <DataGridTextColumn.Header>
               <c:FilterableHeader Title="Id" Path="Id" />
             </DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding Property}" Width="160">
+          <DataGridTextColumn Binding="{Binding Property}" Width="140">
             <DataGridTextColumn.Header>
               <c:FilterableHeader Title="Property" Path="Property" />
             </DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="LeftValue">
+          <DataGridTemplateColumn Width="1.3*" MinWidth="70" CanUserSort="True" SortMemberPath="LeftValue">
             <DataGridTemplateColumn.Header>
               <c:FilterableHeader Path="LeftValue">
                 <c:FilterableHeader.Title>
@@ -64,7 +72,7 @@
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="RightValue">
+          <DataGridTemplateColumn Width="1.3*" MinWidth="70" CanUserSort="True" SortMemberPath="RightValue">
             <DataGridTemplateColumn.Header>
               <c:FilterableHeader Path="RightValue">
                 <c:FilterableHeader.Title>
@@ -88,8 +96,43 @@
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
+
+          <!-- Per-row promote (one-way: source → target). Promotes the whole concept the row belongs
+               to (entity type / field / CVL / category / fieldset / link type) via scaffold→diff→apply.
+               Direction reads as source→target stage pills (e.g. [DEV]→[PROD]); swap envs to reverse. -->
+          <DataGridTemplateColumn Header="" Width="100">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:DiffLineRow">
+                <Button Classes="ghost" Padding="4,2" Margin="4,0" VerticalAlignment="Center"
+                        ToolTip.Tip="Promote this concept from the left environment into the right one"
+                        Command="{Binding $parent[DataGrid].((vm:CompareEnvsViewModel)DataContext).ApplyCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <Border Classes="pill"
+                            Background="{Binding $parent[DataGrid].((vm:CompareEnvsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:CompareEnvsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="4,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:CompareEnvsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:CompareEnvsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="→" VerticalAlignment="Center" />
+                    <Border Classes="pill"
+                            Background="{Binding $parent[DataGrid].((vm:CompareEnvsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:CompareEnvsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="4,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:CompareEnvsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:CompareEnvsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
         </DataGrid.Columns>
       </DataGrid>
+      </DockPanel>
     </views:CompareLayoutView.Body>
   </views:CompareLayoutView>
 </UserControl>

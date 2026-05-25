@@ -57,6 +57,8 @@
       </Border>
 
       <Border Classes="card flush" Padding="0" Margin="0,10,0,0">
+        <DockPanel LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #EnvGrid}" />
         <Grid>
           <!-- Empty state: visible only when no envs have been added yet. -->
           <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -75,6 +77,7 @@
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   BorderThickness="0"
+                  Classes="fit"
                   LoadingRow="OnLoadingRow">
           <DataGrid.Styles>
             <Style Selector="DataGridRow.connected /template/ Rectangle#BackgroundRectangle">
@@ -119,7 +122,7 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Width="240" Binding="{Binding Name}">
+            <DataGridTextColumn Width="1.4*" MinWidth="140" Binding="{Binding Name}">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Name" Path="Name" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
             <DataGridTemplateColumn Width="100" SortMemberPath="Stage">
@@ -136,10 +139,10 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Width="180" Binding="{Binding LastUsed}">
+            <DataGridTextColumn Width="150" MinWidth="120" Binding="{Binding LastUsed}">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Last used" Path="LastUsed" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTemplateColumn Width="180" MinWidth="120">
+            <DataGridTemplateColumn Width="1*" MinWidth="120">
               <DataGridTemplateColumn.Header><c:FilterableHeader Title="Health" Path="TestResult" /></DataGridTemplateColumn.Header>
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="vm:EnvironmentRow">
@@ -163,12 +166,13 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Width="*" Binding="{Binding Notes}">
+            <DataGridTextColumn Width="1.2*" MinWidth="100" Binding="{Binding Notes}">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Notes" Path="Notes" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
           </DataGrid.Columns>
         </DataGrid>
         </Grid>
+        </DockPanel>
       </Border>
     </DockPanel>
 

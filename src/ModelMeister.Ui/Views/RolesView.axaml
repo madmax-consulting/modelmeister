@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             x:Class="ModelMeister.Ui.Views.RolesView"
+             x:DataType="vm:RolesViewModel">
+
+  <c:PageShell Eyebrow="ROLES"
+               Subtitle="Inspect, export, and provision roles + their permission bindings — export/import via the icons above"
+               Status="{Binding Status}"
+               IsBusy="{Binding Busy}">
+    <c:PageShell.Actions>
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Button Classes="ghost icon" ToolTip.Tip="Download…">
+          <Button.Flyout>
+            <MenuFlyout Placement="Bottom">
+              <MenuItem Header="Download list"     Command="{Binding DownloadListCommand}" />
+              <MenuItem Header="Download template" Command="{Binding DownloadTemplateCommand}" />
+            </MenuFlyout>
+          </Button.Flyout>
+          <Path Data="{DynamicResource IcoDownload}" Width="14" Height="14" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <c:PageActions DataContext="{Binding}" />
+      </StackPanel>
+    </c:PageShell.Actions>
+
+    <Border Classes="card flush" Padding="0">
+      <DockPanel LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #RolesGrid}" />
+        <Grid>
+          <!-- Empty state: when no roles (typically because we're not connected) -->
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                      Spacing="6" Margin="0,40"
+                      IsVisible="{Binding Roles.Count, Converter={x:Static svc:Eq.IsZero}}">
+            <TextBlock Text="No roles to show" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
+            <TextBlock Text="Connect to an environment to see its roles." Classes="subtle" HorizontalAlignment="Center" />
+          </StackPanel>
+          <DataGrid Name="RolesGrid"
+                    ItemsSource="{Binding Roles}" IsReadOnly="True"
+                    AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                    BorderThickness="0">
+            <DataGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Copy name"
+                          Command="{Binding CopyNameCommand}"
+                          CommandParameter="{Binding #RolesGrid.SelectedItem}" />
+                <MenuItem Header="Copy description"
+                          Command="{Binding CopyDescriptionCommand}"
+                          CommandParameter="{Binding #RolesGrid.SelectedItem}" />
+                <MenuItem Header="Copy permissions"
+                          Command="{Binding CopyPermissionsCommand}"
+                          CommandParameter="{Binding #RolesGrid.SelectedItem}" />
+              </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.Columns>
+              <DataGridTextColumn Binding="{Binding Name}" Width="240" MinWidth="140">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="Name" Path="Name" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
+              <DataGridTextColumn Binding="{Binding Description}" Width="2*" MinWidth="160">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="Description" Path="Description" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
+              <!-- Permissions column: comma-joined for read; copy via context menu. -->
+              <DataGridTextColumn Binding="{Binding Permissions, Converter={x:Static conv:JoinStringsConverter.Instance}}" Width="3*" MinWidth="160">
+                <DataGridTextColumn.Header><c:FilterableHeader Title="Permissions" Path="Permissions" /></DataGridTextColumn.Header>
+              </DataGridTextColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+        </Grid>
+      </DockPanel>
+    </Border>
+
+  </c:PageShell>
+</UserControl>

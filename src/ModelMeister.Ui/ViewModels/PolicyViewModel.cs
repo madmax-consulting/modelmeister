@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ModelMeister.Inriver.Diff;
@@ -12,6 +16,14 @@ namespace ModelMeister.Ui.ViewModels;
 /// </summary>
 public partial class PolicyViewModel : ViewModelBase
 {
+    /// <summary>Field-type property tokens the differ checks — the order shown in settings.</summary>
+    public static readonly IReadOnlyList<string> KnownFieldProperties =
+    [
+        "Name", "Description", "Mandatory", "Unique", "ReadOnly", "Hidden", "MultiValue",
+        "IsDisplayName", "IsDisplayDescription", "SupportsExpression", "Category", "Index",
+        "TrackChanges", "ExcludeFromDefaultView", "DefaultValue", "Cvl", "DefaultExpression",
+    ];
+
     private readonly MainWindowViewModel _main;
     private readonly ISettingsStore _settings;
     private bool _initialized;
@@ -27,6 +39,16 @@ public partial class PolicyViewModel : ViewModelBase
     /// <summary>Allow renaming a CVL value's key (migrate references).</summary>
     [ObservableProperty] private bool _allowCvlValueRename;
 
+    /// <summary>Per-property "ignore differences" toggles (one per <see cref="KnownFieldProperties"/>).</summary>
+    public IReadOnlyList<FieldPropertyIgnoreToggle> IgnorableProperties { get; }
+
+    /// <summary>Editable field-id ignore rules (contains / starts-with / ends-with).</summary>
+    public ObservableCollection<FieldIdRuleRow> FieldIdRules { get; } = new();
+
+    /// <summary>Match kinds offered in the field-id rule editor.</summary>
+    public IReadOnlyList<FieldIdMatchKind> MatchKinds { get; } =
+        Enum.GetValues<FieldIdMatchKind>();
+
     public PolicyViewModel(MainWindowViewModel main, ISettingsStore settings)
     {
         _main = main;
@@ -39,15 +61,29 @@ public partial class PolicyViewModel : ViewModelBase
         _allowDatatypeChange = s.AllowDatatypeChange;
         _allowCvlValueRename = s.AllowCvlValueRename;
 
+        IgnorableProperties = KnownFieldProperties
+            .Select(p => new FieldPropertyIgnoreToggle(
+                p,
+                s.IgnoredFieldProperties.Contains(p, StringComparer.OrdinalIgnoreCase),
+                SyncIgnoreRules))
+            .ToArray();
+
+        foreach (var r in s.IgnoredFieldIdPatterns)
+            FieldIdRules.Add(new FieldIdRuleRow(r.Kind, r.Value, SyncIgnoreRules));
+
         _initialized = true;
     }
 
-    /// <summary>Stable signature of the current toggle state, used by <see cref="DiffViewModel"/>
-    /// to anchor a captured changeset so toggle changes after the fact invalidate it.</summary>
-    internal string Signature() =>
-        $"{OverwriteNamesAndDescriptions}|{OverwriteCvlValues}|{AllowDeletes}|{AllowDatatypeChange}|{AllowCvlValueRename}";
+    /// <summary>Stable signature of the current toggle + ignore-rule state, used by <see cref="DiffViewModel"/>
+    /// to anchor a captured changeset so changes after the fact invalidate it.</summary>
+    internal string Signature()
+    {
+        var props = string.Join(",", IgnorableProperties.Where(p => p.Ignored).Select(p => p.Property));
+        var ids = string.Join(",", FieldIdRules.Select(r => $"{r.Kind}:{r.Value}"));
+        return $"{OverwriteNamesAndDescriptions}|{OverwriteCvlValues}|{AllowDeletes}|{AllowDatatypeChange}|{AllowCvlValueRename}|{props}|{ids}";
+    }
 
-    /// <summary>The current toggle state captured as a <see cref="MergePolicy"/> for the differ/applier.</summary>
+    /// <summary>The current toggle + ignore-rule state captured as a <see cref="MergePolicy"/>.</summary>
     public MergePolicy CurrentPolicy => new()
     {
         OverwriteNamesAndDescriptions = OverwriteNamesAndDescriptions,
@@ -55,6 +91,11 @@ public partial class PolicyViewModel : ViewModelBase
         AllowDeletes = AllowDeletes,
         AllowDatatypeChange = AllowDatatypeChange,
         AllowCvlValueRename = AllowCvlValueRename,
+        IgnoredFieldProperties = IgnorableProperties.Where(p => p.Ignored).Select(p => p.Property).ToArray(),
+        IgnoredFieldIdPatterns = FieldIdRules
+            .Where(r => !string.IsNullOrWhiteSpace(r.Value))
+            .Select(r => new FieldIdIgnoreRule(r.Kind, r.Value.Trim()))
+            .ToArray(),
     };
 
     /// <summary>Short summary of which switches are on, for display on the Compare page.</summary>
@@ -70,9 +111,49 @@ public partial class PolicyViewModel : ViewModelBase
                 (AllowDatatypeChange, "datatype"),
                 (AllowCvlValueRename, "CVL rename"),
             };
-            var on = flags.Where(f => f.Item1).Select(f => f.Item2).ToArray();
-            return on.Length == 0 ? "Conservative — no destructive switches enabled." : "Allow: " + string.Join(", ", on);
+            var on = flags.Where(f => f.Item1).Select(f => f.Item2).ToList();
+
+            var ignoredProps = IgnorableProperties.Count(p => p.Ignored);
+            var ignoredIds = FieldIdRules.Count(r => !string.IsNullOrWhiteSpace(r.Value));
+            var ignore = new List<string>();
+            if (ignoredProps > 0) ignore.Add($"{ignoredProps} field prop(s)");
+            if (ignoredIds > 0) ignore.Add($"{ignoredIds} id rule(s)");
+
+            var parts = new List<string>();
+            parts.Add(on.Count == 0 ? "Conservative — no destructive switches enabled." : "Allow: " + string.Join(", ", on));
+            if (ignore.Count > 0) parts.Add("Ignore: " + string.Join(", ", ignore));
+            return string.Join("   ", parts);
         }
+    }
+
+    /// <summary>Add a blank field-id ignore rule for the user to fill in.</summary>
+    [RelayCommand]
+    private void AddFieldIdRule()
+    {
+        FieldIdRules.Add(new FieldIdRuleRow(FieldIdMatchKind.Contains, "", SyncIgnoreRules));
+        SyncIgnoreRules();
+    }
+
+    /// <summary>Remove a field-id ignore rule.</summary>
+    [RelayCommand]
+    private void RemoveFieldIdRule(FieldIdRuleRow? row)
+    {
+        if (row is null) return;
+        FieldIdRules.Remove(row);
+        SyncIgnoreRules();
+    }
+
+    /// <summary>Mirror the current ignore-rule UI state into settings, then persist + invalidate.</summary>
+    private void SyncIgnoreRules()
+    {
+        if (!_initialized) return;
+        _settings.Current.IgnoredFieldProperties =
+            IgnorableProperties.Where(p => p.Ignored).Select(p => p.Property).ToList();
+        _settings.Current.IgnoredFieldIdPatterns = FieldIdRules
+            .Where(r => !string.IsNullOrWhiteSpace(r.Value))
+            .Select(r => new FieldIdIgnoreRule(r.Kind, r.Value.Trim()))
+            .ToList();
+        PersistAndNotify();
     }
 
     partial void OnOverwriteNamesAndDescriptionsChanged(bool value) { _settings.Current.OverwriteNamesAndDescriptions = value; PersistAndNotify(); }
@@ -91,4 +172,43 @@ public partial class PolicyViewModel : ViewModelBase
         _main.NotifyPolicyChanged();
         _main.InvalidateChangeSet("Policy changed");
     }
+}
+
+/// <summary>A single "ignore differences for this field property" checkbox row.</summary>
+public partial class FieldPropertyIgnoreToggle : ObservableObject
+{
+    private readonly Action _onChanged;
+
+    public FieldPropertyIgnoreToggle(string property, bool ignored, Action onChanged)
+    {
+        Property = property;
+        _ignored = ignored;
+        _onChanged = onChanged;
+    }
+
+    /// <summary>The field-type property name (matches the tokens checked by the differ).</summary>
+    public string Property { get; }
+
+    [ObservableProperty] private bool _ignored;
+
+    partial void OnIgnoredChanged(bool value) => _onChanged();
+}
+
+/// <summary>An editable field-id ignore rule (match kind + value).</summary>
+public partial class FieldIdRuleRow : ObservableObject
+{
+    private readonly Action _onChanged;
+
+    public FieldIdRuleRow(FieldIdMatchKind kind, string value, Action onChanged)
+    {
+        _kind = kind;
+        _value = value ?? "";
+        _onChanged = onChanged;
+    }
+
+    [ObservableProperty] private FieldIdMatchKind _kind;
+    [ObservableProperty] private string _value;
+
+    partial void OnKindChanged(FieldIdMatchKind value) => _onChanged();
+    partial void OnValueChanged(string value) => _onChanged();
 }

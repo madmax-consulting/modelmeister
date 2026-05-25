@@ -48,8 +48,12 @@
             </ComboBox.ItemTemplate>
           </ComboBox>
 
-          <TextBlock Grid.Column="1" Text="↔" FontSize="14" Margin="10,0"
-                     Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Classes="ghost" Margin="6,0" Padding="8,4"
+                  Click="OnSwapClick" VerticalAlignment="Center"
+                  IsEnabled="{Binding !Busy}"
+                  ToolTip.Tip="Swap source and target, then re-compare. Promotion is one-way (source → target); swap to promote the other direction.">
+            <TextBlock Text="⇄" FontSize="15" />
+          </Button>
 
           <ComboBox Grid.Column="2" MinWidth="260"
                     PlaceholderText="Select environment"

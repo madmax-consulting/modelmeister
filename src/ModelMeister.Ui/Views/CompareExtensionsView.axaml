@@ -2,10 +2,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ModelMeister.Ui.ViewModels"
              xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
              xmlns:views="using:ModelMeister.Ui.Views"
              x:Class="ModelMeister.Ui.Views.CompareExtensionsView"
              x:DataType="vm:CompareExtensionsViewModel"
              x:Name="Root">
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter x:Key="StageText" />
+  </UserControl.Resources>
 
   <views:CompareLayoutView Eyebrow="EXTENSIONS · COMPARE"
                            Subtitle="Compare extensions and their settings across two environments">
@@ -13,21 +19,53 @@
       <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
                 SelectedItem="{Binding Selected, Mode=TwoWay}"
                 AutoGenerateColumns="False" SelectionMode="Single"
-                GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable">
+                GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable fit">
         <DataGrid.Columns>
           <DataGridTextColumn Binding="{Binding State}" Width="110">
             <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding Id}" Width="220">
+          <DataGridTextColumn Binding="{Binding Id}" Width="1.4*" MinWidth="120">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Id" Path="Id" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding LeftStatus}" Width="100">
-            <DataGridTextColumn.Header><c:FilterableHeader Title="Left" Path="LeftStatus" /></DataGridTextColumn.Header>
+          <DataGridTextColumn Binding="{Binding LeftStatus}" Width="120">
+            <DataGridTextColumn.Header>
+              <c:FilterableHeader Path="LeftStatus">
+                <c:FilterableHeader.Title>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).LeftColumnHeader}" />
+                    <Border Classes="pill"
+                            Background="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="5,0">
+                      <TextBlock Text="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </c:FilterableHeader.Title>
+              </c:FilterableHeader>
+            </DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding RightStatus}" Width="100">
-            <DataGridTextColumn.Header><c:FilterableHeader Title="Right" Path="RightStatus" /></DataGridTextColumn.Header>
+          <DataGridTextColumn Binding="{Binding RightStatus}" Width="120">
+            <DataGridTextColumn.Header>
+              <c:FilterableHeader Path="RightStatus">
+                <c:FilterableHeader.Title>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).RightColumnHeader}" />
+                    <Border Classes="pill"
+                            Background="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="5,0">
+                      <TextBlock Text="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </c:FilterableHeader.Title>
+              </c:FilterableHeader>
+            </DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding Summary}" Width="*">
+          <DataGridTextColumn Binding="{Binding Summary}" Width="2*" MinWidth="140">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Detail" Path="Summary" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
         </DataGrid.Columns>

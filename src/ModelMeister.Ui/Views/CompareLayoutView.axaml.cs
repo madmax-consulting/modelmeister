@@ -65,4 +65,13 @@ public partial class CompareLayoutView : UserControl
         if (DataContext is not ICompareViewModel vm) return;
         vm.Buckets?.Toggle(c);
     }
+
+    /// <summary>Swap the two environments and let the auto-compare re-run with the sides flipped.
+    /// Promotion is one-way (source → target); swapping is how the user promotes the other direction.</summary>
+    private void OnSwapClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ICompareViewModel vm) return;
+        if (vm.Busy) return;
+        (vm.LeftEnv, vm.RightEnv) = (vm.RightEnv, vm.LeftEnv);
+    }
 }

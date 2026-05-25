@@ -48,7 +48,9 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
 
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; } = Array.Empty<CompareAction>();
+    public IReadOnlyList<CompareAction> ExtraActions { get; }
+    /// <summary>Current multi-selection, fed by the grid via <see cref="MultiSelectBehavior"/> for bulk promote.</summary>
+    public IList SelectedRows { get; } = new List<object>();
     /// <summary>Bucket-bar toggle state: clicking a bar in the bottom chart hides that Bucket's rows.</summary>
     public BucketToggleState Buckets { get; } = new();
     public string BucketPath => nameof(CvlCompareRow.Bucket);
@@ -79,6 +81,11 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
             BuildExportColumns,
             log: _log,
             logSource: "CvlCompare");
+
+        ExtraActions = new[]
+        {
+            new CompareAction("Promote selected →", Primary: true, PromoteSelectedLeftToRightCommand),
+        };
     }
 
     private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
@@ -216,17 +223,24 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
         RebuildBuckets();
     }
 
-    /// <summary>Promote <paramref name="row"/> left→right. CVL-bucket rows sync the whole CVL;
-    /// Value-bucket rows touch a single value (pre-checked against parent CVL existence).</summary>
+    /// <summary>Promote <paramref name="row"/> left→right (one-way; swap envs to reverse). CVL-bucket
+    /// rows sync the whole CVL; Value-bucket rows touch a single value (pre-checked against parent CVL).</summary>
     [RelayCommand]
     public Task ApplyLeftToRightAsync(CvlCompareRow? row) =>
         ApplyRowAsync(row, sourceFromLeft: true);
 
+    /// <summary>Promote every selected row left→right, refreshing once at the end.</summary>
     [RelayCommand]
-    public Task ApplyRightToLeftAsync(CvlCompareRow? row) =>
-        ApplyRowAsync(row, sourceFromLeft: false);
+    public async Task PromoteSelectedLeftToRightAsync()
+    {
+        var rows = SelectedRows.OfType<CvlCompareRow>().ToList();
+        if (rows.Count == 0) { Status = "Select at least one row to promote."; return; }
+        foreach (var row in rows)
+            await ApplyRowAsync(row, sourceFromLeft: true, refresh: false).ConfigureAwait(true);
+        await CompareAsync().ConfigureAwait(true);
+    }
 
-    private async Task ApplyRowAsync(CvlCompareRow? row, bool sourceFromLeft)
+    private async Task ApplyRowAsync(CvlCompareRow? row, bool sourceFromLeft, bool refresh = true)
     {
         if (row is null) return;
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
@@ -313,8 +327,8 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
         }
         finally { Busy = false; }
 
-        // Re-run the compare so rows reflect the new state.
-        await CompareAsync().ConfigureAwait(true);
+        // Re-run the compare so rows reflect the new state (skipped during bulk — caller refreshes once).
+        if (refresh) await CompareAsync().ConfigureAwait(true);
     }
 
     private void RebuildBuckets()

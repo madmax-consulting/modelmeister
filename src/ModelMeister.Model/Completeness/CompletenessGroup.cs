@@ -11,7 +11,7 @@ public abstract class CompletenessGroup
 {
     protected CompletenessGroup()
     {
-        Name = new LocaleString(GetType().Name);
+        Name = new LocaleString(NameHumanizer.Humanize(GetType().Name));
     }
 
     /// <summary>The group's localised display name. Defaults to the CLR type name.</summary>

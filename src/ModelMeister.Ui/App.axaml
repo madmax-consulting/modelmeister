@@ -97,6 +97,7 @@
           <SolidColorBrush x:Key="InputBg"           Color="#FFFFFF" />
           <SolidColorBrush x:Key="InputBgHover"      Color="#F7F9FC" />
           <SolidColorBrush x:Key="RowHoverHighlight" Color="#0F000000" />
+          <SolidColorBrush x:Key="ZebraRow"          Color="#07000000" />
           <SolidColorBrush x:Key="PillOkBg"          Color="#E8F5EC" />
           <SolidColorBrush x:Key="PillErrBg"         Color="#FBE9E7" />
           <SolidColorBrush x:Key="PillWarnBg"        Color="#FBEFDD" />
@@ -283,6 +284,7 @@
           <SolidColorBrush x:Key="InputBg"           Color="#0D111A" />
           <SolidColorBrush x:Key="InputBgHover"      Color="#10151F" />
           <SolidColorBrush x:Key="RowHoverHighlight" Color="#0AFFFFFF" />
+          <SolidColorBrush x:Key="ZebraRow"          Color="#08FFFFFF" />
           <SolidColorBrush x:Key="PillOkBg"          Color="#142A20" />
           <SolidColorBrush x:Key="PillErrBg"         Color="#2A1316" />
           <SolidColorBrush x:Key="PillWarnBg"        Color="#2E1F0E" />

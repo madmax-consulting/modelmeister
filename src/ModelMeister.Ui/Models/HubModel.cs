@@ -11,6 +11,8 @@ public enum Hub
     Model,
     Cvls,
     Users,
+    Roles,
+    RestrictedFields,
     Extensions,
     ServerSettings,
     // System group

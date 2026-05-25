@@ -17,7 +17,7 @@ public abstract class Fieldset
         if (name.EndsWith(Suffix, StringComparison.Ordinal))
             name = name[..^Suffix.Length];
         FieldsetId = name;
-        Name = new LocaleString(FieldsetId);
+        Name = new LocaleString(NameHumanizer.Humanize(FieldsetId));
     }
 
     /// <summary>The inriver fieldset ID.</summary>

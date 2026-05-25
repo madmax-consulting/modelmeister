@@ -43,7 +43,9 @@ Five conceptually separate libraries, each living under `src/`:
 
 ### Diff/apply contract (read-through semantics)
 
-For nullable code-side properties (`TrackChanges`, `ExcludeFromDefaultView`, `Index`, `DefaultValue`, `Category`, `CvlId`), an unset code value means **"leave inriver's value alone"** rather than "set to default". Both `FieldDiffers` and `FieldTypeMapper.ToInriver` must agree on this — otherwise the diff -> apply -> diff loop is non-idempotent. The mapper's `LiveFieldType? live` parameter is the read-through source.
+For nullable code-side properties (`ExcludeFromDefaultView`, `Index`, `DefaultValue`, `Category`, `CvlId`), an unset code value means **"leave inriver's value alone"** rather than "set to default". Both `FieldDiffers` and `FieldTypeMapper.ToInriver` must agree on this — otherwise the diff -> apply -> diff loop is non-idempotent. The mapper's `LiveFieldType? live` parameter is the read-through source.
+
+`TrackChanges` is the exception: it **defaults to `true`** (the code model is authoritative). `ModelLoader` stamps `true` when a field leaves it unset; opt out with an explicit `TrackChanges = false`. The scaffolder emits `TrackChanges = false` only when the source has it off. Display **names** default by humanizing the property/class name (`ProductList` → "Product List") via `NameHumanizer`.
 
 Idempotency tests at `tests/ModelMeister.Inriver.Tests/IdempotencyDiffTests.cs` pin this — break it and they fail loudly.
 

@@ -53,9 +53,10 @@ public static class FieldTypeMapper
     /// are preserved from the live side rather than blanked.
     /// </summary>
     /// <remarks>
-    /// <para><b>Read-through invariant.</b> For nullable code-side properties (TrackChanges,
-    /// ExcludeFromDefaultView, Index, DefaultValue, Category, CvlId), an unset code value means
-    /// "leave inriver's value alone", NOT "set to default". This must agree with
+    /// <para><b>Read-through invariant.</b> For nullable code-side properties (ExcludeFromDefaultView,
+    /// Index, DefaultValue, Category, CvlId), an unset code value means
+    /// "leave inriver's value alone", NOT "set to default". (TrackChanges is the exception — it
+    /// defaults to <c>true</c>; the code model is authoritative. See ModelLoader.) This must agree with
     /// <c>ModelDiffer.FieldDiffers</c> — if the two disagree, diff -> apply -> diff oscillates.</para>
     /// <para><b>Category id source.</b> The category id sent to inriver is looked up by CLR type
     /// via <paramref name="categoryIdByClrType"/>. A sanitized class name does not generally
@@ -80,11 +81,12 @@ public static class FieldTypeMapper
         // Field.Cvl / Field.Category are read off the BASE Field property; derived ctors stamp them.
         var cvlId = ResolveCvlId(ff.Cvl, cvlIdByClrType);
 
+        // TrackChanges is on by default — the code model is authoritative (ModelLoader stamps
+        // true when unset). The `?? true` here only covers fields constructed directly (e.g. tests)
+        // that bypass the loader.
+        var trackChanges = ff.TrackChanges ?? true;
         // Read-through for nullable code-side bools. Falls back to inriver's value on Update,
         // then to a sensible derived default on initial Add (where `live` is null).
-        var trackChanges = ff.TrackChanges
-            ?? live?.TrackChanges
-            ?? !ff.ReadOnly;
         var excludeFromDefaultView = ff.ExcludeFromDefaultView
             ?? live?.ExcludeFromDefaultView
             ?? false;

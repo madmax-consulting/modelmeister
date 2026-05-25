@@ -11,7 +11,7 @@ public abstract class SpecificationTemplate
     protected SpecificationTemplate()
     {
         TemplateId = GetType().Name;
-        Name = new LocaleString(TemplateId);
+        Name = new LocaleString(NameHumanizer.Humanize(TemplateId));
     }
 
     /// <summary>The inriver specification-template ID.</summary>

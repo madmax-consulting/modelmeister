@@ -34,6 +34,8 @@
       <!-- The grid is read-only (no inline editing) so users can freely select cell text without
            triggering an edit. Mutation happens through Edit / Delete / Copy icons per row, each
            routed through a popup. -->
+      <DockPanel LastChildFill="True">
+      <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #SettingsGrid}" />
       <DataGrid Name="SettingsGrid"
                 ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" SelectionMode="Single"
@@ -92,6 +94,7 @@
           </DataGridTemplateColumn>
         </DataGrid.Columns>
       </DataGrid>
+      </DockPanel>
     </Border>
 
   </c:PageShell>

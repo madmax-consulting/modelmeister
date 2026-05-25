@@ -44,7 +44,7 @@ public sealed class KindIsGenericConverter : IValueConverter
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value is string s && !Specialized.Contains(s);
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Resolves a string resource key (e.g. <c>"IcoCompare"</c>) to its <see cref="Geometry"/>.</summary>
@@ -56,7 +56,7 @@ public sealed class ResourceKeyToGeometryConverter : IValueConverter
             : null;
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Maps an operation tag ("Add"/"Update"/"Delete"/...) to a themed brush.</summary>
@@ -73,7 +73,7 @@ public sealed class OperationToBrushConverter : IValueConverter
         });
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Classifies a <c>ModelChange</c> type-name into its semantic operation bucket.</summary>
@@ -92,7 +92,7 @@ public sealed class KindToOperationConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Maps a validation severity name ("Error"/"Warning"/...) to a themed brush.</summary>
@@ -107,7 +107,7 @@ public sealed class SeverityToBrushConverter : IValueConverter
         });
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>true &#8594; success-green brush, false &#8594; danger-red brush.</summary>
@@ -117,7 +117,7 @@ public sealed class BoolToBrushConverter : IValueConverter
         => ConverterHelpers.Brush(value is true ? "DiffAddBrush" : "DiffDeleteBrush");
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Connection-state badge color: green when connected, accent while connecting, red when faulted.</summary>
@@ -133,7 +133,7 @@ public sealed class ConnectionStateToBrushConverter : IValueConverter
         });
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Connection-state to a string the icon-font template can render.</summary>
@@ -149,7 +149,7 @@ public sealed class ConnectionStateToGlyphConverter : IValueConverter
         };
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>
@@ -175,7 +175,7 @@ public sealed class StageToBrushConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Renders the short uppercase tag shown in the stage pill: PROD / TEST / DEV / ENV.</summary>
@@ -194,7 +194,7 @@ public sealed class StageToTextConverter : IValueConverter
         };
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Returns true when the stage value resolves to <see cref="EnvironmentStage.Prod"/>.</summary>
@@ -204,7 +204,7 @@ public sealed class StageIsProdConverter : IValueConverter
         => string.Equals(value?.ToString(), nameof(EnvironmentStage.Prod), StringComparison.Ordinal);
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Returns true when the bound string is non-null and non-empty (useful for IsVisible bindings on validation messages, etc.).</summary>
@@ -214,7 +214,7 @@ public sealed class StringNotEmptyConverter : IValueConverter
         => !string.IsNullOrEmpty(value as string);
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>
@@ -265,7 +265,7 @@ public sealed class FractionToPixelConverter : IValueConverter
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 /// <summary>Maps a <see cref="Services.LogLevel"/>-derived string to its themed brush.</summary>
@@ -281,7 +281,7 @@ public sealed class JoinStringsConverter : IValueConverter
         return value.ToString();
     }
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }
 
 public sealed class LogLevelToBrushConverter : IValueConverter
@@ -296,5 +296,5 @@ public sealed class LogLevelToBrushConverter : IValueConverter
         });
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
+        => Avalonia.Data.BindingOperations.DoNothing;
 }

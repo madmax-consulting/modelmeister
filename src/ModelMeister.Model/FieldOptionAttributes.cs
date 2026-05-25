@@ -53,10 +53,10 @@ public sealed class ShowInEntityOverviewAttribute : Attribute;
 public sealed class IgnoreFieldInEpiserverExportAttribute : Attribute;
 
 /// <summary>
-/// Sets <see cref="Field.TrackChanges"/> to <c>true</c>. To set it to <c>false</c> explicitly, use the
-/// object initializer (<c>= new() { TrackChanges = false }</c>) — the nullable underlying property
-/// uses <c>null</c> as "leave inriver's value alone", so an attribute that flipped to <c>false</c>
-/// would lose that distinction.
+/// Sets <see cref="Field.TrackChanges"/> to <c>true</c>. Largely redundant now that TrackChanges
+/// defaults to <c>true</c> (the loader stamps it when unset) — kept for explicitness and
+/// back-compat. To turn tracking <c>off</c>, use the object initializer
+/// (<c>= new() { TrackChanges = false }</c>).
 /// </summary>
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
 public sealed class TrackChangesAttribute : Attribute;

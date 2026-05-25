@@ -2,12 +2,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ModelMeister.Inriver.Diff;
 using ModelMeister.Inriver.Snapshot;
+using ModelMeister.Model.Loading;
 using ModelMeister.Ui.Models;
 using ModelMeister.Ui.Services;
 
@@ -49,13 +51,22 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
 
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; } = Array.Empty<CompareAction>();
+    public IReadOnlyList<CompareAction> ExtraActions { get; }
     /// <summary>Bucket-bar toggle state: clicking a bar in the bottom chart hides that Concept's rows.</summary>
     public BucketToggleState Buckets { get; } = new();
     public string BucketPath => nameof(DiffLineRow.Concept);
 
+    /// <summary>When true, promoting may also delete concepts that exist only on the target. Off by default.</summary>
+    [ObservableProperty] private bool _allowDeletesOnPromote;
+
+    /// <summary>Current multi-selection, fed by the grid via <see cref="MultiSelectBehavior"/> for bulk promote.</summary>
+    public IList SelectedRows { get; } = new List<object>();
+
     private LiveModel? _leftSnapshot;
     private LiveModel? _rightSnapshot;
+    // Promotion is one-way (left = source); the left snapshot is scaffolded+built into a model and
+    // cached, rebuilt on each Compare run and on env change (see CompareAsync / OnLeftEnvChanged).
+    private LoadedModel? _leftLoaded;
 
     public CompareEnvsViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
     {
@@ -78,6 +89,11 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
             BuildExportColumns,
             log: _log,
             logSource: "Compare");
+
+        ExtraActions = new[]
+        {
+            new CompareAction("Promote selected →", Primary: true, PromoteSelectedCommand),
+        };
     }
 
     private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
@@ -109,6 +125,7 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
     partial void OnLeftEnvChanged(EnvironmentEntry? value)
     {
         _leftSnapshot = null;
+        _leftLoaded = null;
         LeftColumnHeader = value?.Name ?? "";
         LeftColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
         TryAutoCompare();
@@ -160,6 +177,8 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
         Counts.Clear();
         HasRows = false;
         Summary = "";
+        // The source-side built model is tied to a specific snapshot; a fresh compare invalidates it.
+        _leftLoaded = null;
         try
         {
             Status = $"Connecting to '{LeftEnv.Name}'…";
@@ -235,6 +254,135 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
         if (delta.Total == 0) return;
         foreach (var id in delta.OnlyInLeft) Rows.Add(new DiffLineRow(concept, "", id, "presence", id, ""));
         foreach (var id in delta.OnlyInRight) Rows.Add(new DiffLineRow(concept, "", id, "presence", "", id));
+    }
+
+    // ---------------- Promotion (left → right only; swap envs to go the other way) ----------------
+
+    /// <summary>Promote the row's whole concept from the left env into the right env
+    /// (entity type, field, CVL, …). To promote the other direction, swap the environments.</summary>
+    [RelayCommand]
+    public Task ApplyAsync(DiffLineRow? row) =>
+        row is null ? Task.CompletedTask : PromoteAsync(new[] { row });
+
+    /// <summary>Promote every selected row left→right in a single diff/apply pass.</summary>
+    [RelayCommand]
+    public Task PromoteSelectedAsync() =>
+        PromoteAsync(SelectedRows.OfType<DiffLineRow>().ToList());
+
+    /// <summary>Map a diff row to the concept it promotes. Returns null for non-promotable rows (Languages, Roles).</summary>
+    private static PromoteScope? ScopeFor(DiffLineRow row) => row.Concept switch
+    {
+        "Entity type" or "Entity types" => new PromoteScope(PromoteConcept.EntityType, row.Id),
+        "Field" or "Field types" => FieldScope(row),
+        "CVL" or "CVLs" => new PromoteScope(PromoteConcept.Cvl, row.Id),
+        "CVL value" => new PromoteScope(PromoteConcept.CvlValue, row.Cvl, CvlKey: row.Id),
+        "Category" or "Categories" => new PromoteScope(PromoteConcept.Category, row.Id),
+        "Fieldset" or "Fieldsets" => new PromoteScope(PromoteConcept.Fieldset, row.Id),
+        "Link type" or "Link types" => new PromoteScope(PromoteConcept.LinkType, row.Id),
+        _ => null,
+    };
+
+    private static PromoteScope FieldScope(DiffLineRow row)
+    {
+        // Changed-field rows carry "Entity.Field"; presence rows carry the bare field id.
+        var dot = row.Id.IndexOf('.');
+        return dot < 0
+            ? new PromoteScope(PromoteConcept.Field, row.Id)
+            : new PromoteScope(PromoteConcept.Field, row.Id[(dot + 1)..], EntityTypeId: row.Id[..dot]);
+    }
+
+    private async Task PromoteAsync(IReadOnlyList<DiffLineRow> rows)
+    {
+        if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
+        if (_leftSnapshot is null || _rightSnapshot is null) { Status = "Run a compare first."; return; }
+        if (rows.Count == 0) { Status = "Select at least one row to promote."; return; }
+
+        var scopes = new List<PromoteScope>();
+        var skipped = 0;
+        foreach (var r in rows)
+        {
+            if (ScopeFor(r) is { } s) scopes.Add(s);
+            else skipped++;
+        }
+        if (scopes.Count == 0) { Status = "None of the selected rows can be promoted here (Languages/Roles use their own pages)."; return; }
+
+        // Promotion is one-way: left (source) → right (target). Swap the environments to go the other way.
+        var sourceSnapshot = _leftSnapshot;
+        var targetSnapshot = _rightSnapshot;
+        var targetEnv = RightEnv;
+        var label = "left→right";
+
+        var targetSecret = _vault.GetSecret(targetEnv.Id);
+        if (targetSecret is null || string.IsNullOrEmpty(targetSecret.ApiKey))
+        { Status = $"No API key on file for target '{targetEnv.Name}'."; return; }
+
+        // Pre-flight: a field can't land on a target that lacks its owning entity type.
+        foreach (var s in scopes)
+        {
+            if (s.Concept == PromoteConcept.Field && s.EntityTypeId is { } et &&
+                !targetSnapshot.EntityTypes.Any(e => string.Equals(e.Id, et, StringComparison.OrdinalIgnoreCase)))
+            {
+                Status = $"Entity type '{et}' is missing on '{targetEnv.Name}'. Promote the entity type first.";
+                _log.Warn("Compare", Status);
+                return;
+            }
+        }
+
+        Busy = true;
+        try
+        {
+            var sourceLoaded = _leftLoaded;
+            if (sourceLoaded is null)
+            {
+                Status = "Preparing source model… (scaffolding + building)";
+                sourceLoaded = await _shell.LoadModelFromLiveAsync(sourceSnapshot).ConfigureAwait(true);
+                _leftLoaded = sourceLoaded;
+            }
+
+            if (_main.ConnectedEnv?.Id != targetEnv.Id)
+            {
+                Status = $"Connecting to '{targetEnv.Name}'…";
+                await _shell.SwitchEnvAsync(targetEnv, targetSecret).ConfigureAwait(true);
+            }
+
+            var policy = new MergePolicy
+            {
+                OverwriteNamesAndDescriptions = true,
+                OverwriteCvlValues = true,
+                AllowDeletes = AllowDeletesOnPromote,
+            };
+
+            var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            var backupPath = Path.Combine(
+                _shell.GetBackupsDir(targetSnapshot.EnvironmentUrl, Paths.AppDataDir),
+                $"{stamp}.promote.model.json");
+
+            Status = $"Promoting {scopes.Count} concept(s) {label} → '{targetEnv.Name}'…";
+            var receipt = await _shell.PromoteConceptsAsync(sourceLoaded, scopes, policy, backupPath).ConfigureAwait(true);
+
+            var note = skipped > 0 ? $" ({skipped} row(s) skipped)" : "";
+            if (receipt.Failed == 0)
+            {
+                Status = receipt.Succeeded == 0
+                    ? $"Nothing to promote — target already matches the selected concept(s).{note}"
+                    : $"Promoted {receipt.Succeeded} change(s) {label} → '{targetEnv.Name}'.{note}";
+                _log.Success("Compare", Status);
+            }
+            else
+            {
+                Status = $"Promote finished: {receipt.Succeeded} applied, {receipt.Failed} failed — see log.{note}";
+                _log.Error("Compare", Status);
+            }
+        }
+        catch (Exception ex)
+        {
+            Status = "Promote failed: " + ex.Message;
+            _log.Error("Compare", ex.Message, ex);
+        }
+        finally { Busy = false; }
+
+        // Re-run the compare so rows reflect the new state (also rebuilds the source models).
+        await CompareAsync().ConfigureAwait(true);
     }
 
     private void RebuildConceptDiffCounts()

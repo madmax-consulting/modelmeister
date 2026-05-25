@@ -22,8 +22,9 @@
       <Grid ColumnDefinitions="*,1,1.4*">
 
         <!-- Left: extensions list -->
-        <DataGrid Grid.Column="0"
-                  Name="ExtensionsGrid"
+        <DockPanel Grid.Column="0" LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #ExtensionsGrid}" />
+        <DataGrid Name="ExtensionsGrid"
                   ItemsSource="{Binding Items}"
                   SelectedItem="{Binding Selected, Mode=TwoWay}"
                   IsReadOnly="True"
@@ -95,6 +96,7 @@
             </DataGridTemplateColumn>
           </DataGrid.Columns>
         </DataGrid>
+        </DockPanel>
 
         <!-- Vertical divider -->
         <Border Grid.Column="1" Background="{DynamicResource Border}" Width="1" />
@@ -102,8 +104,9 @@
         <!-- Right: detail tabs (slim) -->
         <TabControl Grid.Column="2" Padding="0">
           <TabItem Header="Settings">
-            <Grid RowDefinitions="*,Auto" Margin="6">
-              <DataGrid Grid.Row="0" ItemsSource="{Binding Settings}" IsReadOnly="True"
+            <Grid RowDefinitions="Auto,*,Auto" Margin="6">
+              <c:GridToolbar Grid.Row="0" Margin="0,0,0,4" TargetGrid="{Binding #SettingsGrid}" />
+              <DataGrid Grid.Row="1" Name="SettingsGrid" ItemsSource="{Binding Settings}" IsReadOnly="True"
                         AutoGenerateColumns="False" SelectionMode="Single" BorderThickness="1">
                 <DataGrid.Columns>
                   <DataGridTextColumn Binding="{Binding Key}" Width="200" MinWidth="120">
@@ -124,7 +127,7 @@
                   </DataGridTemplateColumn>
                 </DataGrid.Columns>
               </DataGrid>
-              <Grid Grid.Row="1" Margin="0,6,0,0" ColumnDefinitions="*,1.5*,Auto">
+              <Grid Grid.Row="2" Margin="0,6,0,0" ColumnDefinitions="*,1.5*,Auto">
                 <TextBox Grid.Column="0" Text="{Binding NewSettingKey, Mode=TwoWay}" Watermark="key" />
                 <TextBox Grid.Column="1" Text="{Binding NewSettingValue, Mode=TwoWay}" Watermark="value" Margin="6,0,0,0" />
                 <Button Grid.Column="2" Content="Save" Command="{Binding AddSettingCommand}"
@@ -134,8 +137,10 @@
           </TabItem>
 
           <TabItem Header="Events">
-            <DataGrid ItemsSource="{Binding Events}" IsReadOnly="True"
-                      AutoGenerateColumns="False" Margin="6" BorderThickness="1">
+            <DockPanel LastChildFill="True" Margin="6">
+            <c:GridToolbar DockPanel.Dock="Top" Margin="0,0,0,4" TargetGrid="{Binding #EventsGrid}" />
+            <DataGrid Name="EventsGrid" ItemsSource="{Binding Events}" IsReadOnly="True"
+                      AutoGenerateColumns="False" BorderThickness="1">
               <DataGrid.Columns>
                 <DataGridTextColumn Binding="{Binding Utc}" Width="160" MinWidth="120">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="UTC" Path="Utc" /></DataGridTextColumn.Header>
@@ -148,11 +153,13 @@
                 </DataGridTextColumn>
               </DataGrid.Columns>
             </DataGrid>
+            </DockPanel>
           </TabItem>
 
           <TabItem Header="States">
-            <Grid RowDefinitions="*,Auto" Margin="6">
-              <DataGrid Grid.Row="0" ItemsSource="{Binding States}" IsReadOnly="True"
+            <Grid RowDefinitions="Auto,*,Auto" Margin="6">
+              <c:GridToolbar Grid.Row="0" Margin="0,0,0,4" TargetGrid="{Binding #StatesGrid}" />
+              <DataGrid Grid.Row="1" Name="StatesGrid" ItemsSource="{Binding States}" IsReadOnly="True"
                         AutoGenerateColumns="False" BorderThickness="1">
                 <DataGrid.Columns>
                   <DataGridTextColumn Binding="{Binding Id}" Width="50" MinWidth="50">
@@ -175,7 +182,7 @@
                   </DataGridTemplateColumn>
                 </DataGrid.Columns>
               </DataGrid>
-              <Grid Grid.Row="1" Margin="0,6,0,0" ColumnDefinitions="*,Auto">
+              <Grid Grid.Row="2" Margin="0,6,0,0" ColumnDefinitions="*,Auto">
                 <TextBox Grid.Column="0" Text="{Binding NewStateData, Mode=TwoWay}" Watermark="state data" />
                 <Button Grid.Column="1" Content="Add" Command="{Binding AddStateCommand}"
                         Classes="primary" IsEnabled="{Binding !Busy}" Margin="6,0,0,0" />
@@ -184,8 +191,10 @@
           </TabItem>
 
           <TabItem Header="Latest (all)">
-            <DataGrid ItemsSource="{Binding AllEvents}" IsReadOnly="True"
-                      AutoGenerateColumns="False" Margin="6" BorderThickness="1">
+            <DockPanel LastChildFill="True" Margin="6">
+            <c:GridToolbar DockPanel.Dock="Top" Margin="0,0,0,4" TargetGrid="{Binding #LatestEventsGrid}" />
+            <DataGrid Name="LatestEventsGrid" ItemsSource="{Binding AllEvents}" IsReadOnly="True"
+                      AutoGenerateColumns="False" BorderThickness="1">
               <DataGrid.Columns>
                 <DataGridTextColumn Binding="{Binding Utc}" Width="160" MinWidth="120">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="UTC" Path="Utc" /></DataGridTextColumn.Header>
@@ -201,6 +210,7 @@
                 </DataGridTextColumn>
               </DataGrid.Columns>
             </DataGrid>
+            </DockPanel>
           </TabItem>
         </TabControl>
       </Grid>

@@ -118,6 +118,8 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
     public IReadOnlyList<CompareAction> ExtraActions { get; }
+    /// <summary>Current multi-selection, fed by the grid via <see cref="MultiSelectBehavior"/> for bulk promote.</summary>
+    public System.Collections.IList SelectedRows { get; } = new List<object>();
 
     private IReadOnlyDictionary<string, string>? _leftCapture;
     private IReadOnlyDictionary<string, string>? _rightCapture;
@@ -146,7 +148,10 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
             log: _log,
             logSource: "ServerSettings");
 
-        ExtraActions = Array.Empty<CompareAction>();
+        ExtraActions = new[]
+        {
+            new CompareAction("Promote selected →", Primary: true, PromoteSelectedLeftToRightCommand),
+        };
     }
 
     private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
@@ -324,7 +329,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
             Counts.Add(new ConceptDiffCount(g.Title, g.Count, max == 0 ? 0 : (double)g.Count / max));
     }
 
-    /// <summary>Write <paramref name="row"/>'s left value into the right env (currently active).</summary>
+    /// <summary>Write <paramref name="row"/>'s left value into the right env (one-way; swap to reverse).</summary>
     [RelayCommand]
     public async Task ApplyLeftToRightAsync(ServerSettingRow? row)
     {
@@ -332,15 +337,29 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         await ApplyOneSideAsync(row, sourceValue: row.LeftValue, targetEnv: RightEnv, label: "left→right").ConfigureAwait(true);
     }
 
-    /// <summary>Write <paramref name="row"/>'s right value into the left env (will switch connection first).</summary>
+    /// <summary>Promote every selected setting left→right in one batch, confirming once up front.</summary>
     [RelayCommand]
-    public async Task ApplyRightToLeftAsync(ServerSettingRow? row)
+    public async Task PromoteSelectedLeftToRightAsync()
     {
-        if (row is null || LeftEnv is null) return;
-        await ApplyOneSideAsync(row, sourceValue: row.RightValue, targetEnv: LeftEnv, label: "right→left").ConfigureAwait(true);
+        if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
+        var targetEnv = RightEnv;
+        var rows = SelectedRows.OfType<ServerSettingRow>().ToList();
+        if (rows.Count == 0) { Status = "Select at least one setting to promote."; return; }
+
+        var confirmed = await DialogHost.ConfirmPromoteAsync(
+            conceptLabel: "Settings",
+            itemLabel: $"{rows.Count} setting(s)",
+            sourceEnv: LeftEnv.Name,
+            targetEnv: targetEnv.Name,
+            targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
+        if (!confirmed) { Status = "Promote cancelled."; return; }
+
+        foreach (var row in rows)
+            await ApplyOneSideAsync(row, row.LeftValue, targetEnv, "left→right", refresh: false, confirm: false).ConfigureAwait(true);
+        await CompareAsync().ConfigureAwait(true);
     }
 
-    private async Task ApplyOneSideAsync(ServerSettingRow row, string? sourceValue, EnvironmentEntry targetEnv, string label)
+    private async Task ApplyOneSideAsync(ServerSettingRow row, string? sourceValue, EnvironmentEntry targetEnv, string label, bool refresh = true, bool confirm = true)
     {
         var secret = _vault.GetSecret(targetEnv.Id);
         if (secret is null || string.IsNullOrEmpty(secret.ApiKey))
@@ -349,18 +368,21 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         }
 
         // Per-row promote needs explicit confirmation — it overwrites a setting on a (possibly
-        // production) environment with no automatic rollback.
-        var sourceEnvName = ReferenceEquals(targetEnv, RightEnv) ? LeftEnv?.Name ?? "left" : RightEnv?.Name ?? "right";
-        var confirmed = await DialogHost.ConfirmPromoteAsync(
-            conceptLabel: "Setting",
-            itemLabel: row.Key,
-            sourceEnv: sourceEnvName,
-            targetEnv: targetEnv.Name,
-            targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
-        if (!confirmed)
+        // production) environment with no automatic rollback. Skipped when the bulk command confirmed.
+        if (confirm)
         {
-            Status = "Promote cancelled.";
-            return;
+            var sourceEnvName = ReferenceEquals(targetEnv, RightEnv) ? LeftEnv?.Name ?? "left" : RightEnv?.Name ?? "right";
+            var confirmed = await DialogHost.ConfirmPromoteAsync(
+                conceptLabel: "Setting",
+                itemLabel: row.Key,
+                sourceEnv: sourceEnvName,
+                targetEnv: targetEnv.Name,
+                targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
+            if (!confirmed)
+            {
+                Status = "Promote cancelled.";
+                return;
+            }
         }
 
         Busy = true;
@@ -391,8 +413,8 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         }
         finally { Busy = false; }
 
-        // Re-run full compare so Rows/Counts/Summary reflect the new state.
-        await CompareAsync().ConfigureAwait(true);
+        // Re-run full compare so Rows/Counts/Summary reflect the new state (bulk refreshes once).
+        if (refresh) await CompareAsync().ConfigureAwait(true);
     }
 
 }

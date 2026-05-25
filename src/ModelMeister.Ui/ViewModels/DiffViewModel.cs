@@ -108,7 +108,7 @@ public partial class DiffViewModel : ViewModelBase
 
         SelectedTitle = row.Description;
         SelectedSubtitle = row.Kind;
-        foreach (var d in ChangeDetails.For(row.Change, _main.LiveSnapshot))
+        foreach (var d in ChangeDetails.For(row.Change, _main.LiveSnapshot, CurrentPolicy))
             SelectedDeltas.Add(d);
         HasDetails = true;
         HasDeltas = SelectedDeltas.Count > 0;

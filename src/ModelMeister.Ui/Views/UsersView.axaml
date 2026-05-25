@@ -31,6 +31,8 @@
     </c:PageShell.Actions>
 
     <Border Classes="card flush" Padding="0">
+      <DockPanel LastChildFill="True">
+      <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #UsersGrid}" />
       <Grid>
         <!-- Empty state: when no users (typically because we're not connected) -->
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -75,6 +77,7 @@
         </DataGrid.Columns>
       </DataGrid>
       </Grid>
+      </DockPanel>
     </Border>
 
   </c:PageShell>

@@ -14,6 +14,8 @@
     </c:PageShell.Actions>
 
     <Border Classes="card flush" Padding="0">
+      <DockPanel LastChildFill="True">
+      <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #CvlGrid}" />
       <DataGrid Name="CvlGrid"
                 ItemsSource="{Binding Cvls}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
@@ -43,6 +45,7 @@
           </DataGridCheckBoxColumn>
         </DataGrid.Columns>
       </DataGrid>
+      </DockPanel>
     </Border>
 
   </c:PageShell>

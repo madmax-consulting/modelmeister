@@ -73,8 +73,7 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
 
         ExtraActions = new[]
         {
-            new CompareAction("Push settings L→R", Primary: true,  PromoteSelectedSettingsLeftToRightCommand),
-            new CompareAction("Push settings R→L", Primary: false, PromoteSelectedSettingsRightToLeftCommand),
+            new CompareAction("Push settings →", Primary: true, PromoteSelectedSettingsLeftToRightCommand),
         };
     }
 
@@ -227,14 +226,6 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
     {
         if (Selected?.Change is null || RightEnv is null || Selected.Left is null) return;
         await PromoteRowSettingsAsync(Selected, toRight: true).ConfigureAwait(true);
-    }
-
-    /// <summary>Push all setting differences for the selected row from right into left.</summary>
-    [RelayCommand]
-    public async Task PromoteSelectedSettingsRightToLeftAsync()
-    {
-        if (Selected?.Change is null || LeftEnv is null || Selected.Right is null) return;
-        await PromoteRowSettingsAsync(Selected, toRight: false).ConfigureAwait(true);
     }
 
     private async Task PromoteRowSettingsAsync(ExtensionDiffRow row, bool toRight)

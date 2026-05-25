@@ -19,7 +19,7 @@ public sealed record ProvisionResultRow(string Username, string Outcome, string 
 /// </summary>
 public partial class ProvisionResultViewModel : ViewModelBase
 {
-    public ProvisionResultViewModel(bool dryRun, int created, int updated, int errors, int warnings, IEnumerable<ProvisionResultRow> rows)
+    public ProvisionResultViewModel(bool dryRun, int created, int updated, int errors, int warnings, IEnumerable<ProvisionResultRow> rows, string importEyebrow = "USERS IMPORT")
     {
         DryRun = dryRun;
         Created = created;
@@ -27,7 +27,10 @@ public partial class ProvisionResultViewModel : ViewModelBase
         Errors = errors;
         Warnings = warnings;
         Rows = new ObservableCollection<ProvisionResultRow>(rows);
+        _importEyebrow = importEyebrow;
     }
+
+    private readonly string _importEyebrow;
 
     public bool DryRun { get; }
     public int Created { get; }
@@ -37,7 +40,7 @@ public partial class ProvisionResultViewModel : ViewModelBase
     public ObservableCollection<ProvisionResultRow> Rows { get; }
 
     public string Title => DryRun ? "Dry-run result" : "Import result";
-    public string Eyebrow => DryRun ? "DRY RUN — NO CHANGES APPLIED" : "USERS IMPORT";
+    public string Eyebrow => DryRun ? "DRY RUN — NO CHANGES APPLIED" : _importEyebrow;
     public string HeadlineCreated => DryRun ? $"would create {Created}" : $"created {Created}";
     public string HeadlineUpdated => DryRun ? $"would update {Updated}" : $"updated {Updated}";
 
