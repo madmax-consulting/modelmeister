@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ModelMeister.Inriver.Users;
 
 namespace ModelMeister.Ui.ViewModels;
 
@@ -23,8 +24,8 @@ public partial class RestrictedFieldEditorViewModel : ViewModelBase
 
     public ObservableCollection<string> Roles { get; } = [];
 
-    /// <summary>Common inriver restriction types offered as suggestions; the field stays free-text.</summary>
-    public ObservableCollection<string> RestrictionTypes { get; } = ["ReadOnly", "Hidden"];
+    /// <summary>The only restriction types inriver accepts (canonical casing — lowercase 'o' in "Readonly").</summary>
+    public ObservableCollection<string> RestrictionTypes { get; } = ["Readonly", "Hidden"];
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
@@ -32,28 +33,46 @@ public partial class RestrictedFieldEditorViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
-    private string _restrictionType = "ReadOnly";
+    private string _restrictionType = "Readonly";
 
-    [ObservableProperty] private string _entityTypeId = "";
-    [ObservableProperty] private string _fieldTypeId = "";
-    [ObservableProperty] private string _categoryId = "";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
+    private string _entityTypeId = "";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
+    private string _fieldTypeId = "";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
+    private string _categoryId = "";
     [ObservableProperty] private string _validation = "";
 
     public bool? Result { get; private set; }
     public event Action? Closed;
 
-    private bool CanConfirm() => !string.IsNullOrWhiteSpace(SelectedRole) && !string.IsNullOrWhiteSpace(RestrictionType);
+    private static bool IsValidRestrictionType(string? t) =>
+        RestrictedFieldProvisioning.NormalizeRestrictionType(t) is not null;
+
+    // inriver requires a role, a valid restriction type, an entity type, and at least one of
+    // field-type / category. Gate the button on the full rule so an invalid restriction can't be added.
+    private bool CanConfirm() =>
+        !string.IsNullOrWhiteSpace(SelectedRole)
+        && IsValidRestrictionType(RestrictionType)
+        && !string.IsNullOrWhiteSpace(EntityTypeId)
+        && (!string.IsNullOrWhiteSpace(FieldTypeId) || !string.IsNullOrWhiteSpace(CategoryId));
 
     [RelayCommand(CanExecute = nameof(CanConfirm))]
     private void Confirm()
     {
         if (string.IsNullOrWhiteSpace(SelectedRole)) { Validation = "Role is required."; return; }
-        if (string.IsNullOrWhiteSpace(RestrictionType)) { Validation = "Restriction type is required."; return; }
-        if (string.IsNullOrWhiteSpace(EntityTypeId) && string.IsNullOrWhiteSpace(FieldTypeId) && string.IsNullOrWhiteSpace(CategoryId))
+        if (!IsValidRestrictionType(RestrictionType)) { Validation = "Restriction type must be 'Readonly' or 'Hidden'."; return; }
+        if (string.IsNullOrWhiteSpace(EntityTypeId)) { Validation = "Entity type is required."; return; }
+        if (string.IsNullOrWhiteSpace(FieldTypeId) && string.IsNullOrWhiteSpace(CategoryId))
         {
-            Validation = "Set at least one of Entity type, Field type, or Category.";
+            Validation = "Set at least one of Field type or Category.";
             return;
         }
+        // Persist canonical casing so the natural key matches inriver's stored value.
+        RestrictionType = RestrictedFieldProvisioning.NormalizeRestrictionType(RestrictionType)!;
         Result = true;
         Closed?.Invoke();
     }
