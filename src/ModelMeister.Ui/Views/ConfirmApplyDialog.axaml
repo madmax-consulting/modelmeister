@@ -5,9 +5,9 @@
         x:Class="ModelMeister.Ui.Views.ConfirmApplyDialog"
         x:DataType="vm:ConfirmApplyViewModel"
         Title="Confirm apply"
-        Width="560" SizeToContent="Height"
+        Width="560" MinWidth="520" MaxWidth="820" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        CanResize="False"
+        CanResize="True"
         Background="{DynamicResource Surface0}"
         FontFamily="{StaticResource UiFont}">
 

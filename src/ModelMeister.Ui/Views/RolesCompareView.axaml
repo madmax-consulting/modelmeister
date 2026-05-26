@@ -31,9 +31,31 @@
                         HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
             </DataGridTemplateColumn.Header>
           </DataGridTemplateColumn>
-          <DataGridTextColumn Binding="{Binding State}" Width="110">
-            <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
-          </DataGridTextColumn>
+          <!-- Which environment(s) the role exists in, as named stage pills — replaces only-left/only-right text. -->
+          <DataGridTemplateColumn Header="Environment" Width="150" MinWidth="120">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:RoleCompareRow">
+                <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                  <Border Classes="pill" IsVisible="{Binding InLeft}"
+                          Background="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                          BorderBrush="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                          BorderThickness="1" Padding="7,0">
+                    <TextBlock Text="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).LeftColumnHeader}"
+                               Foreground="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                               FontSize="10" FontWeight="SemiBold" />
+                  </Border>
+                  <Border Classes="pill" IsVisible="{Binding InRight}"
+                          Background="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                          BorderBrush="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                          BorderThickness="1" Padding="7,0">
+                    <TextBlock Text="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).RightColumnHeader}"
+                               Foreground="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                               FontSize="10" FontWeight="SemiBold" />
+                  </Border>
+                </StackPanel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
           <DataGridTextColumn Binding="{Binding RoleName}" Width="1.2*" MinWidth="120">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Role" Path="RoleName" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
@@ -49,7 +71,7 @@
 
           <!-- Per-row promote (one-way: source → target), shown as source→target stage pills. Hidden
                on rows that aren't promotable source→target. Swap the environments to reverse direction. -->
-          <DataGridTemplateColumn Header="" Width="100">
+          <DataGridTemplateColumn Header="Promote" Width="150" MinWidth="140">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate x:DataType="vm:RoleCompareRow">
                 <Button Classes="ghost" Padding="4,2" Margin="4,0"

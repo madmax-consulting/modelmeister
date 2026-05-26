@@ -74,9 +74,9 @@ public sealed class BucketToggleState
     public void Toggle(ConceptDiffCount? c)
     {
         if (c is null) return;
-        if (_hidden.Contains(c.Title)) _hidden.Remove(c.Title);
-        else _hidden.Add(c.Title);
-        c.IsHidden = _hidden.Contains(c.Title);
+        if (_hidden.Contains(c.Key)) _hidden.Remove(c.Key);
+        else _hidden.Add(c.Key);
+        c.IsHidden = _hidden.Contains(c.Key);
         Changed?.Invoke(_hidden);
     }
 
@@ -93,13 +93,19 @@ public sealed class BucketToggleState
 /// <see cref="IsHidden"/> drives the dim/strike visual when the user has clicked the bar.</summary>
 public partial class ConceptDiffCount : ObservableObject
 {
-    public ConceptDiffCount(string title, int count, double fraction)
+    public ConceptDiffCount(string title, int count, double fraction, string? key = null)
     {
         Title = title;
         Count = count;
         Fraction = fraction;
+        Key = key ?? title;
     }
+    /// <summary>Display label for the bar (may be a friendly, env-named label).</summary>
     public string Title { get; }
+    /// <summary>Stable key used to match rows to this bucket and to track the hidden set — defaults to
+    /// <see cref="Title"/>, but compare pages whose bar label differs from the row value (e.g. an
+    /// env-named label over an internal "only-left" state) pass the row value here.</summary>
+    public string Key { get; }
     public int Count { get; }
     public double Fraction { get; }
     [ObservableProperty] private bool _isHidden;

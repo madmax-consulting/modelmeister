@@ -80,6 +80,10 @@
                         Command="{Binding CopyPathCommand}"
                         CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
               <Separator />
+              <MenuItem Header="Restore into connected env…"
+                        Command="{Binding RestoreCommand}"
+                        CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
+              <Separator />
               <MenuItem Header="Delete"
                         Command="{Binding DeleteCommand}"
                         CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
@@ -117,10 +121,15 @@
             <DataGridTextColumn Binding="{Binding FileName}" Width="*" MinWidth="200">
               <DataGridTextColumn.Header><c:FilterableHeader Title="File" Path="FileName" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTemplateColumn Header="" Width="180">
+            <DataGridTemplateColumn Header="" Width="250">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="vm:BackupRow">
                   <StackPanel Orientation="Horizontal" Spacing="3" Margin="4,0">
+                    <Button Classes="primary" Padding="6,2" MinHeight="22"
+                            Content="Restore"
+                            ToolTip.Tip="Restore this backup into the connected environment"
+                            Command="{Binding $parent[DataGrid].((vm:SnapshotsViewModel)DataContext).RestoreCommand}"
+                            CommandParameter="{Binding}" />
                     <Button Classes="ghost" Padding="6,2" MinHeight="22"
                             Content="Open"
                             Command="{Binding $parent[DataGrid].((vm:SnapshotsViewModel)DataContext).OpenInExplorerCommand}"

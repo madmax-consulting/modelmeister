@@ -51,6 +51,8 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
 
     private IReadOnlyList<RestrictedFieldSummary>? _leftCapture;
     private IReadOnlyList<RestrictedFieldSummary>? _rightCapture;
+    /// <summary>Total permissions compared (union of both envs), including identical ones we don't show.</summary>
+    private int _comparedCount;
 
     public RestrictedFieldsCompareViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
     {
@@ -143,6 +145,7 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
         { Status = $"No API key on file for '{RightEnv.Name}'."; return; }
 
         Busy = true;
+        _main.SuspendConnectionIndicator = true; // don't flash the env indicator while we read both sides
         _allRows.Clear();
         Rows.Clear();
         Counts.Clear();
@@ -165,12 +168,12 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
             _rightCapture = right;
             PopulateRows(left, right);
 
-            var diffCount = Rows.Count(r => r.State != "identical");
+            var diffCount = _allRows.Count;
             HasRows = diffCount > 0;
             RebuildCounts();
             Summary = diffCount == 0
-                ? $"No differences. ({Rows.Count} restricted-field permissions compared.)"
-                : $"{diffCount} differences across {Rows.Count} restricted-field permissions.";
+                ? $"No differences. ({_comparedCount} restricted-field permissions compared.)"
+                : $"{diffCount} differences across {_comparedCount} restricted-field permissions.";
             Status = "Comparison complete.";
             _log.Success("RestrictedFieldsCompare", $"Compared '{LeftEnv.Name}' ({left.Count}) vs '{RightEnv.Name}' ({right.Count}): {diffCount} differences.");
         }
@@ -179,7 +182,7 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
             Status = "Compare failed: " + ex.Message;
             _log.Error("RestrictedFieldsCompare", ex.Message, ex);
         }
-        finally { Busy = false; }
+        finally { Busy = false; _main.SuspendConnectionIndicator = false; }
     }
 
     private void RebuildVisibleRows()
@@ -187,11 +190,20 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
         Rows.Clear();
         foreach (var r in _allRows)
         {
-            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Title, r.State, StringComparison.OrdinalIgnoreCase));
+            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Key, r.State, StringComparison.OrdinalIgnoreCase));
             if (bucketRow is { IsHidden: true }) continue;
             Rows.Add(r);
         }
     }
+
+    /// <summary>Friendly, env-named bucket label — we never surface the internal "only-left" wording.</summary>
+    private string BucketLabel(string state) => state switch
+    {
+        "only-left"  => $"Only in {LeftEnv?.Name ?? "left"}",
+        "only-right" => $"Only in {RightEnv?.Name ?? "right"}",
+        "changed"    => "Changed",
+        _            => state,
+    };
 
     private void PopulateRows(IReadOnlyList<RestrictedFieldSummary> left, IReadOnlyList<RestrictedFieldSummary> right)
     {
@@ -205,6 +217,7 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
         var allKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         allKeys.UnionWith(leftMap.Keys);
         allKeys.UnionWith(rightMap.Keys);
+        _comparedCount = allKeys.Count;
 
         foreach (var key in allKeys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase))
         {
@@ -217,7 +230,7 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
             string detail;
             if (l is null) { state = "only-right"; canL2R = false; canR2L = true; detail = $"only in {rightName}"; }
             else if (r is null) { state = "only-left"; canL2R = true; canR2L = false; detail = $"only in {leftName}"; }
-            else { state = "identical"; canL2R = false; canR2L = false; detail = ""; }
+            else continue; // identical — not a difference, never shown in compare
 
             _allRows.Add(new RestrictedFieldCompareRow(
                 state,
@@ -324,14 +337,13 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
     private void RebuildCounts()
     {
         var max = 0;
-        var groups = Rows.Where(r => r.State != "identical")
-                         .GroupBy(r => r.State)
-                         .Select(g => (Title: g.Key, Count: g.Count()))
+        var groups = _allRows.GroupBy(r => r.State)
+                         .Select(g => (State: g.Key, Count: g.Count()))
                          .OrderByDescending(t => t.Count)
                          .ToList();
         foreach (var g in groups) if (g.Count > max) max = g.Count;
         foreach (var g in groups)
-            Counts.Add(new ConceptDiffCount(g.Title, g.Count, max == 0 ? 0 : (double)g.Count / max));
+            Counts.Add(new ConceptDiffCount(BucketLabel(g.State), g.Count, max == 0 ? 0 : (double)g.Count / max, key: g.State));
     }
 }
 
@@ -368,4 +380,8 @@ public sealed partial class RestrictedFieldCompareRow : SelectableRow
     public string Detail { get; }
     public bool CanPromoteLeftToRight { get; }
     public bool CanPromoteRightToLeft { get; }
+
+    /// <summary>Present in the left / right environment — drives the "Environment" pill column.</summary>
+    public bool InLeft => State is "only-left" or "changed";
+    public bool InRight => State is "only-right" or "changed";
 }

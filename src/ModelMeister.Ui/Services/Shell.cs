@@ -206,6 +206,16 @@ public sealed class Shell
             CvlValuesWorkbook.Save(json, xlsxPath);
         }, ct);
 
+    /// <summary>Load a CVL-values workbook and project it into a minimal source <see cref="LiveModel"/>
+    /// (CVLs + values only). Shared with the CLI's <c>cvl import</c> path via
+    /// <see cref="LiveModelConverter.CvlSourceFromJson"/>, so the UI import behaves identically.</summary>
+    public Task<LiveModel> LoadCvlImportSourceAsync(string xlsxPath, CancellationToken ct = default)
+        => Task.Run(() => LiveModelConverter.CvlSourceFromJson(CvlValuesWorkbook.Load(xlsxPath)), ct);
+
+    /// <summary>Write a one-CVL example workbook the user can edit and re-import.</summary>
+    public Task SaveCvlTemplateAsync(string xlsxPath, CancellationToken ct = default)
+        => Task.Run(() => CvlValuesWorkbook.SaveTemplate(xlsxPath), ct);
+
     /// <summary>Scaffold from an Excel workbook.</summary>
     public Task<ScaffoldResult> ScaffoldFromExcelAsync(string xlsxPath, string outDir, string rootNamespace, bool detectBaseClasses, bool emitCvlValues, CancellationToken ct = default)
         => Task.Run(() => ExcelScaffolder.ScaffoldFromExcel(xlsxPath, outDir, rootNamespace, detectBaseClasses, emitCvlValues), ct);
@@ -257,14 +267,14 @@ public sealed class Shell
     public Task ApplyCvlValueAsync(string cvlId, LiveCvlValue source, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return CvlSync.ApplyValueAsync(client, cvlId, source, ct);
+        return Task.Run(() => CvlSync.ApplyValueAsync(client, cvlId, source, ct), ct);
     }
 
     /// <summary>Surgical delete of a single CVL value from the currently-connected env.</summary>
     public Task DeleteCvlValueAsync(string cvlId, string key, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return CvlSync.DeleteValueAsync(client, cvlId, key, ct);
+        return Task.Run(() => CvlSync.DeleteValueAsync(client, cvlId, key, ct), ct);
     }
 
     /// <summary>Pre-check used by per-value promote: returns true when the parent CVL exists on the connected env.</summary>
@@ -280,21 +290,21 @@ public sealed class Shell
     public Task AddCvlAsync(string id, ModelMeister.Model.Primitives.CvlDataType dataType, string? parentId, bool customValueList, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new CvlAdmin(client).AddCvlAsync(id, dataType, parentId, customValueList, ct);
+        return Task.Run(() => new CvlAdmin(client).AddCvlAsync(id, dataType, parentId, customValueList, ct), ct);
     }
 
     /// <summary>Update an existing CVL definition (datatype / parent / custom flag) on the connected env.</summary>
     public Task UpdateCvlAsync(string id, ModelMeister.Model.Primitives.CvlDataType dataType, string? parentId, bool customValueList, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new CvlAdmin(client).UpdateCvlAsync(id, dataType, parentId, customValueList, ct);
+        return Task.Run(() => new CvlAdmin(client).UpdateCvlAsync(id, dataType, parentId, customValueList, ct), ct);
     }
 
     /// <summary>Delete a CVL definition (and its values) from the connected env.</summary>
     public Task DeleteCvlAsync(string id, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new CvlAdmin(client).DeleteCvlAsync(id, ct);
+        return Task.Run(() => new CvlAdmin(client).DeleteCvlAsync(id, ct), ct);
     }
 
     /// <summary>List a CVL's values (index order) for the in-place value editor.</summary>
@@ -308,7 +318,7 @@ public sealed class Shell
     public Task UpsertCvlValueAsync(string cvlId, LiveCvlValue value, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new CvlAdmin(client).UpsertValueAsync(cvlId, value, ct);
+        return Task.Run(() => new CvlAdmin(client).UpsertValueAsync(cvlId, value, ct), ct);
     }
 
     // ---------------- Users ----------------
@@ -333,7 +343,7 @@ public sealed class Shell
         if (!string.IsNullOrEmpty(env.RestBaseUrl) && !string.IsNullOrEmpty(secret?.RestApiKey))
             rest = new InriverRestClient(env.RestBaseUrl!, secret.RestApiKey!);
         var prov = new UserProvisioning(client, rest);
-        return prov.ProvisionAsync(spec, ct);
+        return Task.Run(() => prov.ProvisionAsync(spec, ct), ct);
     }
 
     // ---------------- Roles ----------------
@@ -354,14 +364,14 @@ public sealed class Shell
         RoleProvisioning.RoleSpec spec, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new RoleProvisioning(client).ProvisionAsync(spec, ct);
+        return Task.Run(() => new RoleProvisioning(client).ProvisionAsync(spec, ct), ct);
     }
 
     /// <summary>Delete a role by name from the connected env (resolves the live id internally).</summary>
     public Task<RoleProvisioning.ProvisionResult> DeleteRoleAsync(string roleName, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new RoleProvisioning(client).DeleteAsync(roleName, ct);
+        return Task.Run(() => new RoleProvisioning(client).DeleteAsync(roleName, ct), ct);
     }
 
     /// <summary>Bulk add or remove a single permission across many roles in the connected env.</summary>
@@ -369,7 +379,7 @@ public sealed class Shell
         IReadOnlyList<string> roleNames, string permission, bool add, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new RoleProvisioning(client).SetPermissionOnRolesAsync(roleNames, permission, add, ct);
+        return Task.Run(() => new RoleProvisioning(client).SetPermissionOnRolesAsync(roleNames, permission, add, ct), ct);
     }
 
     // ---------------- Restricted fields ----------------
@@ -384,13 +394,13 @@ public sealed class Shell
         RestrictedFieldProvisioning.RestrictedFieldSpec spec, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new RestrictedFieldProvisioning(client).AddAsync(spec, ct);
+        return Task.Run(() => new RestrictedFieldProvisioning(client).AddAsync(spec, ct), ct);
     }
 
     public Task<RestrictedFieldProvisioning.ProvisionResult> DeleteRestrictedFieldAsync(int liveId, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new RestrictedFieldProvisioning(client).DeleteAsync(liveId, ct);
+        return Task.Run(() => new RestrictedFieldProvisioning(client).DeleteAsync(liveId, ct), ct);
     }
 
     // ---------------- Extensions ----------------
@@ -410,7 +420,7 @@ public sealed class Shell
         InriverRestClient? rest = null;
         if (env is not null && secret is not null && !string.IsNullOrEmpty(env.RestBaseUrl) && !string.IsNullOrEmpty(secret.RestApiKey))
             rest = new InriverRestClient(env.RestBaseUrl!, secret.RestApiKey!);
-        return new ExtensionsService(client, rest).StartAsync(id, ct);
+        return Task.Run(() => new ExtensionsService(client, rest).StartAsync(id, ct), ct);
     }
 
     public Task<bool> StopExtensionAsync(string id, EnvironmentEntry? env, EnvironmentSecret? secret, CancellationToken ct = default)
@@ -419,7 +429,7 @@ public sealed class Shell
         InriverRestClient? rest = null;
         if (env is not null && secret is not null && !string.IsNullOrEmpty(env.RestBaseUrl) && !string.IsNullOrEmpty(secret.RestApiKey))
             rest = new InriverRestClient(env.RestBaseUrl!, secret.RestApiKey!);
-        return new ExtensionsService(client, rest).StopAsync(id, ct);
+        return Task.Run(() => new ExtensionsService(client, rest).StopAsync(id, ct), ct);
     }
 
     public Task<IReadOnlyList<ExtensionsService.ExtensionEvent>> ExtensionEventsAsync(string id, int max, CancellationToken ct = default)
@@ -441,25 +451,25 @@ public sealed class Shell
         InriverRestClient? rest = null;
         if (env is not null && secret is not null && !string.IsNullOrEmpty(env.RestBaseUrl) && !string.IsNullOrEmpty(secret.RestApiKey))
             rest = new InriverRestClient(env.RestBaseUrl!, secret.RestApiKey!);
-        return new ExtensionsService(client, rest).RunAsync(id, ct);
+        return Task.Run(() => new ExtensionsService(client, rest).RunAsync(id, ct), ct);
     }
 
     public Task<bool> SetExtensionSettingAsync(string id, string key, string value, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ExtensionsService(client).SetSettingAsync(id, key, value, ct);
+        return Task.Run(() => new ExtensionsService(client).SetSettingAsync(id, key, value, ct), ct);
     }
 
     public Task<bool> DeleteExtensionSettingAsync(string id, string key, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ExtensionsService(client).DeleteSettingAsync(id, key, ct);
+        return Task.Run(() => new ExtensionsService(client).DeleteSettingAsync(id, key, ct), ct);
     }
 
     public Task<bool> DeleteExtensionAsync(string id, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ExtensionsService(client).DeleteAsync(id, ct);
+        return Task.Run(() => new ExtensionsService(client).DeleteAsync(id, ct), ct);
     }
 
     public Task<IReadOnlyList<ExtensionsService.ExtensionStateRow>> ListExtensionStatesAsync(string? extensionId = null, CancellationToken ct = default)
@@ -475,25 +485,25 @@ public sealed class Shell
     public Task<ExtensionsService.ExtensionStateRow?> AddExtensionStateAsync(string connectorId, string data, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ExtensionsService(client).AddStateAsync(connectorId, data, ct);
+        return Task.Run(() => new ExtensionsService(client).AddStateAsync(connectorId, data, ct), ct);
     }
 
     public Task<bool> UpdateExtensionStateAsync(int id, string connectorId, string data, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ExtensionsService(client).UpdateStateAsync(id, connectorId, data, ct);
+        return Task.Run(() => new ExtensionsService(client).UpdateStateAsync(id, connectorId, data, ct), ct);
     }
 
     public Task<bool> DeleteExtensionStateAsync(int id, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ExtensionsService(client).DeleteStateAsync(id, ct);
+        return Task.Run(() => new ExtensionsService(client).DeleteStateAsync(id, ct), ct);
     }
 
     public Task<bool> DeleteAllExtensionStatesAsync(CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ExtensionsService(client).DeleteAllStatesAsync(ct);
+        return Task.Run(() => new ExtensionsService(client).DeleteAllStatesAsync(ct), ct);
     }
 
     // ---------------- Server settings ----------------
@@ -507,20 +517,20 @@ public sealed class Shell
     public Task<bool> SetServerSettingAsync(string key, string value, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ServerSettingsService(client).SetAsync(key, value, ct);
+        return Task.Run(() => new ServerSettingsService(client).SetAsync(key, value, ct), ct);
     }
 
     public Task<bool> DeleteServerSettingAsync(string key, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ServerSettingsService(client).DeleteAsync(key, ct);
+        return Task.Run(() => new ServerSettingsService(client).DeleteAsync(key, ct), ct);
     }
 
     public Task<ServerSettingsService.BulkResult> BulkApplyServerSettingsAsync(
         IEnumerable<KeyValuePair<string, string?>> entries, CancellationToken ct = default)
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new ServerSettingsService(client).BulkApplyAsync(entries, ct);
+        return Task.Run(() => new ServerSettingsService(client).BulkApplyAsync(entries, ct), ct);
     }
 
     // ---------------- Scoped backup capture ----------------
@@ -574,6 +584,24 @@ public sealed class Shell
             rest = new InriverRestClient(env.RestBaseUrl!, secret.RestApiKey!);
         var prov = new UserProvisioning(client, rest);
         return backup.RestoreAsync(prov, ct);
+    }
+
+    /// <summary>Restore from a <see cref="RolesBackup"/> into the connected env. Upserts each role +
+    /// permissions; the provisioning surface has no dry-run, so every call is a write.</summary>
+    public Task<List<RoleProvisioning.ProvisionResult>> RestoreRolesAsync(
+        RolesBackup backup, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return backup.RestoreAsync(new RoleProvisioning(client), ct);
+    }
+
+    /// <summary>Restore from a <see cref="RestrictedFieldsBackup"/> into the connected env. Adds
+    /// missing restrictions (existing rows are left untouched — restrictions have no update).</summary>
+    public Task<List<RestrictedFieldProvisioning.ProvisionResult>> RestoreRestrictedFieldsAsync(
+        RestrictedFieldsBackup backup, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return backup.RestoreAsync(new RestrictedFieldProvisioning(client), ct);
     }
 
     /// <summary>Restore from a <see cref="ServerSettingsBackup"/> into the connected env.</summary>

@@ -34,6 +34,9 @@ public sealed class AppSettings
     /// <summary>MRU list of model csproj/dll paths, newest first. Capped at 10.</summary>
     public List<string> RecentModelPaths { get; set; } = [];
 
+    /// <summary>MRU list of imported Excel workbook paths, newest first. Capped at 10.</summary>
+    public List<string> RecentWorkbookPaths { get; set; } = [];
+
     /// <summary>Persist the log drawer expand/collapse state across sessions.</summary>
     public bool LogDrawerExpanded { get; set; }
 

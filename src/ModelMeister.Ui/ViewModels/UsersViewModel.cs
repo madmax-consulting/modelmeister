@@ -3,10 +3,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ModelMeister.Excel;
@@ -66,12 +62,24 @@ public partial class UsersViewModel : FeaturePageViewModel
         var vm = await DialogHost.ImportWorkbookAsync(
             "Import users from workbook",
             "Provision (create/update) users in the connected environment from an edited users.xlsx.",
-            "users.xlsx").ConfigureAwait(true);
+            "users.xlsx", _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
         if (vm is null) return;
         WorkbookPath = vm.WorkbookPath;
-        DryRun = vm.DryRun;
+
+        // Always verify + dry-run first; only run the real import if the user approves in the preview.
+        DryRun = true;
+        _proceedWithImport = false;
         await ProvisionAsync().ConfigureAwait(true);
+        if (!_proceedWithImport) return;
+
+        DryRun = false;
+        await ProvisionAsync().ConfigureAwait(true);
+        RememberWorkbook(_main.Settings, WorkbookPath);
     }
+
+    /// <summary>Set by <see cref="ProvisionAsync"/> when the dry-run preview's "Continue with import"
+    /// was clicked — tells <see cref="ImportExcelAsync"/> to run the real import.</summary>
+    private bool _proceedWithImport;
 
     public ObservableCollection<UserListRow> Users { get; } = [];
     public ObservableCollection<string> Roles { get; } = [];
@@ -232,29 +240,30 @@ public partial class UsersViewModel : FeaturePageViewModel
         int ok = 0, failed = 0;
         try
         {
-            foreach (var row in rows)
-            {
-                var roles = new List<string>(row.Roles);
-                if (vm.Add)
+            await RunBulkAsync(rows,
+                async row =>
                 {
-                    if (!roles.Contains(role, StringComparer.OrdinalIgnoreCase)) roles.Add(role);
-                }
-                else
-                {
-                    roles.RemoveAll(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase));
-                }
-                var spec = new UserProvisioning.UserSpec(
-                    row.Username, NullIfEmpty(row.Email), NullIfEmpty(row.FirstName), NullIfEmpty(row.LastName),
-                    NullIfEmpty(row.Company), roles, "en", GenerateApiKey: false);
-                Status = $"{(vm.Add ? "Granting" : "Revoking")} '{role}' on '{row.Username}'…";
-                try
-                {
-                    var result = await _shell.ProvisionUserAsync(spec, secret, env).ConfigureAwait(true);
-                    if (result.Errors.Count > 0) { failed++; foreach (var e in result.Errors) _log.Warn("Users", $"{row.Username}: {e}"); }
-                    else ok++;
-                }
-                catch (Exception ex) { failed++; _log.Warn("Users", $"{row.Username}: {ex.Message}"); }
-            }
+                    var roles = new List<string>(row.Roles);
+                    if (vm.Add)
+                    {
+                        if (!roles.Contains(role, StringComparer.OrdinalIgnoreCase)) roles.Add(role);
+                    }
+                    else
+                    {
+                        roles.RemoveAll(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase));
+                    }
+                    var spec = new UserProvisioning.UserSpec(
+                        row.Username, NullIfEmpty(row.Email), NullIfEmpty(row.FirstName), NullIfEmpty(row.LastName),
+                        NullIfEmpty(row.Company), roles, "en", GenerateApiKey: false);
+                    try
+                    {
+                        var result = await _shell.ProvisionUserAsync(spec, secret, env).ConfigureAwait(false);
+                        if (result.Errors.Count > 0) { failed++; foreach (var e in result.Errors) _log.Warn("Users", $"{row.Username}: {e}"); }
+                        else ok++;
+                    }
+                    catch (Exception ex) { failed++; _log.Warn("Users", $"{row.Username}: {ex.Message}"); }
+                },
+                (i, total, row) => Status = $"{(vm.Add ? "Granting" : "Revoking")} '{role}' {i} / {total} ('{row.Username}')…").ConfigureAwait(true);
             Status = failed == 0
                 ? $"{verb} '{role}' on {ok} user(s)."
                 : $"{verb} on {ok}, {failed} failed.";
@@ -302,7 +311,10 @@ public partial class UsersViewModel : FeaturePageViewModel
     private async Task ExportWorkbookAsync(bool seedSingleExample)
     {
         if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        var path = await PickSaveAsync(seedSingleExample ? "users-template.xlsx" : "users.xlsx").ConfigureAwait(true);
+        var path = await FilePickerHelpers.PickSaveAsync(
+            "Save users workbook",
+            seedSingleExample ? "users-template.xlsx" : "users.xlsx",
+            "xlsx").ConfigureAwait(true);
         if (path is null) return;
 
         Busy = true;
@@ -385,7 +397,7 @@ public partial class UsersViewModel : FeaturePageViewModel
                 }
             }
 
-            var users = UsersWorkbook.Load(WorkbookPath);
+            var users = await Task.Run(() => UsersWorkbook.Load(WorkbookPath)).ConfigureAwait(true);
             int created = 0, updated = 0, errors = 0, warnings = 0;
             var resultRows = new List<ProvisionResultRow>();
 
@@ -425,8 +437,12 @@ public partial class UsersViewModel : FeaturePageViewModel
                 updated: DryRun ? 0 : updated,
                 errors: errors,
                 warnings: warnings,
-                rows: resultRows);
-            await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
+                rows: resultRows,
+                importEyebrow: "USERS IMPORT",
+                keyColumnHeader: "Username",
+                itemNoun: "users");
+            var proceed = await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
+            _proceedWithImport = DryRun && proceed;
 
             Status = DryRun
                 ? $"Dry run complete · {users.Count} users would be processed."
@@ -439,21 +455,6 @@ public partial class UsersViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
-    static Window? MainWindowOrNull()
-        => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d ? d.MainWindow : null;
-
-    static async Task<string?> PickSaveAsync(string suggested)
-    {
-        var w = MainWindowOrNull();
-        if (w is null) return null;
-        var pick = await w.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save users workbook",
-            SuggestedFileName = suggested,
-            DefaultExtension = "xlsx",
-        }).ConfigureAwait(true);
-        return pick?.TryGetLocalPath();
-    }
 }
 
 /// <summary>Selectable grid row wrapping a <see cref="UserSummary"/> for the Users page.</summary>

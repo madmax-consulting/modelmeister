@@ -134,6 +134,7 @@
                 <StackPanel Spacing="3">
                   <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Text="{Binding Title}" Classes="dim" FontSize="11"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}"
                                TextDecorations="{Binding IsHidden, Converter={x:Static svc:Eq.StrikeIfTrue}}" />
                     <TextBlock Grid.Column="1" Text="{Binding Count}" FontSize="11" FontWeight="SemiBold" />
                   </Grid>

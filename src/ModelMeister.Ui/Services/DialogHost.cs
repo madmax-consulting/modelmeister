@@ -29,10 +29,11 @@ internal static class DialogHost
         return ShowDialogAsync<ConfirmApplyDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 
-    /// <summary>Show the import-from-workbook prompt; returns the populated VM (with path and dry-run flag) when the user confirms, else <c>null</c>.</summary>
-    public static async Task<ImportWorkbookViewModel?> ImportWorkbookAsync(string title, string subtitle, string suggestedFileName = "workbook.xlsx", bool supportsDryRun = true)
+    /// <summary>Show the import-from-workbook prompt; returns the populated VM (with the chosen path)
+    /// when the user confirms, else <c>null</c>. <paramref name="recents"/> seeds the Recents dropdown.</summary>
+    public static async Task<ImportWorkbookViewModel?> ImportWorkbookAsync(string title, string subtitle, string suggestedFileName = "workbook.xlsx", System.Collections.Generic.IReadOnlyList<string>? recents = null)
     {
-        var vm = new ImportWorkbookViewModel(title, subtitle, suggestedFileName, supportsDryRun);
+        var vm = new ImportWorkbookViewModel(title, subtitle, suggestedFileName, recents);
         var ok = await ShowDialogAsync<ImportWorkbookDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
         return ok ? vm : null;
     }
@@ -116,9 +117,10 @@ internal static class DialogHost
         return ShowDialogAsync<PromoteConfirmDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 
-    /// <summary>Show the post-import / post-dry-run result summary. Always returns once the user closes it.</summary>
+    /// <summary>Show the post-import / post-dry-run result summary. Returns <c>true</c> only when the
+    /// user clicked "Continue with import" on a dry-run preview (the signal to run the real import).</summary>
     public static Task<bool> ShowProvisionResultAsync(ProvisionResultViewModel vm)
-        => ShowDialogAsync<ProvisionResultDialog>(vm, dlg => vm.Closed += () => dlg.Close(true));
+        => ShowDialogAsync<ProvisionResultDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Proceed));
 
     /// <summary>
     /// Show the itemized, stage-aware bulk-confirm dialog. Lists every target by name (capped) plus a

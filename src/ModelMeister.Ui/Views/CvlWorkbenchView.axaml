@@ -41,6 +41,14 @@
     <Border Classes="card flush" Padding="0">
       <DockPanel LastChildFill="True">
       <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #CvlGrid}" />
+      <Grid>
+        <!-- Empty state: shown when no CVLs (typically because we're not connected). Mirrors UsersView. -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Spacing="6" Margin="0,40"
+                    IsVisible="{Binding Cvls.Count, Converter={x:Static svc:Eq.IsZero}}">
+          <TextBlock Text="No CVLs to show" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
+          <TextBlock Text="Connect to an environment to see its CVLs." Classes="subtle" HorizontalAlignment="Center" />
+        </StackPanel>
       <DataGrid Name="CvlGrid"
                 ItemsSource="{Binding Cvls}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
@@ -109,6 +117,7 @@
           </DataGridTemplateColumn>
         </DataGrid.Columns>
       </DataGrid>
+      </Grid>
       </DockPanel>
     </Border>
 

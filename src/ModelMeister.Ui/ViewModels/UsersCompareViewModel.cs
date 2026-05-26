@@ -54,6 +54,8 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
     // Cached captures so per-row promote can look up the source UserSummary without re-querying.
     private IReadOnlyList<UserSummary>? _leftCapture;
     private IReadOnlyList<UserSummary>? _rightCapture;
+    /// <summary>Total users compared (union of both envs), including identical ones we don't show.</summary>
+    private int _comparedCount;
 
     public UsersCompareViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
     {
@@ -152,6 +154,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         { Status = $"No API key on file for '{RightEnv.Name}'."; return; }
 
         Busy = true;
+        _main.SuspendConnectionIndicator = true; // don't flash the env indicator while we read both sides
         _allRows.Clear();
         Rows.Clear();
         Counts.Clear();
@@ -174,12 +177,12 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
             _rightCapture = rightUsers;
             PopulateRows(leftUsers, rightUsers);
 
-            var diffCount = Rows.Count(r => r.State != "identical");
+            var diffCount = _allRows.Count;
             HasRows = diffCount > 0;
             RebuildCounts();
             Summary = diffCount == 0
-                ? $"No differences. ({Rows.Count} users compared.)"
-                : $"{diffCount} differences across {Rows.Count} users.";
+                ? $"No differences. ({_comparedCount} users compared.)"
+                : $"{diffCount} differences across {_comparedCount} users.";
             Status = "Comparison complete.";
             _log.Success("UsersCompare", $"Compared '{LeftEnv.Name}' ({leftUsers.Count}) vs '{RightEnv.Name}' ({rightUsers.Count}): {diffCount} differences.");
         }
@@ -188,22 +191,30 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
             Status = "Compare failed: " + ex.Message;
             _log.Error("UsersCompare", ex.Message, ex);
         }
-        finally { Busy = false; }
+        finally { Busy = false; _main.SuspendConnectionIndicator = false; }
     }
 
     /// <summary>Re-project <see cref="_allRows"/> into <see cref="Rows"/> after the bucket filter changes.</summary>
     private void RebuildVisibleRows()
     {
         Rows.Clear();
-        var hidden = Buckets;
         foreach (var r in _allRows)
         {
             // BucketToggleState owns the hidden set internally; expose via Toggle/IsHidden flags.
-            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Title, r.State, StringComparison.OrdinalIgnoreCase));
+            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Key, r.State, StringComparison.OrdinalIgnoreCase));
             if (bucketRow is { IsHidden: true }) continue;
             Rows.Add(r);
         }
     }
+
+    /// <summary>Friendly, env-named bucket label — we never surface the internal "only-left" wording.</summary>
+    private string BucketLabel(string state) => state switch
+    {
+        "only-left"  => $"Only in {LeftEnv?.Name ?? "left"}",
+        "only-right" => $"Only in {RightEnv?.Name ?? "right"}",
+        "changed"    => "Changed",
+        _            => state,
+    };
 
     private void PopulateRows(IReadOnlyList<UserSummary> leftUsers, IReadOnlyList<UserSummary> rightUsers)
     {
@@ -217,6 +228,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         var allNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         allNames.UnionWith(leftMap.Keys);
         allNames.UnionWith(rightMap.Keys);
+        _comparedCount = allNames.Count;
 
         foreach (var name in allNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
         {
@@ -252,15 +264,15 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
             if (!string.Equals(leftRoles, rightRoles, StringComparison.Ordinal))
                 diffs.Add($"roles: [{leftRoles}] → [{rightRoles}]");
 
-            var state = diffs.Count == 0 ? "identical" : "changed";
+            if (diffs.Count == 0) continue; // identical — not a difference, never shown in compare
             _allRows.Add(new UserCompareRow(
                 name,
-                state,
+                "changed",
                 l.Email ?? "",
                 leftRoles,
-                diffs.Count == 0 ? "" : string.Join(" · ", diffs),
-                canPromoteLeftToRight: state == "changed",
-                canPromoteRightToLeft: state == "changed"));
+                string.Join(" · ", diffs),
+                canPromoteLeftToRight: true,
+                canPromoteRightToLeft: true));
         }
 
         RebuildVisibleRows();
@@ -373,16 +385,14 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
 
     private void RebuildCounts()
     {
-        // Bucket by State, but suppress the "identical" bucket from the bar chart — it'd dwarf everything.
         var max = 0;
-        var groups = Rows.Where(r => r.State != "identical")
-                         .GroupBy(r => r.State)
-                         .Select(g => (Title: g.Key, Count: g.Count()))
+        var groups = _allRows.GroupBy(r => r.State)
+                         .Select(g => (State: g.Key, Count: g.Count()))
                          .OrderByDescending(t => t.Count)
                          .ToList();
         foreach (var g in groups) if (g.Count > max) max = g.Count;
         foreach (var g in groups)
-            Counts.Add(new ConceptDiffCount(g.Title, g.Count, max == 0 ? 0 : (double)g.Count / max));
+            Counts.Add(new ConceptDiffCount(BucketLabel(g.State), g.Count, max == 0 ? 0 : (double)g.Count / max, key: g.State));
     }
 }
 
@@ -413,4 +423,8 @@ public sealed partial class UserCompareRow : SelectableRow
     public string Detail { get; }
     public bool CanPromoteLeftToRight { get; }
     public bool CanPromoteRightToLeft { get; }
+
+    /// <summary>Present in the left / right environment — drives the "Environment" pill column.</summary>
+    public bool InLeft => State is "only-left" or "changed";
+    public bool InRight => State is "only-right" or "changed";
 }

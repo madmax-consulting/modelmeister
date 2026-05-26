@@ -330,6 +330,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
     private static EnvironmentSecret Clone(EnvironmentSecret s) => new()
     {
         ApiKey = s.ApiKey,
+        RestApiKey = s.RestApiKey,
     };
 }
 

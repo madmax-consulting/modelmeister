@@ -219,4 +219,81 @@ public static class LiveModelConverter
         return JsonSerializer.SerializeToElement(json);
     }
 
+    /// <summary>
+    /// Build a minimal source <see cref="LiveModel"/> carrying only CVLs + their values from a
+    /// JSON/Excel model. Used as the <c>source</c> for <c>CvlSync</c> when importing a CVL workbook
+    /// without a live connection to the source env. The CLI's <c>cvl import</c> and the UI's CVL
+    /// import both go through this so the two stay in lock-step.
+    /// </summary>
+    public static LiveModel CvlSourceFromJson(InriverModelJson json)
+    {
+        var cvls = new List<LiveCvl>();
+        var valuesByCvl = json.CvlValues.GroupBy(v => v.CvlId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+        var nextValueId = 1;
+        foreach (var cvl in json.Cvls)
+        {
+            var values = (valuesByCvl.TryGetValue(cvl.Id, out var vs) ? vs : new())
+                .OrderBy(v => v.Index).ThenBy(v => v.Key)
+                .Select(v => new LiveCvlValue
+                {
+                    Id = nextValueId++,
+                    CvlId = cvl.Id,
+                    Key = v.Key,
+                    Value = JsonToLocaleString(v.Value),
+                    ParentKey = v.ParentKey,
+                    Index = v.Index,
+                    Deactivated = v.Deactivated,
+                })
+                .ToList();
+            cvls.Add(new LiveCvl
+            {
+                Id = cvl.Id,
+                DataTypeRaw = cvl.DataType,
+                DataType = ParseCvlDataType(cvl.DataType),
+                ParentId = cvl.ParentId,
+                CustomValueList = cvl.CustomValueList,
+                Values = values,
+            });
+        }
+        return new LiveModel
+        {
+            EnvironmentUrl = "source:workbook",
+            CapturedUtc = DateTime.UtcNow,
+            EntityTypes = Array.Empty<LiveEntityType>(),
+            Cvls = cvls,
+            Categories = Array.Empty<LiveCategory>(),
+            Fieldsets = Array.Empty<LiveFieldset>(),
+            LinkTypes = Array.Empty<LiveLinkType>(),
+            Roles = Array.Empty<LiveRole>(),
+            Permissions = Array.Empty<LivePermission>(),
+            CompletenessDefinitions = Array.Empty<LiveCompletenessDefinition>(),
+            RestrictedFieldPermissions = Array.Empty<LiveRestrictedFieldPermission>(),
+            Languages = json.Languages.Select(l => l.Name).ToList(),
+        };
+    }
+
+    private static LocaleString JsonToLocaleString(JsonElement el)
+    {
+        if (el.ValueKind == JsonValueKind.Object && el.TryGetProperty("StringMap", out var map) && map.ValueKind == JsonValueKind.Object)
+        {
+            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in map.EnumerateObject())
+                if (p.Value.ValueKind == JsonValueKind.String)
+                    dict[p.Name] = p.Value.GetString() ?? string.Empty;
+            var def = dict.Values.FirstOrDefault() ?? string.Empty;
+            return new LocaleString(def, dict);
+        }
+        return new LocaleString(el.ValueKind == JsonValueKind.String ? el.GetString() ?? "" : el.ToString());
+    }
+
+    private static CvlDataType ParseCvlDataType(string raw) => raw switch
+    {
+        "String" => CvlDataType.String,
+        "LocaleString" => CvlDataType.LocaleString,
+        "Integer" => CvlDataType.Integer,
+        "Double" => CvlDataType.Double,
+        "DateTime" => CvlDataType.DateTime,
+        _ => CvlDataType.String,
+    };
 }

@@ -5,33 +5,296 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using ModelMeister.Inriver.ServerSettings;
 using ModelMeister.Ui.Models;
 using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
 
 /// <summary>
-/// "Server settings" Compare page. Compares the flat server-settings dictionary across two saved
-/// environments and lets the user promote/transfer individual keys or whole batches. Uses the
-/// shared <see cref="Views.CompareLayoutView"/> chrome: env pickers w/ stage pills, auto-compare,
-/// per-column FilterableHeader, bottom bar chart, Save CSV / Copy markdown.
+/// Single-env CRUD editor for the server-settings dictionary on the connected env. Lists every
+/// key, lets the user edit values inline (dirty rows show a Save button), add new keys, and delete
+/// rows. The two-env diff/promote workflow lives on the sibling Compare sub-page
+/// (<see cref="ServerSettingsCompareViewModel"/>).
 /// </summary>
-/// <remarks>
-/// The Remoting singleton (see <see cref="Inriver.InriverClient"/>) restricts this process to one
-/// live connection at a time, so capture is sequential. After a per-row Apply / bulk Promote the
-/// app remains connected to whichever side was written to.
-/// </remarks>
-public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareViewModel
+public partial class ServerSettingsViewModel : FeaturePageViewModel
 {
-    /// <inheritdoc/>
-    public override bool SupportsCompare => true;
-    /// <inheritdoc/>
+    public override bool SupportsCompare => false;
     public override BackupScope BackupScope => BackupScope.ServerSettings;
-    /// <inheritdoc/>
     public override ExcelCapability Excel => ExcelCapability.ExportImport;
+    public override bool HasExcelTemplate => true;
 
-    /// <inheritdoc/>
+    private readonly MainWindowViewModel _main;
+    private readonly Shell _shell;
+    private readonly IAppLog _log;
+
+    private List<ServerSettingEditRow> _allRows = new();
+
+    public ObservableCollection<ServerSettingEditRow> Rows { get; } = [];
+
+    /// <summary>Checkbox multi-selection over <see cref="Rows"/> (header select-all + bulk delete).</summary>
+    public RowSelectionModel Selection { get; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RevertRowCommand))]
+    private bool _busy;
+    [ObservableProperty] private string _status = "";
+    [ObservableProperty] private string _filterText = "";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddCommand))]
+    private string _newKey = "";
+    [ObservableProperty] private string _newValue = "";
+    [ObservableProperty] private bool _dryRun = true;
+    [ObservableProperty] private string? _workbookPath;
+
+    /// <summary>Set by <see cref="ProvisionAsync"/> when the dry-run preview's "Continue with import"
+    /// was clicked — tells <see cref="ImportExcelAsync"/> to run the real import.</summary>
+    private bool _proceedWithImport;
+
+    public ServerSettingsViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
+    {
+        _main = main;
+        _shell = shell;
+        _log = log;
+        Selection = new RowSelectionModel(Rows);
+        _main.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
+            {
+                // Connection change invalidates the cache (different env's settings).
+                MarkDataDirty();
+                if (_main.IsConnected) _ = EnsureLoadedAsync();
+                AddCommand.NotifyCanExecuteChanged();
+                SaveCommand.NotifyCanExecuteChanged();
+                DeleteCommand.NotifyCanExecuteChanged();
+            }
+        };
+        if (_main.IsConnected) _ = EnsureLoadedAsync();
+        else Status = "Connect to an environment first.";
+    }
+
+    private bool CanAdd() => !Busy && _main.IsConnected;
+
+    // Note: not gated on row.IsDirty. The Save button is already hidden via IsVisible when the row
+    // is clean, and the row's PropertyChanged doesn't notify SaveCommand — gating on IsDirty here
+    // leaves the button visible-but-disabled after edits (no NotifyCanExecuteChanged trigger).
+    private bool CanSave(ServerSettingEditRow? row) => !Busy && _main.IsConnected && row is not null;
+
+    private bool CanDelete(ServerSettingEditRow? row) => !Busy && _main.IsConnected && row is not null;
+
+    public override async Task RefreshAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
+        Busy = true;
+        Status = "Loading server settings…";
+        try
+        {
+            var dict = await _shell.ListServerSettingsAsync().ConfigureAwait(true);
+            _allRows = dict
+                .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
+                .Select(kvp => new ServerSettingEditRow(kvp.Key, kvp.Value))
+                .ToList();
+            RebuildVisible();
+            Status = $"{_allRows.Count} settings on '{_main.ConnectedEnv?.Name ?? "(env)"}'.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Load failed: " + ex.Message;
+            _log.Error("ServerSettings", ex.Message, ex);
+        }
+        finally { Busy = false; }
+    }
+
+    partial void OnFilterTextChanged(string value) => RebuildVisible();
+
+    private void RebuildVisible()
+    {
+        Rows.Clear();
+        var filter = FilterText?.Trim() ?? "";
+        foreach (var row in _allRows)
+        {
+            if (!string.IsNullOrEmpty(filter)
+                && row.Key.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0
+                && (row.Value?.IndexOf(filter, StringComparison.OrdinalIgnoreCase) ?? -1) < 0)
+                continue;
+            Rows.Add(row);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanAdd))]
+    public async Task AddAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+
+        // Modal dialog (Create / Abort) replaces the previous inline form at the top of the page.
+        var vm = await DialogHost.AddServerSettingAsync().ConfigureAwait(true);
+        if (vm is null) return;
+        var key = vm.Key.Trim();
+        if (_allRows.Any(r => string.Equals(r.Key, key, StringComparison.Ordinal)))
+        {
+            Status = $"Key '{key}' already exists — edit the existing row.";
+            return;
+        }
+
+        Busy = true;
+        Status = $"Creating '{key}'…";
+        try
+        {
+            var ok = await _shell.SetServerSettingAsync(key, vm.Value ?? "").ConfigureAwait(true);
+            if (!ok) { Status = $"Create '{key}' failed."; return; }
+
+            _allRows.Add(new ServerSettingEditRow(key, vm.Value ?? ""));
+            _allRows = _allRows.OrderBy(r => r.Key, StringComparer.Ordinal).ToList();
+            RebuildVisible();
+            MarkDataDirty(); // server-side may have applied side effects; next nav back re-fetches
+            _log.Success("ServerSettings", $"Created '{key}'.");
+            Status = $"Created '{key}'.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Create failed: " + ex.Message;
+            _log.Error("ServerSettings", ex.Message, ex);
+        }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Open the edit dialog pre-populated with <paramref name="row"/>'s value; save on Confirm.</summary>
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    public async Task EditAsync(ServerSettingEditRow? row)
+    {
+        if (row is null || !_main.IsConnected) return;
+        var vm = await DialogHost.AddServerSettingAsync(row.Key, row.Value, isEdit: true).ConfigureAwait(true);
+        if (vm is null) return;
+
+        Busy = true;
+        Status = $"Saving '{row.Key}'…";
+        try
+        {
+            var ok = await _shell.SetServerSettingAsync(row.Key, vm.Value ?? "").ConfigureAwait(true);
+            if (!ok) { Status = $"Save '{row.Key}' failed."; return; }
+            row.Value = vm.Value;
+            row.CommitValue();
+            MarkDataDirty();
+            _log.Success("ServerSettings", $"Updated '{row.Key}'.");
+            Status = $"Saved '{row.Key}'.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Save failed: " + ex.Message;
+            _log.Error("ServerSettings", ex.Message, ex);
+        }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Delete <paramref name="row"/> after a confirmation prompt.</summary>
+    [RelayCommand(CanExecute = nameof(CanDelete))]
+    public async Task ConfirmAndDeleteAsync(ServerSettingEditRow? row)
+    {
+        if (row is null || !_main.IsConnected) return;
+        var ok = await DialogHost.ConfirmBulkAsync(
+            "Delete setting", "Delete", "setting", new[] { row.Key },
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+        if (!ok) return;
+        await DeleteAsync(row).ConfigureAwait(true);
+    }
+
+    /// <summary>Delete every checked setting after a single itemized confirmation prompt.</summary>
+    [RelayCommand]
+    public async Task DeleteSelectedAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+        var rows = Selection.SelectedOf<ServerSettingEditRow>();
+        if (rows.Count == 0) { Status = "Select at least one setting."; return; }
+        var ok = await DialogHost.ConfirmBulkAsync(
+            "Delete settings", "Delete", "setting", rows.Select(r => r.Key).ToList(),
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+        if (!ok) return;
+
+        Busy = true;
+        int deleted = 0, errors = 0;
+        try
+        {
+            foreach (var row in rows)
+            {
+                Status = $"Deleting '{row.Key}'…";
+                try
+                {
+                    var success = await _shell.DeleteServerSettingAsync(row.Key).ConfigureAwait(true);
+                    if (!success) { errors++; _log.Warn("ServerSettings", $"Delete '{row.Key}' failed."); continue; }
+                    _allRows.Remove(row);
+                    Rows.Remove(row);
+                    deleted++;
+                    _log.Success("ServerSettings", $"Deleted '{row.Key}'.");
+                }
+                catch (Exception ex) { errors++; _log.Error("ServerSettings", $"Delete '{row.Key}' failed: {ex.Message}", ex); }
+            }
+            MarkDataDirty();
+            Status = errors == 0 ? $"Deleted {deleted} setting(s)." : $"Deleted {deleted}, {errors} failed.";
+        }
+        finally { Busy = false; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    public async Task SaveAsync(ServerSettingEditRow? row)
+    {
+        if (row is null || !row.IsDirty) return;
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+
+        Busy = true;
+        Status = $"Saving '{row.Key}'…";
+        try
+        {
+            var ok = await _shell.SetServerSettingAsync(row.Key, row.Value ?? "").ConfigureAwait(true);
+            if (!ok) { Status = $"Save '{row.Key}' failed."; return; }
+            row.CommitValue();
+            _log.Success("ServerSettings", $"Updated '{row.Key}'.");
+            Status = $"Saved '{row.Key}'.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Save failed: " + ex.Message;
+            _log.Error("ServerSettings", ex.Message, ex);
+        }
+        finally { Busy = false; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDelete))]
+    public async Task DeleteAsync(ServerSettingEditRow? row)
+    {
+        if (row is null) return;
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+
+        Busy = true;
+        Status = $"Deleting '{row.Key}'…";
+        try
+        {
+            var ok = await _shell.DeleteServerSettingAsync(row.Key).ConfigureAwait(true);
+            if (!ok) { Status = $"Delete '{row.Key}' failed."; return; }
+
+            _allRows.Remove(row);
+            Rows.Remove(row);
+            MarkDataDirty();
+            _log.Success("ServerSettings", $"Deleted '{row.Key}'.");
+            Status = $"Deleted '{row.Key}'.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Delete failed: " + ex.Message;
+            _log.Error("ServerSettings", ex.Message, ex);
+        }
+        finally { Busy = false; }
+    }
+
+    [RelayCommand]
+    public void RevertRow(ServerSettingEditRow? row) => row?.Revert();
+
+    [RelayCommand] private Task CopyKey(ServerSettingEditRow? row)   => ClipboardHelpers.CopyAsync(row?.Key);
+    [RelayCommand] private Task CopyValue(ServerSettingEditRow? row) => ClipboardHelpers.CopyAsync(row?.Value);
+
+    // ----- FeaturePage overrides -----
+
     public override async Task BackupAsync()
     {
         if (!_main.IsConnected) { _log.Toast(LogLevel.Warn, "Backup", "Connect first."); return; }
@@ -48,7 +311,6 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         }
     }
 
-    /// <inheritdoc/>
     public override async Task ExportExcelAsync()
     {
         if (!_main.IsConnected) { _log.Toast(LogLevel.Warn, "Export", "Connect first."); return; }
@@ -68,374 +330,142 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         }
     }
 
-    /// <inheritdoc/>
-    public override async Task ImportExcelAsync()
+    public override async Task ExportTemplateAsync()
     {
-        if (!_main.IsConnected) { _log.Toast(LogLevel.Warn, "Import", "Connect first."); return; }
-        var path = await FilePickerHelpers.PickOpenAsync("Open server settings workbook", "xlsx").ConfigureAwait(true);
+        var path = await FilePickerHelpers.PickSaveAsync("Save server settings workbook", "serversettings-template.xlsx", "xlsx").ConfigureAwait(true);
         if (path is null) return;
         try
         {
-            var dict = ModelMeister.Excel.ServerSettingsWorkbook.Load(path);
-            var entries = dict.Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value));
-            var result = await _shell.BulkApplyServerSettingsAsync(entries).ConfigureAwait(true);
-            _log.Success("Import", $"Applied {result.Applied.Count} keys, {result.Failed.Count} failed.");
-            _log.Toast(LogLevel.Success, "Import complete", $"{result.Applied.Count} keys applied");
+            // A minimal one-row example the user edits + re-imports. Same writer as the full export.
+            var example = new Dictionary<string, string> { ["EXAMPLE_SETTING_KEY"] = "example value" };
+            ModelMeister.Excel.ServerSettingsWorkbook.Save(example, path);
+            _log.Success("Export", $"Server settings template exported → {path}");
+            _log.Toast(LogLevel.Success, "Template saved", System.IO.Path.GetFileName(path));
         }
         catch (Exception ex)
         {
-            _log.Error("Import", ex.Message, ex);
-            _log.Toast(LogLevel.Error, "Import failed", ex.Message);
+            _log.Error("Export", ex.Message, ex);
+            _log.Toast(LogLevel.Error, "Export failed", ex.Message);
         }
     }
 
-    private readonly MainWindowViewModel _main;
-    private readonly Shell _shell;
-    private readonly IEnvironmentVault _vault;
-    private readonly IAppLog _log;
-
-    public ObservableCollection<EnvironmentEntry> AvailableEnvs { get; } = [];
-    /// <summary>Full row set; <see cref="Rows"/> is filtered to whatever buckets are visible.</summary>
-    private readonly List<ServerSettingRow> _allRows = new();
-    public ObservableCollection<ServerSettingRow> Rows { get; } = [];
-    public ObservableCollection<ConceptDiffCount> Counts { get; } = [];
-
-    public BucketToggleState Buckets { get; } = new();
-    public string BucketPath => "State";
-
-    [ObservableProperty] private EnvironmentEntry? _leftEnv;
-    [ObservableProperty] private EnvironmentEntry? _rightEnv;
-    [ObservableProperty] private bool _busy;
-    [ObservableProperty] private string _status = "Pick two environments to compare.";
-    [ObservableProperty] private string _summary = "";
-    [ObservableProperty] private bool _hasRows;
-    [ObservableProperty] private string _leftColumnHeader = "";
-    [ObservableProperty] private string _rightColumnHeader = "";
-    [ObservableProperty] private EnvironmentStage _leftColumnStage;
-    [ObservableProperty] private EnvironmentStage _rightColumnStage;
-
-    public IAsyncRelayCommand SaveCsvCommand { get; }
-    public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; }
-    /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
-    public RowSelectionModel Selection { get; }
-
-    private IReadOnlyDictionary<string, string>? _leftCapture;
-    private IReadOnlyDictionary<string, string>? _rightCapture;
-    private ServerSettingsDelta? _delta;
-
-    public ServerSettingsViewModel(MainWindowViewModel main, Shell shell, IEnvironmentVault vault, IAppLog log)
+    public override async Task ImportExcelAsync()
     {
-        _main = main;
-        _shell = shell;
-        _vault = vault;
-        _log = log;
-        _vault.Changed += RefreshEnvList;
-        Buckets.Changed += _ => RebuildVisibleRows();
-        Selection = new RowSelectionModel(Rows);
-        RefreshEnvList();
+        if (!_main.IsConnected) { _log.Toast(LogLevel.Warn, "Import", "Connect first."); return; }
+        var vm = await DialogHost.ImportWorkbookAsync(
+            "Import server settings from workbook",
+            "Bulk-apply server settings to the connected environment from an edited workbook.",
+            "serversettings.xlsx",
+            _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
+        if (vm?.WorkbookPath is null) return;
+        WorkbookPath = vm.WorkbookPath;
 
-        SaveCsvCommand = CompareCommands.MakeSaveCsv(
-            () => Rows,
-            BuildExportColumns,
-            suggestedFileName: "server-settings-compare.csv",
-            log: _log,
-            logSource: "ServerSettings");
+        // Always dry-run first; only run the real apply if the user approves in the preview. Same
+        // two-phase shape as Roles/Users/CVLs so the import experience is uniform across features.
+        DryRun = true;
+        _proceedWithImport = false;
+        await ProvisionAsync().ConfigureAwait(true);
+        if (!_proceedWithImport) return;
 
-        CopyMarkdownCommand = CompareCommands.MakeCopyMarkdown(
-            () => Rows,
-            BuildExportColumns,
-            log: _log,
-            logSource: "ServerSettings");
-
-        ExtraActions = new[]
-        {
-            new CompareAction("Promote selected →", Primary: true, PromoteSelectedLeftToRightCommand),
-        };
+        DryRun = false;
+        await ProvisionAsync().ConfigureAwait(true);
+        RememberWorkbook(_main.Settings, WorkbookPath);
     }
 
-    private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
-        new CompareExport.Column[]
-        {
-            new("State", r => ((ServerSettingRow)r).State),
-            new("Key",   r => ((ServerSettingRow)r).Key),
-            new(string.IsNullOrEmpty(LeftColumnHeader)  ? "Left"  : LeftColumnHeader,  r => ((ServerSettingRow)r).LeftDisplay),
-            new(string.IsNullOrEmpty(RightColumnHeader) ? "Right" : RightColumnHeader, r => ((ServerSettingRow)r).RightDisplay),
-        };
-
-    /// <summary>Refresh the env dropdowns from the vault. Call after the user edits the vault.</summary>
-    public void RefreshEnvList()
+    /// <summary>Dry-run (build a would-set preview) or apply a server-settings workbook, surfacing the
+    /// outcome via the shared <see cref="ProvisionResultViewModel"/>.</summary>
+    public async Task ProvisionAsync()
     {
-        var lid = LeftEnv?.Id;
-        var rid = RightEnv?.Id;
-        AvailableEnvs.Clear();
-        foreach (var e in _vault.List().OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
-            AvailableEnvs.Add(e);
-        if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
-        if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
-
-        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.Stage; }
-        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.Stage; }
-    }
-
-    public string ActiveLabel => _main.ConnectedEnv is null ? "" : _main.ConnectedEnv.Name;
-
-    partial void OnLeftEnvChanged(EnvironmentEntry? value)
-    {
-        _leftCapture = null;
-        LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
-        TryAutoCompare();
-    }
-
-    partial void OnRightEnvChanged(EnvironmentEntry? value)
-    {
-        _rightCapture = null;
-        RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
-        TryAutoCompare();
-    }
-
-    private void TryAutoCompare()
-    {
-        if (Busy) return;
-        if (LeftEnv is null || RightEnv is null) return;
-        if (LeftEnv.Id == RightEnv.Id)
-        {
-            Status = "Pick two different environments.";
-            Rows.Clear();
-            Counts.Clear();
-            HasRows = false;
-            Summary = "";
-            return;
-        }
-        _ = CompareAsync();
-    }
-
-    [RelayCommand]
-    public async Task CompareAsync()
-    {
-        if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
-        if (LeftEnv.Id == RightEnv.Id) { Status = "Pick two different environments."; return; }
-
-        var leftSecret = _vault.GetSecret(LeftEnv.Id);
-        var rightSecret = _vault.GetSecret(RightEnv.Id);
-        if (leftSecret is null || string.IsNullOrEmpty(leftSecret.ApiKey))
-        { Status = $"No API key on file for '{LeftEnv.Name}'."; return; }
-        if (rightSecret is null || string.IsNullOrEmpty(rightSecret.ApiKey))
-        { Status = $"No API key on file for '{RightEnv.Name}'."; return; }
+        if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
+        if (string.IsNullOrEmpty(WorkbookPath) || !System.IO.File.Exists(WorkbookPath)) { Status = "Pick a workbook."; return; }
 
         Busy = true;
-        _allRows.Clear();
-        Rows.Clear();
-        Counts.Clear();
-        Buckets.Reset(Counts);
-        HasRows = false;
-        Summary = "";
         try
         {
-            Status = $"Capturing server settings from '{LeftEnv.Name}'…";
-            _leftCapture = await _shell.CaptureServerSettingsFromEnvAsync(LeftEnv, leftSecret).ConfigureAwait(true);
+            var dict = await Task.Run(() => ModelMeister.Excel.ServerSettingsWorkbook.Load(WorkbookPath)).ConfigureAwait(true);
+            var resultRows = new List<ProvisionResultRow>();
+            int applied = 0, failed = 0;
 
-            Status = $"Capturing server settings from '{RightEnv.Name}'…";
-            _rightCapture = await _shell.CaptureServerSettingsFromEnvAsync(RightEnv, rightSecret).ConfigureAwait(true);
-
-            RecomputeDelta();
-            _log.Success("ServerSettings", $"Compared '{LeftEnv.Name}' vs '{RightEnv.Name}': {_delta?.TotalDifferences ?? 0} differences.");
-        }
-        catch (Exception ex)
-        {
-            Status = "Compare failed: " + ex.Message;
-            _log.Error("ServerSettings", ex.Message, ex);
-        }
-        finally { Busy = false; }
-    }
-
-    private void RecomputeDelta()
-    {
-        Rows.Clear();
-        Counts.Clear();
-
-        if (_leftCapture is null || _rightCapture is null)
-        {
-            Status = _leftCapture is null && _rightCapture is null
-                ? "Capture both sides to compare."
-                : "Capture the remaining side to compare.";
-            Summary = "";
-            HasRows = false;
-            return;
-        }
-
-        _delta = ServerSettingsDiff.Compute(_leftCapture, _rightCapture);
-        RebuildRows();
-        HasRows = Rows.Count > 0;
-        RebuildCounts();
-        Summary = _delta.TotalDifferences == 0
-            ? $"No differences. ({_delta.UnchangedCount} keys identical.)"
-            : $"{_delta.TotalDifferences} differences  ·  only-left {_delta.OnlyInLeft.Count}  ·  only-right {_delta.OnlyInRight.Count}  ·  changed {_delta.Changed.Count}  ·  identical {_delta.UnchangedCount}";
-        Status = "Comparison complete.";
-    }
-
-    private void RebuildRows()
-    {
-        _allRows.Clear();
-        Rows.Clear();
-        if (_leftCapture is null && _rightCapture is null) return;
-
-        var allKeys = new HashSet<string>(StringComparer.Ordinal);
-        if (_leftCapture is not null) allKeys.UnionWith(_leftCapture.Keys);
-        if (_rightCapture is not null) allKeys.UnionWith(_rightCapture.Keys);
-
-        foreach (var key in allKeys.OrderBy(k => k, StringComparer.Ordinal))
-        {
-            var lv = _leftCapture is not null && _leftCapture.TryGetValue(key, out var l) ? l : null;
-            var rv = _rightCapture is not null && _rightCapture.TryGetValue(key, out var r) ? r : null;
-
-            string state;
-            if (lv is null) state = "only-right";
-            else if (rv is null) state = "only-left";
-            else if (string.Equals(lv, rv, StringComparison.Ordinal)) state = "identical";
-            else state = "changed";
-
-            // Compare pages only surface differences; identical keys would drown the chart and grid.
-            if (state == "identical") continue;
-
-            _allRows.Add(new ServerSettingRow(key, lv, rv, state));
-        }
-        RebuildVisibleRows();
-    }
-
-    /// <summary>Project <see cref="_allRows"/> into <see cref="Rows"/> applying the bucket filter.</summary>
-    private void RebuildVisibleRows()
-    {
-        Rows.Clear();
-        foreach (var r in _allRows)
-        {
-            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Title, r.State, StringComparison.OrdinalIgnoreCase));
-            if (bucketRow is { IsHidden: true }) continue;
-            Rows.Add(r);
-        }
-    }
-
-    private void RebuildCounts()
-    {
-        var max = 0;
-        var groups = Rows.GroupBy(r => r.State)
-                         .Select(g => (Title: g.Key, Count: g.Count()))
-                         .OrderByDescending(t => t.Count)
-                         .ToList();
-        foreach (var g in groups) if (g.Count > max) max = g.Count;
-        foreach (var g in groups)
-            Counts.Add(new ConceptDiffCount(g.Title, g.Count, max == 0 ? 0 : (double)g.Count / max));
-    }
-
-    /// <summary>Write <paramref name="row"/>'s left value into the right env (one-way; swap to reverse).</summary>
-    [RelayCommand]
-    public async Task ApplyLeftToRightAsync(ServerSettingRow? row)
-    {
-        if (row is null || RightEnv is null) return;
-        await ApplyOneSideAsync(row, sourceValue: row.LeftValue, targetEnv: RightEnv, label: "left→right").ConfigureAwait(true);
-    }
-
-    /// <summary>Promote every selected setting left→right in one batch, confirming once up front.</summary>
-    [RelayCommand]
-    public async Task PromoteSelectedLeftToRightAsync()
-    {
-        if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
-        var targetEnv = RightEnv;
-        var rows = Selection.SelectedOf<ServerSettingRow>().ToList();
-        if (rows.Count == 0) { Status = "Select at least one setting to promote."; return; }
-
-        var confirmed = await DialogHost.ConfirmPromoteAsync(
-            conceptLabel: "Settings",
-            itemLabel: $"{rows.Count} setting(s)",
-            sourceEnv: LeftEnv.Name,
-            targetEnv: targetEnv.Name,
-            targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
-        if (!confirmed) { Status = "Promote cancelled."; return; }
-
-        foreach (var row in rows)
-            await ApplyOneSideAsync(row, row.LeftValue, targetEnv, "left→right", refresh: false, confirm: false).ConfigureAwait(true);
-        await CompareAsync().ConfigureAwait(true);
-    }
-
-    private async Task ApplyOneSideAsync(ServerSettingRow row, string? sourceValue, EnvironmentEntry targetEnv, string label, bool refresh = true, bool confirm = true)
-    {
-        var secret = _vault.GetSecret(targetEnv.Id);
-        if (secret is null || string.IsNullOrEmpty(secret.ApiKey))
-        {
-            Status = $"No API key on file for target '{targetEnv.Name}'."; return;
-        }
-
-        // Per-row promote needs explicit confirmation — it overwrites a setting on a (possibly
-        // production) environment with no automatic rollback. Skipped when the bulk command confirmed.
-        if (confirm)
-        {
-            var sourceEnvName = ReferenceEquals(targetEnv, RightEnv) ? LeftEnv?.Name ?? "left" : RightEnv?.Name ?? "right";
-            var confirmed = await DialogHost.ConfirmPromoteAsync(
-                conceptLabel: "Setting",
-                itemLabel: row.Key,
-                sourceEnv: sourceEnvName,
-                targetEnv: targetEnv.Name,
-                targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
-            if (!confirmed)
+            if (DryRun)
             {
-                Status = "Promote cancelled.";
-                return;
-            }
-        }
-
-        Busy = true;
-        Status = $"Applying '{row.Key}' {label} → '{targetEnv.Name}'…";
-        try
-        {
-            if (_main.ConnectedEnv?.Id != targetEnv.Id)
-                await _shell.SwitchEnvAsync(targetEnv, secret).ConfigureAwait(true);
-
-            var ok = sourceValue is null
-                ? await _shell.DeleteServerSettingAsync(row.Key).ConfigureAwait(true)
-                : await _shell.SetServerSettingAsync(row.Key, sourceValue).ConfigureAwait(true);
-
-            if (ok)
-            {
-                _log.Success("ServerSettings", $"{(sourceValue is null ? "Deleted" : "Set")} '{row.Key}' in '{targetEnv.Name}'.");
+                foreach (var kvp in dict)
+                    resultRows.Add(new ProvisionResultRow(kvp.Key, "would-set", string.IsNullOrEmpty(kvp.Value) ? "(clear)" : kvp.Value));
             }
             else
             {
-                Status = $"Apply '{row.Key}' failed.";
-                _log.Error("ServerSettings", $"Apply '{row.Key}' {label} returned false.");
+                var entries = dict.Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value));
+                var result = await _shell.BulkApplyServerSettingsAsync(entries).ConfigureAwait(true);
+                applied = result.Applied.Count;
+                failed = result.Failed.Count;
+                var failedSet = new HashSet<string>(result.Failed, StringComparer.Ordinal);
+                foreach (var kvp in dict)
+                {
+                    var error = failedSet.Contains(kvp.Key);
+                    resultRows.Add(new ProvisionResultRow(kvp.Key, error ? "error" : "set",
+                        error ? "apply failed" : (string.IsNullOrEmpty(kvp.Value) ? "(cleared)" : kvp.Value)));
+                }
+            }
+
+            var resultVm = new ProvisionResultViewModel(
+                dryRun: DryRun,
+                created: DryRun ? dict.Count : applied,
+                updated: 0,
+                errors: failed,
+                warnings: 0,
+                rows: resultRows,
+                importEyebrow: "SERVER SETTINGS IMPORT", keyColumnHeader: "Key", itemNoun: "settings");
+            var proceed = await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
+            _proceedWithImport = DryRun && proceed;
+
+            Status = DryRun
+                ? $"Dry run complete · {dict.Count} settings would be applied."
+                : $"Applied {applied} setting(s), {failed} failed.";
+            if (!DryRun)
+            {
+                _log.Success("Import", $"Applied {applied} keys, {failed} failed.");
+                MarkDataDirty();
+                await RefreshAsync().ConfigureAwait(true);
             }
         }
         catch (Exception ex)
         {
-            Status = "Apply failed: " + ex.Message;
-            _log.Error("ServerSettings", ex.Message, ex);
+            Status = "Import failed: " + ex.Message;
+            _log.Error("Import", ex.Message, ex);
+            _log.Toast(LogLevel.Error, "Import failed", ex.Message);
         }
         finally { Busy = false; }
-
-        // Re-run full compare so Rows/Counts/Summary reflect the new state (bulk refreshes once).
-        if (refresh) await CompareAsync().ConfigureAwait(true);
     }
-
 }
 
-/// <summary>One row in the server-settings comparison grid.</summary>
-public sealed partial class ServerSettingRow : SelectableRow
+/// <summary>One row in the server-settings CRUD grid. Tracks the on-server value vs the in-flight edit.</summary>
+public partial class ServerSettingEditRow : SelectableRow
 {
     public string Key { get; }
-    public string? LeftValue { get; }
-    public string? RightValue { get; }
-    /// <summary>"identical" | "changed" | "only-left" | "only-right".</summary>
-    public string State { get; }
 
-    public ServerSettingRow(string key, string? left, string? right, string state)
+    [ObservableProperty] private string? _value;
+
+    /// <summary>The value currently persisted on the server. Updated by <see cref="CommitValue"/>.</summary>
+    public string? OriginalValue { get; private set; }
+
+    public ServerSettingEditRow(string key, string? value)
     {
         Key = key;
-        LeftValue = left;
-        RightValue = right;
-        State = state;
+        _value = value;
+        OriginalValue = value;
     }
 
-    public string LeftDisplay => LeftValue ?? "(missing)";
-    public string RightDisplay => RightValue ?? "(missing)";
+    public bool IsDirty => !string.Equals(Value, OriginalValue, StringComparison.Ordinal);
+
+    partial void OnValueChanged(string? value) => OnPropertyChanged(nameof(IsDirty));
+
+    public void CommitValue()
+    {
+        OriginalValue = Value;
+        OnPropertyChanged(nameof(IsDirty));
+    }
+
+    public void Revert()
+    {
+        Value = OriginalValue;
+    }
 }

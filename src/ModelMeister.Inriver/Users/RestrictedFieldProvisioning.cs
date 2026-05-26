@@ -58,7 +58,14 @@ public sealed class RestrictedFieldProvisioning
     public async Task<ProvisionResult> AddAsync(RestrictedFieldSpec spec, CancellationToken ct = default)
     {
         var errors = new List<string>();
-        var key = NaturalKey(spec.RoleName, spec.RestrictionType, spec.EntityTypeId, spec.FieldTypeId, spec.CategoryId);
+        var restrictionType = NormalizeRestrictionType(spec.RestrictionType);
+        var key = NaturalKey(spec.RoleName, restrictionType ?? spec.RestrictionType, spec.EntityTypeId, spec.FieldTypeId, spec.CategoryId);
+
+        if (restrictionType is null)
+        {
+            errors.Add($"Restriction type '{spec.RestrictionType}' is invalid — must be 'Readonly' or 'Hidden'.");
+            return new ProvisionResult(key, false, false, errors);
+        }
 
         var role = _remoting.Read(m =>
         {
@@ -76,7 +83,7 @@ public sealed class RestrictedFieldProvisioning
             await _remoting.WriteAsync(m => m.UserService.AddRestrictedFieldPermission(new IriverRestricted
             {
                 RoleId = role.Id,
-                RestrictionType = spec.RestrictionType,
+                RestrictionType = restrictionType,
                 EntityTypeId = spec.EntityTypeId ?? string.Empty,
                 FieldTypeId = spec.FieldTypeId ?? string.Empty,
                 CategoryId = spec.CategoryId ?? string.Empty,
@@ -109,6 +116,20 @@ public sealed class RestrictedFieldProvisioning
     /// <summary>The cross-env natural key of a restricted-field permission.</summary>
     public static string NaturalKey(string roleName, string restrictionType, string? entityTypeId, string? fieldTypeId, string? categoryId)
         => string.Join("|", roleName, restrictionType, entityTypeId ?? "", fieldTypeId ?? "", categoryId ?? "");
+
+    /// <summary>
+    /// The two restriction types inriver accepts, in canonical casing — note the lowercase 'o' in
+    /// <c>Readonly</c> (inriver rejects "ReadOnly"). Maps case-insensitively; returns <c>null</c> for
+    /// anything else so callers can reject it with a clear message.
+    /// </summary>
+    public static string? NormalizeRestrictionType(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var v = value.Trim();
+        if (string.Equals(v, "Readonly", StringComparison.OrdinalIgnoreCase)) return "Readonly";
+        if (string.Equals(v, "Hidden", StringComparison.OrdinalIgnoreCase)) return "Hidden";
+        return null;
+    }
 
     /// <summary>Normalises inriver's empty-string scope ids (and blank workbook cells) to null.</summary>
     public static string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;

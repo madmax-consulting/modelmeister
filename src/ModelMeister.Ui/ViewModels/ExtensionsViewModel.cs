@@ -407,12 +407,13 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         int deleted = 0, errors = 0;
         try
         {
-            foreach (var id in ids)
-            {
-                StatusMessage = $"Deleting extension '{id}'…";
-                try { if (await _shell.DeleteExtensionAsync(id).ConfigureAwait(true)) { deleted++; _log.Success("Extensions", $"Deleted '{id}'."); } else errors++; }
-                catch (Exception ex) { errors++; _log.Warn("Extensions", $"Delete '{id}' failed: {ex.Message}"); }
-            }
+            await RunBulkAsync(ids,
+                async id =>
+                {
+                    try { if (await _shell.DeleteExtensionAsync(id).ConfigureAwait(false)) { deleted++; _log.Success("Extensions", $"Deleted '{id}'."); } else errors++; }
+                    catch (Exception ex) { errors++; _log.Warn("Extensions", $"Delete '{id}' failed: {ex.Message}"); }
+                },
+                (i, total, id) => StatusMessage = $"Deleting extension {i} / {total} ('{id}')…").ConfigureAwait(true);
             StatusMessage = errors == 0 ? $"Deleted {deleted} extension(s)." : $"Deleted {deleted}, {errors} failed.";
             MarkDataDirty();
             await RefreshAsync().ConfigureAwait(true);

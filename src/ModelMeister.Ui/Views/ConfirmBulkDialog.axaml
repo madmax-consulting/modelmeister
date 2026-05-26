@@ -5,9 +5,9 @@
         x:Class="ModelMeister.Ui.Views.ConfirmBulkDialog"
         x:DataType="vm:ConfirmBulkViewModel"
         Title="{Binding Title}"
-        Width="540" SizeToContent="Height" MaxHeight="640"
+        Width="680" MinWidth="520" SizeToContent="Height" MaxHeight="760"
         WindowStartupLocation="CenterOwner"
-        CanResize="False"
+        CanResize="True"
         Background="{DynamicResource Surface0}"
         FontFamily="{StaticResource UiFont}">
 
@@ -81,11 +81,11 @@
           <TextBlock DockPanel.Dock="Top" Text="ITEMS" Classes="h3" Margin="0,0,0,6" />
           <TextBlock DockPanel.Dock="Bottom" Text="{Binding OverflowText}" Classes="subtle"
                      Margin="0,6,0,0" IsVisible="{Binding HasOverflow}" />
-          <ScrollViewer MaxHeight="240" HorizontalScrollBarVisibility="Disabled">
+          <ScrollViewer MaxHeight="360" HorizontalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{Binding Items}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding}" Classes="mono" FontSize="12"
+                  <TextBlock Text="{Binding}" Classes="mono" FontSize="13" LineHeight="19"
                              Foreground="{DynamicResource TextPri}" TextWrapping="NoWrap" Margin="0,1" />
                 </DataTemplate>
               </ItemsControl.ItemTemplate>

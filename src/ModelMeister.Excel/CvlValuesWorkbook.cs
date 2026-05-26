@@ -25,6 +25,18 @@ public static class CvlValuesWorkbook
         return Parse(wb);
     }
 
+    /// <summary>Write a minimal one-CVL example workbook (same columns as a real export) that the user
+    /// can edit and re-import. Produced by the same <see cref="Save"/> path so it always round-trips.</summary>
+    public static void SaveTemplate(string path)
+    {
+        var model = new InriverModelJson();
+        model.Languages.Add(new JsonLanguage { Name = "en" });
+        model.Cvls.Add(new JsonCvl { Id = "ExampleColor", DataType = "String" });
+        model.CvlValues.Add(new JsonCvlValue { Id = 1, CvlId = "ExampleColor", Key = "red", Index = 1, Value = JsonSerializer.SerializeToElement("Red") });
+        model.CvlValues.Add(new JsonCvlValue { Id = 2, CvlId = "ExampleColor", Key = "green", Index = 2, Value = JsonSerializer.SerializeToElement("Green") });
+        Save(model, path);
+    }
+
     public static XLWorkbook Build(InriverModelJson model)
     {
         var wb = new XLWorkbook();

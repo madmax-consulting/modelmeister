@@ -65,12 +65,24 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         var vm = await DialogHost.ImportWorkbookAsync(
             "Import restricted-field permissions from workbook",
             "Add restricted-field permissions in the connected environment from an edited restricted-fields.xlsx. Existing rows are skipped.",
-            "restricted-fields.xlsx").ConfigureAwait(true);
+            "restricted-fields.xlsx", _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
         if (vm is null) return;
         WorkbookPath = vm.WorkbookPath;
-        DryRun = vm.DryRun;
+
+        // Always verify + dry-run first; only run the real import if the user approves in the preview.
+        DryRun = true;
+        _proceedWithImport = false;
         await ProvisionAsync().ConfigureAwait(true);
+        if (!_proceedWithImport) return;
+
+        DryRun = false;
+        await ProvisionAsync().ConfigureAwait(true);
+        RememberWorkbook(_main.Settings, WorkbookPath);
     }
+
+    /// <summary>Set by <see cref="ProvisionAsync"/> when the dry-run preview's "Continue with import"
+    /// was clicked — tells <see cref="ImportExcelAsync"/> to run the real import.</summary>
+    private bool _proceedWithImport;
 
     public ObservableCollection<RestrictedFieldListRow> Rows { get; } = [];
 
@@ -227,20 +239,22 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         int deleted = 0, errors = 0;
         try
         {
-            foreach (var row in rows)
-            {
-                var result = await _shell.DeleteRestrictedFieldAsync(row.Id).ConfigureAwait(true);
-                if (result.Errors.Count == 0)
+            await RunBulkAsync(rows,
+                async row =>
                 {
-                    deleted++;
-                    _log.Success("RestrictedFields", $"Deleted #{row.Id} ({row.RoleName}).");
-                }
-                else
-                {
-                    errors++;
-                    _log.Error("RestrictedFields", $"#{row.Id} ({row.RoleName}): {string.Join("; ", result.Errors)}");
-                }
-            }
+                    var result = await _shell.DeleteRestrictedFieldAsync(row.Id).ConfigureAwait(false);
+                    if (result.Errors.Count == 0)
+                    {
+                        deleted++;
+                        _log.Success("RestrictedFields", $"Deleted #{row.Id} ({row.RoleName}).");
+                    }
+                    else
+                    {
+                        errors++;
+                        _log.Error("RestrictedFields", $"#{row.Id} ({row.RoleName}): {string.Join("; ", result.Errors)}");
+                    }
+                },
+                (i, total, row) => Status = $"Deleting restriction {i} / {total} ({row.RoleName})…").ConfigureAwait(true);
             Status = errors == 0
                 ? (deleted == 1 ? $"Deleted restriction for '{rows[0].RoleName}'." : $"Deleted {deleted} restriction(s).")
                 : $"Deleted {deleted}, {errors} failed.";
@@ -278,7 +292,8 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
                     new()
                     {
                         RoleName = roleNames.FirstOrDefault() ?? "Example Role",
-                        RestrictionType = "ReadOnly",
+                        RestrictionType = "Readonly",
+                        EntityTypeId = "ExampleEntityTypeId",
                         FieldTypeId = "ExampleFieldTypeId",
                     },
                 };
@@ -312,7 +327,7 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         Busy = true;
         try
         {
-            var fileRows = RestrictedFieldsWorkbook.Load(WorkbookPath);
+            var fileRows = await Task.Run(() => RestrictedFieldsWorkbook.Load(WorkbookPath)).ConfigureAwait(true);
             // Dedupe against what's already in the env (and within the file) — there is no update op.
             var existingKeys = (await _shell.ListRestrictedFieldsAsync().ConfigureAwait(true))
                 .Select(r => r.NaturalKey)
@@ -323,9 +338,28 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
 
             foreach (var row in fileRows)
             {
-                var key = RestrictedFieldProvisioning.NaturalKey(
-                    row.RoleName, row.RestrictionType,
-                    RestrictedFieldProvisioning.NullIfEmpty(row.EntityTypeId), RestrictedFieldProvisioning.NullIfEmpty(row.FieldTypeId), RestrictedFieldProvisioning.NullIfEmpty(row.CategoryId));
+                var entity = RestrictedFieldProvisioning.NullIfEmpty(row.EntityTypeId);
+                var field = RestrictedFieldProvisioning.NullIfEmpty(row.FieldTypeId);
+                var category = RestrictedFieldProvisioning.NullIfEmpty(row.CategoryId);
+                var normType = RestrictedFieldProvisioning.NormalizeRestrictionType(row.RestrictionType);
+
+                // inriver requires a role, a valid restriction type, an entity type, and at least one of
+                // field-type / category. Reject bad rows up front instead of letting the backend fail.
+                var problem =
+                    string.IsNullOrWhiteSpace(row.RoleName) ? "Role name is required."
+                    : normType is null ? $"Restriction type '{row.RestrictionType}' is invalid — must be 'Readonly' or 'Hidden'."
+                    : string.IsNullOrWhiteSpace(entity) ? "Entity type is required."
+                    : (field is null && category is null) ? "At least one of Field type or Category is required."
+                    : null;
+                if (problem is not null)
+                {
+                    errors++;
+                    resultRows.Add(new ProvisionResultRow($"{row.RoleName} · {row.RestrictionType}", "error", problem));
+                    _log.Warn("RestrictedFields", $"Skipped invalid row: {problem}");
+                    continue;
+                }
+
+                var key = RestrictedFieldProvisioning.NaturalKey(row.RoleName, normType!, entity, field, category);
 
                 if (existingKeys.Contains(key))
                 {
@@ -343,8 +377,7 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
                 }
 
                 var result = await _shell.AddRestrictedFieldAsync(new RestrictedFieldProvisioning.RestrictedFieldSpec(
-                    row.RoleName, row.RestrictionType,
-                    RestrictedFieldProvisioning.NullIfEmpty(row.EntityTypeId), RestrictedFieldProvisioning.NullIfEmpty(row.FieldTypeId), RestrictedFieldProvisioning.NullIfEmpty(row.CategoryId))).ConfigureAwait(true);
+                    row.RoleName, normType!, entity, field, category)).ConfigureAwait(true);
                 if (result.Errors.Count > 0)
                 {
                     errors += result.Errors.Count;
@@ -366,8 +399,11 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
                 errors: errors,
                 warnings: 0,
                 rows: resultRows,
-                importEyebrow: "RESTRICTED FIELDS IMPORT");
-            await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
+                importEyebrow: "RESTRICTED FIELDS IMPORT",
+                keyColumnHeader: "Restriction",
+                itemNoun: "restrictions");
+            var proceed = await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
+            _proceedWithImport = DryRun && proceed;
 
             Status = DryRun
                 ? $"Dry run complete · {added} would be added, {skipped} already present."
