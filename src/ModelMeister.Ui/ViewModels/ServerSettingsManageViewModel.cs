@@ -186,27 +186,23 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
     public async Task ConfirmAndDeleteAsync(ServerSettingEditRow? row)
     {
         if (row is null || !_main.IsConnected) return;
-        var ok = await DialogHost.ConfirmAsync(
-            "Delete setting",
-            $"Delete the server setting '{row.Key}'? This cannot be undone.",
-            "Delete",
-            "Abort").ConfigureAwait(true);
+        var ok = await DialogHost.ConfirmBulkAsync(
+            "Delete setting", "Delete", "setting", new[] { row.Key },
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
         if (!ok) return;
         await DeleteAsync(row).ConfigureAwait(true);
     }
 
-    /// <summary>Delete every checked setting after a single confirmation prompt.</summary>
+    /// <summary>Delete every checked setting after a single itemized confirmation prompt.</summary>
     [RelayCommand]
     public async Task DeleteSelectedAsync()
     {
         if (!_main.IsConnected) { Status = "Connect first."; return; }
         var rows = Selection.SelectedOf<ServerSettingEditRow>();
         if (rows.Count == 0) { Status = "Select at least one setting."; return; }
-        var ok = await DialogHost.ConfirmAsync(
-            "Delete settings",
-            $"Delete {rows.Count} server setting(s)? This cannot be undone.",
-            "Delete",
-            "Abort").ConfigureAwait(true);
+        var ok = await DialogHost.ConfirmBulkAsync(
+            "Delete settings", "Delete", "setting", rows.Select(r => r.Key).ToList(),
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
         if (!ok) return;
 
         Busy = true;

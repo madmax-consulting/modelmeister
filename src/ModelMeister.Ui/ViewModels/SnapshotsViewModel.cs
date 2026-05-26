@@ -132,11 +132,10 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
     {
         var rows = Selection.SelectedOf<BackupRow>();
         if (rows.Count == 0) { Summary = "Select at least one backup."; return; }
-        var ok = await DialogHost.ConfirmAsync(
-            "Delete backups",
-            $"Delete {rows.Count} backup(s) from disk? This cannot be undone.",
-            "Delete",
-            "Abort").ConfigureAwait(true);
+        var ok = await DialogHost.ConfirmBulkAsync(
+            "Delete backups", "Delete", "backup",
+            rows.Select(r => r.FileName).ToList(),
+            envName: null).ConfigureAwait(true);
         if (!ok) return;
 
         Busy = true;

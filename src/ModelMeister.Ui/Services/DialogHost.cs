@@ -80,6 +80,23 @@ internal static class DialogHost
     public static Task<bool> ShowProvisionResultAsync(ProvisionResultViewModel vm)
         => ShowDialogAsync<ProvisionResultDialog>(vm, dlg => vm.Closed += () => dlg.Close(true));
 
+    /// <summary>
+    /// Show the itemized, stage-aware bulk-confirm dialog. Lists every target by name (capped) plus a
+    /// Prod banner when <paramref name="stage"/> is Prod and the action is destructive. Returns
+    /// <c>true</c> when the user confirms. Use this for every delete (single + bulk) so the user always
+    /// sees what they are about to change.
+    /// </summary>
+    public static Task<bool> ConfirmBulkAsync(
+        string title, string verb, string noun,
+        System.Collections.Generic.IReadOnlyList<string> itemNames,
+        string? envName,
+        ModelMeister.Ui.Models.EnvironmentStage stage = ModelMeister.Ui.Models.EnvironmentStage.Unspecified,
+        bool destructive = true)
+    {
+        var vm = new ConfirmBulkViewModel(title, verb, noun, itemNames, envName, stage, destructive);
+        return ShowDialogAsync<ConfirmBulkDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
+    }
+
     /// <summary>Simple yes/no confirmation. Returns <c>true</c> on the affirmative button.</summary>
     public static async Task<bool> ConfirmAsync(string title, string message, string confirmLabel = "Continue", string cancelLabel = "Abort")
     {

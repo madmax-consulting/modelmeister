@@ -180,21 +180,23 @@ public partial class CvlWorkbenchViewModel : FeaturePageViewModel
     private async Task DeleteCvlAsync(CvlRow? row)
     {
         if (row is null || !_main.IsConnected) return;
-        var ok = await DialogHost.ConfirmAsync("Delete CVL",
-            $"Delete the CVL '{row.Id}' and all {row.ValueCount} of its values? This cannot be undone.",
-            "Delete", "Abort").ConfigureAwait(true);
-        if (!ok) return;
-        await DeleteCvlsAsync(new[] { row.Id }).ConfigureAwait(true);
+        await ConfirmAndDeleteCvlsAsync(new[] { row.Id }).ConfigureAwait(true);
     }
 
-    /// <summary>Delete every checked CVL after a single confirmation prompt.</summary>
+    /// <summary>Delete every checked CVL after a single itemized confirmation prompt.</summary>
     [RelayCommand]
     private async Task DeleteSelectedCvlsAsync()
     {
         var ids = Selection.SelectedOf<CvlRow>().Select(c => c.Id).ToList();
         if (ids.Count == 0) { Status = "Select at least one CVL."; return; }
-        var ok = await DialogHost.ConfirmAsync("Delete CVLs",
-            $"Delete {ids.Count} CVL(s) and all their values? This cannot be undone.", "Delete", "Abort").ConfigureAwait(true);
+        await ConfirmAndDeleteCvlsAsync(ids).ConfigureAwait(true);
+    }
+
+    private async Task ConfirmAndDeleteCvlsAsync(IReadOnlyList<string> ids)
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+        var ok = await DialogHost.ConfirmBulkAsync("Delete CVLs", "Delete", "CVL", ids,
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
         if (!ok) return;
         await DeleteCvlsAsync(ids).ConfigureAwait(true);
     }

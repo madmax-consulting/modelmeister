@@ -134,25 +134,25 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
     {
         if (row is null) return;
         if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        var confirmed = await DialogHost.ConfirmAsync(
-            "Delete restricted-field permission",
-            $"Delete the restriction for role '{row.RoleName}' ({row.RestrictionType})?",
-            "Delete", "Cancel").ConfigureAwait(true);
-        if (!confirmed) return;
-        await DeleteRowsAsync(new[] { row }).ConfigureAwait(true);
+        await ConfirmAndDeleteRowsAsync(new[] { row }).ConfigureAwait(true);
     }
 
-    /// <summary>Delete every checked restricted-field permission after a single confirmation prompt.</summary>
+    /// <summary>Delete every checked restricted-field permission after a single itemized prompt.</summary>
     [RelayCommand]
     public async Task DeleteSelectedAsync()
     {
         if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
         var rows = Selection.SelectedOf<RestrictedFieldListRow>();
         if (rows.Count == 0) { Status = "Select at least one restriction."; return; }
-        var confirmed = await DialogHost.ConfirmAsync(
-            "Delete restricted-field permissions",
-            $"Delete {rows.Count} restriction(s)? This cannot be undone.",
-            "Delete", "Cancel").ConfigureAwait(true);
+        await ConfirmAndDeleteRowsAsync(rows).ConfigureAwait(true);
+    }
+
+    private async Task ConfirmAndDeleteRowsAsync(IReadOnlyList<RestrictedFieldListRow> rows)
+    {
+        var names = rows.Select(r => $"{r.RoleName} · {r.NaturalKey} ({r.RestrictionType})").ToList();
+        var confirmed = await DialogHost.ConfirmBulkAsync(
+            "Delete restricted-field permissions", "Delete", "restriction", names,
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
         if (!confirmed) return;
         await DeleteRowsAsync(rows).ConfigureAwait(true);
     }

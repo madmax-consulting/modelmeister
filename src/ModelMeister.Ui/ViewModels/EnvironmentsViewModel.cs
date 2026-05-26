@@ -184,11 +184,10 @@ public partial class EnvironmentsViewModel : ViewModelBase
     {
         var rows = Selection.SelectedOf<EnvironmentRow>();
         if (rows.Count == 0) { StatusMessage = "Select at least one environment."; return; }
-        var ok = await DialogHost.ConfirmAsync(
-            "Delete environments",
-            $"Delete {rows.Count} environment(s) from the vault? This cannot be undone.",
-            "Delete",
-            "Abort").ConfigureAwait(true);
+        var ok = await DialogHost.ConfirmBulkAsync(
+            "Delete environments", "Delete", "environment",
+            rows.Select(r => r.Entry.Name).ToList(),
+            envName: null).ConfigureAwait(true);
         if (!ok) return;
 
         int deleted = 0, skipped = 0;

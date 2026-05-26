@@ -336,20 +336,23 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
     public async Task DeleteExtensionAsync(ExtensionRow? row)
     {
         if (row is null || !_main.IsConnected) return;
-        var ok = await DialogHost.ConfirmAsync("Delete extension",
-            $"Delete the extension '{row.Info.Id}'? This cannot be undone.", "Delete", "Abort").ConfigureAwait(true);
-        if (!ok) return;
-        await DeleteExtensionsAsync(new[] { row.Info.Id }).ConfigureAwait(true);
+        await ConfirmAndDeleteExtensionsAsync(new[] { row.Info.Id }).ConfigureAwait(true);
     }
 
-    /// <summary>Delete every checked extension after a single confirmation prompt.</summary>
+    /// <summary>Delete every checked extension after a single itemized confirmation prompt.</summary>
     [RelayCommand(CanExecute = nameof(NotBusy))]
     public async Task DeleteSelectedExtensionsAsync()
     {
         var ids = ItemsSelection.SelectedOf<ExtensionRow>().Select(r => r.Info.Id).ToList();
         if (ids.Count == 0) { StatusMessage = "Select at least one extension."; return; }
-        var ok = await DialogHost.ConfirmAsync("Delete extensions",
-            $"Delete {ids.Count} extension(s)? This cannot be undone.", "Delete", "Abort").ConfigureAwait(true);
+        await ConfirmAndDeleteExtensionsAsync(ids).ConfigureAwait(true);
+    }
+
+    private async Task ConfirmAndDeleteExtensionsAsync(IReadOnlyList<string> ids)
+    {
+        if (!_main.IsConnected) { StatusMessage = "Connect first."; return; }
+        var ok = await DialogHost.ConfirmBulkAsync("Delete extensions", "Delete", "extension", ids,
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
         if (!ok) return;
         await DeleteExtensionsAsync(ids).ConfigureAwait(true);
     }
@@ -399,8 +402,8 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         if (Selected is null) return;
         var keys = SettingsSelection.SelectedOf<ExtensionSettingRow>().Select(r => r.Key).ToList();
         if (keys.Count == 0) { StatusMessage = "Select at least one setting."; return; }
-        var ok = await DialogHost.ConfirmAsync("Delete settings",
-            $"Delete {keys.Count} setting(s) from '{Selected.Info.Id}'?", "Delete", "Abort").ConfigureAwait(true);
+        var ok = await DialogHost.ConfirmBulkAsync($"Delete settings from {Selected.Info.Id}", "Delete", "setting", keys,
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
         if (!ok) return;
         Busy = true;
         try
@@ -437,8 +440,9 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
     {
         var rows = StatesSelection.SelectedOf<ExtensionStateRowVm>().ToList();
         if (rows.Count == 0) { StatusMessage = "Select at least one state."; return; }
-        var ok = await DialogHost.ConfirmAsync("Delete states",
-            $"Delete {rows.Count} connector state(s)?", "Delete", "Abort").ConfigureAwait(true);
+        var ok = await DialogHost.ConfirmBulkAsync("Delete connector states", "Delete", "state",
+            rows.Select(r => $"State #{r.Row.Id}").ToList(),
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
         if (!ok) return;
         Busy = true;
         try

@@ -181,25 +181,28 @@ public partial class RolesViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
-    /// <summary>Delete a single role after a confirmation prompt.</summary>
+    /// <summary>Delete a single role after an itemized confirmation prompt.</summary>
     [RelayCommand]
     private async Task DeleteRoleAsync(RoleListRow? row)
     {
         if (row is null || !_main.IsConnected) return;
-        var ok = await DialogHost.ConfirmAsync("Delete role",
-            $"Delete the role '{row.Name}'? This cannot be undone.", "Delete", "Abort").ConfigureAwait(true);
-        if (!ok) return;
-        await DeleteRolesAsync(new[] { row.Name }).ConfigureAwait(true);
+        await ConfirmAndDeleteAsync(new[] { row.Name }).ConfigureAwait(true);
     }
 
-    /// <summary>Delete every checked role after a single confirmation prompt.</summary>
+    /// <summary>Delete every checked role after a single itemized confirmation prompt.</summary>
     [RelayCommand]
     private async Task DeleteSelectedRolesAsync()
     {
         var names = Selection.SelectedOf<RoleListRow>().Select(r => r.Name).ToList();
         if (names.Count == 0) { Status = "Select at least one role."; return; }
-        var ok = await DialogHost.ConfirmAsync("Delete roles",
-            $"Delete {names.Count} role(s)? This cannot be undone.", "Delete", "Abort").ConfigureAwait(true);
+        await ConfirmAndDeleteAsync(names).ConfigureAwait(true);
+    }
+
+    private async Task ConfirmAndDeleteAsync(IReadOnlyList<string> names)
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+        var ok = await DialogHost.ConfirmBulkAsync("Delete roles", "Delete", "role", names,
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
         if (!ok) return;
         await DeleteRolesAsync(names).ConfigureAwait(true);
     }
