@@ -503,10 +503,15 @@
   </Style>
 
   <!-- FluentTheme adds a 4px left margin to the implicit TextBlock inside a DataGridTextColumn cell,
-       which pushes row text rightward of the column header. Zero it so cells align with their headers. -->
+       which pushes row text rightward of the column header. Zero it so cells align with their headers.
+       TextTrimming gives every grid cell a clean ellipsis instead of a hard clip when the value is
+       wider than its column — one place, so no grid cuts text off. (Tooltip is intentionally NOT set
+       globally here: this selector also matches TextBlocks inside pills/buttons in template columns,
+       where a redundant hover tooltip would be noise.) -->
   <Style Selector="DataGridCell TextBlock">
     <Setter Property="Margin" Value="0" />
     <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
   </Style>
 
   <!-- Compact density: tighter rows for fitting more on screen. Toggled by the grid toolbar's

@@ -89,17 +89,19 @@
           </DataGridTemplateColumn>
           <!-- Username + Email are identical in inriver for most orgs; only Username is shown.
                If you need to see Email separately, right-click → Copy email or re-add the column. -->
-          <DataGridTextColumn Binding="{Binding Username}" Width="200" MinWidth="120">
+          <!-- Star widths so the grid fills the window on any size; MinWidths keep the filter header
+               boxes legible. Username + Roles get the larger shares. -->
+          <DataGridTextColumn Binding="{Binding Username}" Width="1.4*" MinWidth="140">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Username" Path="Username" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding FirstName}" Width="140" MinWidth="100">
+          <DataGridTextColumn Binding="{Binding FirstName}" Width="*" MinWidth="100">
             <DataGridTextColumn.Header><c:FilterableHeader Title="First name" Path="FirstName" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding LastName}" Width="140" MinWidth="100">
+          <DataGridTextColumn Binding="{Binding LastName}" Width="*" MinWidth="100">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Last name" Path="LastName" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
           <!-- Roles column: comma-joined for read; copy via context menu. -->
-          <DataGridTextColumn Binding="{Binding Roles, Converter={x:Static conv:JoinStringsConverter.Instance}}" Width="*" MinWidth="120">
+          <DataGridTextColumn Binding="{Binding Roles, Converter={x:Static conv:JoinStringsConverter.Instance}}" Width="2*" MinWidth="160">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Roles" Path="Roles" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
           <DataGridTemplateColumn Header="" Width="60">

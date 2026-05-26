@@ -58,7 +58,7 @@ public static class CvlCommand
         // Build a synthetic LiveModel that the sync engine can read from. We capture only what we
         // need (CVLs + values), so this skips the rest of the model.
         var workbookModel = CvlValuesWorkbook.Load(xlsxPath);
-        var sourceLive = SnapshotFromJson(workbookModel);
+        var sourceLive = LiveModelConverter.CvlSourceFromJson(workbookModel);
 
         var sync = new CvlSync(sourceLive, client);
         var totals = (Added: 0, Updated: 0, Deactivated: 0, Errors: 0);
@@ -99,7 +99,7 @@ public static class CvlCommand
         if (rc != ExitCodes.Success) return rc;
 
         var sourceModel = InriverModelJson.Load(sourceJsonPath);
-        var sourceLive = SnapshotFromJson(sourceModel);
+        var sourceLive = LiveModelConverter.CvlSourceFromJson(sourceModel);
         var sync = new CvlSync(sourceLive, client);
         var opts = new CvlSync.Options(AllowDeactivate: allowDeactivate, OverwriteValues: true, DryRun: dryRun);
 
@@ -121,78 +121,4 @@ public static class CvlCommand
         return errors > 0 ? ExitCodes.OperationFailed : ExitCodes.Success;
     }
 
-    static LiveModel SnapshotFromJson(InriverModelJson json)
-    {
-        // Build a minimal LiveModel from the JSON model so the sync engine can read values
-        // without needing a live connection to the source.
-        var cvls = new List<LiveCvl>();
-        var valuesByCvl = json.CvlValues.GroupBy(v => v.CvlId, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-        var nextValueId = 1;
-        foreach (var cvl in json.Cvls)
-        {
-            var values = (valuesByCvl.TryGetValue(cvl.Id, out var vs) ? vs : new())
-                .OrderBy(v => v.Index).ThenBy(v => v.Key)
-                .Select(v => new LiveCvlValue
-                {
-                    Id = nextValueId++,
-                    CvlId = cvl.Id,
-                    Key = v.Key,
-                    Value = ToLocaleString(v.Value),
-                    ParentKey = v.ParentKey,
-                    Index = v.Index,
-                    Deactivated = v.Deactivated,
-                })
-                .ToList();
-            cvls.Add(new LiveCvl
-            {
-                Id = cvl.Id,
-                DataTypeRaw = cvl.DataType,
-                DataType = ParseCvlDataType(cvl.DataType),
-                ParentId = cvl.ParentId,
-                CustomValueList = cvl.CustomValueList,
-                Values = values,
-            });
-        }
-        return new LiveModel
-        {
-            EnvironmentUrl = "source:" + Path.GetFileName(Environment.CurrentDirectory),
-            CapturedUtc = DateTime.UtcNow,
-            EntityTypes = Array.Empty<LiveEntityType>(),
-            Cvls = cvls,
-            Categories = Array.Empty<LiveCategory>(),
-            Fieldsets = Array.Empty<LiveFieldset>(),
-            LinkTypes = Array.Empty<LiveLinkType>(),
-            Roles = Array.Empty<LiveRole>(),
-            Permissions = Array.Empty<LivePermission>(),
-            CompletenessDefinitions = Array.Empty<LiveCompletenessDefinition>(),
-            RestrictedFieldPermissions = Array.Empty<LiveRestrictedFieldPermission>(),
-            Languages = json.Languages.Select(l => l.Name).ToList(),
-        };
-    }
-
-    static ModelMeister.Model.Primitives.LocaleString ToLocaleString(System.Text.Json.JsonElement el)
-    {
-        if (el.ValueKind == System.Text.Json.JsonValueKind.Object && el.TryGetProperty("StringMap", out var map) && map.ValueKind == System.Text.Json.JsonValueKind.Object)
-        {
-            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var p in map.EnumerateObject())
-                if (p.Value.ValueKind == System.Text.Json.JsonValueKind.String)
-                    dict[p.Name] = p.Value.GetString() ?? string.Empty;
-            var def = dict.Values.FirstOrDefault() ?? string.Empty;
-            return new ModelMeister.Model.Primitives.LocaleString(def, dict);
-        }
-        return new ModelMeister.Model.Primitives.LocaleString(
-            el.ValueKind == System.Text.Json.JsonValueKind.String ? el.GetString() ?? "" : el.ToString());
-    }
-
-    static ModelMeister.Model.Primitives.CvlDataType ParseCvlDataType(string raw) => raw switch
-    {
-        "String" => ModelMeister.Model.Primitives.CvlDataType.String,
-        "LocaleString" => ModelMeister.Model.Primitives.CvlDataType.LocaleString,
-        "Integer" => ModelMeister.Model.Primitives.CvlDataType.Integer,
-        "Double" => ModelMeister.Model.Primitives.CvlDataType.Double,
-        "DateTime" => ModelMeister.Model.Primitives.CvlDataType.DateTime,
-        _ => ModelMeister.Model.Primitives.CvlDataType.String,
-    };
 }

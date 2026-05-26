@@ -13,8 +13,8 @@ namespace ModelMeister.Ui.ViewModels;
 
 /// <summary>
 /// Central backup-library view-model. Lists every scoped + full backup the app has produced,
-/// regardless of which feature created it. Restore and per-row Compare-with-current ship on
-/// individual feature pages.
+/// regardless of which feature created it, and restores any of them back into the connected
+/// environment (per-row Restore → itemized destructive confirm → result table).
 /// </summary>
 public partial class SnapshotsViewModel : FeaturePageViewModel
 {
@@ -34,6 +34,7 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CaptureFullCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RestoreCommand))]
     private bool _busy;
 
     public SnapshotsViewModel(MainWindowViewModel main, IFileOpener fileOpener, IAppLog log)
@@ -45,7 +46,10 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
         _main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
+            {
                 CaptureFullCommand.NotifyCanExecuteChanged();
+                RestoreCommand.NotifyCanExecuteChanged();
+            }
         };
         // Captures from elsewhere (Dashboard tile, Apply pre-capture, etc.) raise this — without it
         // the table only refreshed when the user captured from this page.
@@ -61,6 +65,7 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
 
     private bool CanCaptureFull() => !Busy && _main.IsConnected;
     private bool CanDeleteRow(BackupRow? row) => !Busy && row is not null;
+    private bool CanRestore(BackupRow? row) => !Busy && row is not null && _main.IsConnected;
 
     /// <inheritdoc/>
     public override BackupScope BackupScope => BackupScope.None; // page lists backups, doesn't produce them
@@ -94,6 +99,84 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
         {
             _log.Error("Backup", $"Full snapshot failed: {ex.Message}", ex);
             _log.Toast(LogLevel.Error, "Backup failed", ex.Message);
+        }
+        finally { Busy = false; }
+    }
+
+    /// <summary>
+    /// Restore the selected backup into the connected environment. Lists the items, takes a single
+    /// itemized + stage-aware destructive confirmation (the same prompt deletes use), applies via the
+    /// shared <see cref="RestoreService"/>, then shows the per-item outcome in the same result dialog
+    /// imports use. A Full snapshot's model slice is offered to the model Compare/Apply workflow.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRestore))]
+    private async Task RestoreAsync(BackupRow? row)
+    {
+        if (row is null) return;
+        if (!_main.IsConnected || _main.ConnectedEnv is null)
+        {
+            _log.Toast(LogLevel.Warn, "Restore", "Connect to the target environment first.");
+            return;
+        }
+        var env = _main.ConnectedEnv;
+
+        Busy = true;
+        try
+        {
+            var items = await _main.Restores.DescribeItemsAsync(row.Info).ConfigureAwait(true);
+            if (items.Count == 0)
+            {
+                Summary = "Nothing to restore in this backup.";
+                _log.Toast(LogLevel.Warn, "Restore", "This backup is empty.");
+                return;
+            }
+
+            // Restore overwrites live state — confirm against the connected env (Prod banner when Prod),
+            // listing every item, exactly like a destructive delete.
+            var ok = await DialogHost.ConfirmBulkAsync(
+                $"Restore {row.Scope} to {env.Name}", "Restore", "item", items,
+                env.Name, env.Stage, destructive: true).ConfigureAwait(true);
+            if (!ok) return;
+
+            Summary = $"Restoring {row.Scope} into '{env.Name}'…";
+            var results = await _main.Restores.RestoreAsync(row.Info, env).ConfigureAwait(true);
+
+            var resultRows = results.Select(r => new ProvisionResultRow(r.Name, r.Outcome, r.Detail)).ToList();
+            var errors = results.Count(r => string.Equals(r.Outcome, "error", StringComparison.Ordinal));
+            var resultVm = new ProvisionResultViewModel(
+                dryRun: false,
+                created: results.Count - errors,
+                updated: 0,
+                errors: errors,
+                warnings: 0,
+                rows: resultRows,
+                importEyebrow: $"RESTORE · {row.Scope.ToUpperInvariant()}",
+                keyColumnHeader: "Item",
+                itemNoun: "items");
+            await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
+
+            Summary = errors == 0
+                ? $"Restored {row.Scope}: {results.Count} item(s) into '{env.Name}'."
+                : $"Restored {row.Scope}: {results.Count - errors} ok, {errors} failed.";
+            _log.Success("Restore", Summary);
+            _log.Toast(errors == 0 ? LogLevel.Success : LogLevel.Warn, "Restore complete", Summary);
+
+            // A Full snapshot's model slice reverts via the diff/apply pipeline, not an upsert — offer it.
+            var modelPath = _main.Restores.ModelSlicePath(row.Info);
+            if (modelPath is not null)
+            {
+                var loadModel = await DialogHost.ConfirmAsync(
+                    "Restore model slice?",
+                    "This Full snapshot includes a model slice. Load it as a project and open Compare to review the reverse change set before applying?",
+                    "Load model", "Skip").ConfigureAwait(true);
+                if (loadModel) await _main.RestoreFromBackupAsync(modelPath).ConfigureAwait(true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Summary = "Restore failed: " + ex.Message;
+            _log.Error("Restore", ex.Message, ex);
+            _log.Toast(LogLevel.Error, "Restore failed", ex.Message);
         }
         finally { Busy = false; }
     }

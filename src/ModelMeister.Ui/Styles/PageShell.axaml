@@ -63,7 +63,9 @@
                        Foreground="{DynamicResource TextSec}"
                        FontSize="12"
                        VerticalAlignment="Center"
-                       Margin="10,0,0,0" />
+                       Margin="10,0,0,0"
+                       TextTrimming="CharacterEllipsis"
+                       ToolTip.Tip="{TemplateBinding Status}" />
           </Grid>
 
         </Grid>

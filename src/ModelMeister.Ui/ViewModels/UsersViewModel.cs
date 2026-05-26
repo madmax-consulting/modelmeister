@@ -3,10 +3,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ModelMeister.Excel;
@@ -315,7 +311,10 @@ public partial class UsersViewModel : FeaturePageViewModel
     private async Task ExportWorkbookAsync(bool seedSingleExample)
     {
         if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        var path = await PickSaveAsync(seedSingleExample ? "users-template.xlsx" : "users.xlsx").ConfigureAwait(true);
+        var path = await FilePickerHelpers.PickSaveAsync(
+            "Save users workbook",
+            seedSingleExample ? "users-template.xlsx" : "users.xlsx",
+            "xlsx").ConfigureAwait(true);
         if (path is null) return;
 
         Busy = true;
@@ -456,21 +455,6 @@ public partial class UsersViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
-    static Window? MainWindowOrNull()
-        => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d ? d.MainWindow : null;
-
-    static async Task<string?> PickSaveAsync(string suggested)
-    {
-        var w = MainWindowOrNull();
-        if (w is null) return null;
-        var pick = await w.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save users workbook",
-            SuggestedFileName = suggested,
-            DefaultExtension = "xlsx",
-        }).ConfigureAwait(true);
-        return pick?.TryGetLocalPath();
-    }
 }
 
 /// <summary>Selectable grid row wrapping a <see cref="UserSummary"/> for the Users page.</summary>

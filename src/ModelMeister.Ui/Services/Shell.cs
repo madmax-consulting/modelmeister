@@ -206,6 +206,16 @@ public sealed class Shell
             CvlValuesWorkbook.Save(json, xlsxPath);
         }, ct);
 
+    /// <summary>Load a CVL-values workbook and project it into a minimal source <see cref="LiveModel"/>
+    /// (CVLs + values only). Shared with the CLI's <c>cvl import</c> path via
+    /// <see cref="LiveModelConverter.CvlSourceFromJson"/>, so the UI import behaves identically.</summary>
+    public Task<LiveModel> LoadCvlImportSourceAsync(string xlsxPath, CancellationToken ct = default)
+        => Task.Run(() => LiveModelConverter.CvlSourceFromJson(CvlValuesWorkbook.Load(xlsxPath)), ct);
+
+    /// <summary>Write a one-CVL example workbook the user can edit and re-import.</summary>
+    public Task SaveCvlTemplateAsync(string xlsxPath, CancellationToken ct = default)
+        => Task.Run(() => CvlValuesWorkbook.SaveTemplate(xlsxPath), ct);
+
     /// <summary>Scaffold from an Excel workbook.</summary>
     public Task<ScaffoldResult> ScaffoldFromExcelAsync(string xlsxPath, string outDir, string rootNamespace, bool detectBaseClasses, bool emitCvlValues, CancellationToken ct = default)
         => Task.Run(() => ExcelScaffolder.ScaffoldFromExcel(xlsxPath, outDir, rootNamespace, detectBaseClasses, emitCvlValues), ct);
@@ -574,6 +584,24 @@ public sealed class Shell
             rest = new InriverRestClient(env.RestBaseUrl!, secret.RestApiKey!);
         var prov = new UserProvisioning(client, rest);
         return backup.RestoreAsync(prov, ct);
+    }
+
+    /// <summary>Restore from a <see cref="RolesBackup"/> into the connected env. Upserts each role +
+    /// permissions; the provisioning surface has no dry-run, so every call is a write.</summary>
+    public Task<List<RoleProvisioning.ProvisionResult>> RestoreRolesAsync(
+        RolesBackup backup, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return backup.RestoreAsync(new RoleProvisioning(client), ct);
+    }
+
+    /// <summary>Restore from a <see cref="RestrictedFieldsBackup"/> into the connected env. Adds
+    /// missing restrictions (existing rows are left untouched — restrictions have no update).</summary>
+    public Task<List<RestrictedFieldProvisioning.ProvisionResult>> RestoreRestrictedFieldsAsync(
+        RestrictedFieldsBackup backup, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return backup.RestoreAsync(new RestrictedFieldProvisioning(client), ct);
     }
 
     /// <summary>Restore from a <see cref="ServerSettingsBackup"/> into the connected env.</summary>

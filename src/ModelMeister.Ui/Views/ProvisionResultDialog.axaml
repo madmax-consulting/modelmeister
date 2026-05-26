@@ -6,8 +6,9 @@
         x:DataType="vm:ProvisionResultViewModel"
         x:Name="Win"
         Title="{Binding Title}"
-        Width="720" Height="520"
+        Width="720" Height="520" MinWidth="560" MinHeight="360"
         WindowStartupLocation="CenterOwner"
+        CanResize="True"
         Background="{DynamicResource Surface0}"
         FontFamily="{StaticResource UiFont}">
 

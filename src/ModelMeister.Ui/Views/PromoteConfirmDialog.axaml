@@ -4,9 +4,9 @@
         x:Class="ModelMeister.Ui.Views.PromoteConfirmDialog"
         x:DataType="vm:PromoteConfirmViewModel"
         Title="Promote"
-        Width="540" SizeToContent="Height"
+        Width="540" MinWidth="500" MaxWidth="780" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        CanResize="False"
+        CanResize="True"
         Background="{DynamicResource Surface0}"
         FontFamily="{StaticResource UiFont}">
 

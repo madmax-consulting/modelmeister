@@ -6,9 +6,9 @@
         x:DataType="vm:ImportWorkbookViewModel"
         x:Name="Win"
         Title="Import from workbook"
-        Width="520" SizeToContent="Height"
+        Width="520" MinWidth="480" MaxWidth="760" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        CanResize="False"
+        CanResize="True"
         Background="{DynamicResource AppBackground}"
         FontFamily="{StaticResource UiFont}">
 

@@ -44,6 +44,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Scoped + full backup capture, listing, and restore for the Ui layer.</summary>
     public BackupService Backups { get; }
 
+    /// <summary>Restores a saved backup snapshot back into the connected environment.</summary>
+    public RestoreService Restores { get; }
+
     /// <summary>Process-wide log + toast bus.</summary>
     public IAppLog Log => _log;
 
@@ -73,7 +76,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public RestrictedFieldsCompareViewModel RestrictedFieldsCompareVm { get; }
     public ExtensionsViewModel ExtensionsVm { get; }
     public ServerSettingsViewModel ServerSettingsVm { get; }
-    public ServerSettingsManageViewModel ServerSettingsManageVm { get; }
+    public ServerSettingsCompareViewModel ServerSettingsCompareVm { get; }
     public CompareExtensionsViewModel CompareExtensionsVm { get; }
 
     // ----- New hub-level VMs (placeholders in Session 1, full content in later sessions). -----
@@ -311,6 +314,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _log = log;
         _shell = shell;
         Backups = new BackupService(shell, connection, vault);
+        Restores = new RestoreService(shell, vault);
 
         EnvironmentsVm = new EnvironmentsViewModel(this, vault, settings, connection, log);
         ModelVm = new ModelViewModel(this, settings, shell, fileOpener, log);
@@ -329,8 +333,8 @@ public partial class MainWindowViewModel : ViewModelBase
         RestrictedFieldsVm = new RestrictedFieldsViewModel(this, shell, log);
         RestrictedFieldsCompareVm = new RestrictedFieldsCompareViewModel(this, shell, log);
         ExtensionsVm = new ExtensionsViewModel(this, shell, log);
-        ServerSettingsVm = new ServerSettingsViewModel(this, shell, vault, log);
-        ServerSettingsManageVm = new ServerSettingsManageViewModel(this, shell, log);
+        ServerSettingsVm = new ServerSettingsViewModel(this, shell, log);
+        ServerSettingsCompareVm = new ServerSettingsCompareViewModel(this, shell, vault, log);
         CompareExtensionsVm = new CompareExtensionsViewModel(this, shell, vault, log);
 
         DashboardVm = new DashboardViewModel(this, log);
@@ -591,8 +595,8 @@ public partial class MainWindowViewModel : ViewModelBase
             (Hub.RestrictedFields, _)        => RestrictedFieldsVm,
             (Hub.Extensions, "compare")      => CompareExtensionsVm,
             (Hub.Extensions, _)              => ExtensionsVm,
-            (Hub.ServerSettings, "compare")  => ServerSettingsVm,
-            (Hub.ServerSettings, _)          => ServerSettingsManageVm,
+            (Hub.ServerSettings, "compare")  => ServerSettingsCompareVm,
+            (Hub.ServerSettings, _)          => ServerSettingsVm,
             // System hubs
             (Hub.Environments, _)            => EnvironmentsVm,
             (Hub.Scaffolding, _)             => ToolsVm,
