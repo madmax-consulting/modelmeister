@@ -168,15 +168,40 @@ public sealed class UserProvisioning
                 continue;
             }
             try { await _remoting.WriteAsync(m => m.UserService.AddUserToRole(role.Id, user.Id), ct).ConfigureAwait(false); }
+            catch (Exception ex) when (IsBenignRoleFault(ex))
+            {
+                // inriver rejects adding the connected/current user to a role, and re-adding a role the
+                // user already has. Neither is a real failure — the desired end state is satisfied — so
+                // treat it as a skip rather than surfacing a scary error (this is what made the bulk
+                // grant "crash" for the user).
+                _log.LogInformation("Skipped adding '{Username}' to role '{Role}': {Reason}", username, name, ex.Message);
+            }
             catch (Exception ex) { errors.Add($"Add to role '{name}' failed: {ex.Message}"); ok = false; }
         }
         foreach (var name in toRemove)
         {
             if (!allRoles.TryGetValue(name, out var role)) continue;
             try { await _remoting.WriteAsync(m => m.UserService.RemoveUserFromRole(role.Id, user.Id), ct).ConfigureAwait(false); }
+            catch (Exception ex) when (IsBenignRoleFault(ex))
+            {
+                _log.LogInformation("Skipped removing '{Username}' from role '{Role}': {Reason}", username, name, ex.Message);
+            }
             catch (Exception ex) { errors.Add($"Remove from role '{name}' failed: {ex.Message}"); ok = false; }
         }
         return ok;
+    }
+
+    /// <summary>
+    /// True for role-membership faults that mean "already in the desired state" rather than a real
+    /// error: inriver throws <see cref="ArgumentException"/> "Trying to add current User to a Role"
+    /// for the connected user, and complains when the user is already (not) a member. Matched on
+    /// message text because Remoting surfaces these as plain exceptions with no typed code.
+    /// </summary>
+    private static bool IsBenignRoleFault(Exception ex)
+    {
+        var m = ex.Message;
+        return m.Contains("current User", StringComparison.OrdinalIgnoreCase)
+            || m.Contains("already", StringComparison.OrdinalIgnoreCase);
     }
 }
 
