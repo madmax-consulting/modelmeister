@@ -175,11 +175,11 @@ public partial class UsersViewModel : FeaturePageViewModel
     private async Task AddUserAsync()
     {
         if (!_main.IsConnected) { Status = "Connect first."; return; }
-        var vm = await DialogHost.UserEditorAsync(null, null, null, null, null, null, [], Roles.ToList(), isEdit: false).ConfigureAwait(true);
+        var vm = await DialogHost.UserEditorAsync(null, null, null, null, null, [], Roles.ToList(), isEdit: false).ConfigureAwait(true);
         if (vm is null) return;
         var spec = new UserProvisioning.UserSpec(
             vm.Username.Trim(), NullIfEmpty(vm.Email), NullIfEmpty(vm.FirstName), NullIfEmpty(vm.LastName),
-            NullIfEmpty(vm.Company), vm.SelectedRoles, NormalizeLanguage(vm.Language), vm.GenerateApiKey);
+            vm.SelectedRoles, NormalizeLanguage(vm.Language), vm.GenerateApiKey);
         await ProvisionUserSpecAsync(spec, "Created").ConfigureAwait(true);
     }
 
@@ -189,11 +189,11 @@ public partial class UsersViewModel : FeaturePageViewModel
     {
         if (row is null || !_main.IsConnected) return;
         var vm = await DialogHost.UserEditorAsync(
-            row.Username, row.Email, row.FirstName, row.LastName, row.Company, null, row.Roles, Roles.ToList(), isEdit: true).ConfigureAwait(true);
+            row.Username, row.Email, row.FirstName, row.LastName, null, row.Roles, Roles.ToList(), isEdit: true).ConfigureAwait(true);
         if (vm is null) return;
         var spec = new UserProvisioning.UserSpec(
             row.Username, NullIfEmpty(vm.Email), NullIfEmpty(vm.FirstName), NullIfEmpty(vm.LastName),
-            NullIfEmpty(vm.Company), vm.SelectedRoles, NormalizeLanguage(vm.Language), GenerateApiKey: false);
+            vm.SelectedRoles, NormalizeLanguage(vm.Language), GenerateApiKey: false);
         await ProvisionUserSpecAsync(spec, "Updated").ConfigureAwait(true);
     }
 
@@ -254,7 +254,7 @@ public partial class UsersViewModel : FeaturePageViewModel
                     }
                     var spec = new UserProvisioning.UserSpec(
                         row.Username, NullIfEmpty(row.Email), NullIfEmpty(row.FirstName), NullIfEmpty(row.LastName),
-                        NullIfEmpty(row.Company), roles, "en", GenerateApiKey: false);
+                        roles, "en", GenerateApiKey: false);
                     try
                     {
                         var result = await _shell.ProvisionUserAsync(spec, secret, env).ConfigureAwait(false);
@@ -334,7 +334,6 @@ public partial class UsersViewModel : FeaturePageViewModel
                         Email = "example.user@example.com",
                         FirstName = "Example",
                         LastName = "User",
-                        Company = "",
                         Roles = new List<string>(),
                         Language = "en",
                     },
@@ -349,7 +348,6 @@ public partial class UsersViewModel : FeaturePageViewModel
                     Email = u.Email ?? "",
                     FirstName = u.FirstName ?? "",
                     LastName = u.LastName ?? "",
-                    Company = u.Company ?? "",
                     Roles = u.Roles.ToList(),
                     Language = "en",
                 }).ToList();
@@ -412,7 +410,7 @@ public partial class UsersViewModel : FeaturePageViewModel
                     continue;
                 }
                 var result = await _shell.ProvisionUserAsync(new UserProvisioning.UserSpec(
-                    u.Username, u.Email, u.FirstName, u.LastName, u.Company,
+                    u.Username, u.Email, u.FirstName, u.LastName,
                     u.Roles, u.Language, u.GenerateApiKey), secret, env!).ConfigureAwait(true);
                 if (result.Created) created++;
                 else updated++;
@@ -466,5 +464,4 @@ public sealed partial class UserListRow : SelectableRow
     public string? LastName => Source.LastName;
     public string? Email => Source.Email;
     public IReadOnlyList<string> Roles => Source.Roles;
-    public string? Company => Source.Company;
 }

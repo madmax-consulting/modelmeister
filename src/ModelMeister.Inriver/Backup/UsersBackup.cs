@@ -70,7 +70,6 @@ public sealed record UsersBackup
                 u.Email,
                 u.FirstName,
                 u.LastName,
-                Company: null,
                 Roles: u.Roles ?? [],
                 Language: "en",
                 GenerateApiKey: false);

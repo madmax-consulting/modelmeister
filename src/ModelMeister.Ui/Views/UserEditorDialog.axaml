@@ -40,16 +40,10 @@
         <TextBox Text="{Binding Email, Mode=TwoWay}" Watermark="name@example.com" />
       </StackPanel>
 
-      <Grid DockPanel.Dock="Top" Margin="0,12,0,0" ColumnDefinitions="*,12,Auto">
-        <StackPanel Grid.Column="0" Spacing="4">
-          <TextBlock Text="Company" Classes="label" />
-          <TextBox Text="{Binding Company, Mode=TwoWay}" Watermark="Optional" />
-        </StackPanel>
-        <StackPanel Grid.Column="2" Spacing="4">
-          <TextBlock Text="Language" Classes="label" />
-          <TextBox Text="{Binding Language, Mode=TwoWay}" Width="90" Watermark="en" />
-        </StackPanel>
-      </Grid>
+      <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,12,0,0" HorizontalAlignment="Left">
+        <TextBlock Text="Language" Classes="label" />
+        <TextBox Text="{Binding Language, Mode=TwoWay}" Width="90" Watermark="en" />
+      </StackPanel>
 
       <CheckBox DockPanel.Dock="Top" Margin="0,12,0,0"
                 Content="Generate a REST API key for this user"

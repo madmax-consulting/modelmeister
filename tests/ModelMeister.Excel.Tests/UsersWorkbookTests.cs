@@ -14,8 +14,8 @@ public class UsersWorkbookTests
         {
             var users = new List<UsersWorkbook.UserRow>
             {
-                new() { Email = "alice@a.com", Roles = new() { "Editor", "Admin" }, GenerateApiKey = true, Notes = "Lead" },
-                new() { Email = "bob@b.com",   Roles = new() { "Editor" }, Language = "sv", Company = "Acme" },
+                new() { Email = "alice@a.com", Roles = new() { "Editor", "Admin" }, GenerateApiKey = true },
+                new() { Email = "bob@b.com",   Roles = new() { "Editor" }, Language = "sv" },
             };
             var availableRoles = new List<string> { "Editor", "Admin", "Reader" };
             UsersWorkbook.Save(users, availableRoles, path);
@@ -27,11 +27,9 @@ public class UsersWorkbookTests
             alice.Username.ShouldBe("alice@a.com");
             alice.Roles.ShouldBe(new[] { "Editor", "Admin" });
             alice.GenerateApiKey.ShouldBeTrue();
-            alice.Notes.ShouldBe("Lead");
 
             var bob = loaded.Single(u => u.Email == "bob@b.com");
             bob.Language.ShouldBe("sv");
-            bob.Company.ShouldBe("Acme");
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }

@@ -354,7 +354,6 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
                 Email: source.Email,
                 FirstName: source.FirstName,
                 LastName: source.LastName,
-                Company: null,
                 Roles: source.Roles);
             var result = await _shell.ProvisionUserAsync(spec, targetSecret, targetEnv).ConfigureAwait(true);
 

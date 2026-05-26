@@ -34,7 +34,6 @@ public sealed class UserProvisioning
         string? Email,
         string? FirstName,
         string? LastName,
-        string? Company,
         IReadOnlyList<string> Roles,
         string Language = "en",
         bool GenerateApiKey = false);
@@ -104,18 +103,20 @@ public sealed class UserProvisioning
             {
                 try
                 {
-                    // Roles are intentionally not sent here: the create endpoint takes segmentRoles
-                    // (which must be present, hence the always-empty default on UserCreate), and plain
-                    // role membership is assigned below via Remoting once the user exists.
-                    var created2 = await _rest.CreateUserAsync(new UserCreate
+                    // Roles ride in as a single segment-0 (default/global) entry; an empty
+                    // segmentRoles array when the user has none. The create endpoint requires the
+                    // field to be present either way.
+                    var create = new UserCreate
                     {
                         Username = spec.Username,
                         Email = spec.Email,
                         FirstName = spec.FirstName,
                         LastName = spec.LastName,
-                        Company = spec.Company,
-                        Language = spec.Language,
-                    }, ct).ConfigureAwait(false);
+                    };
+                    var roleNames = spec.Roles.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
+                    if (roleNames.Count > 0)
+                        create.SegmentRoles.Add(new ModelMeister.Rest.SegmentRole { SegmentId = 0, RoleNames = roleNames });
+                    var created2 = await _rest.CreateUserAsync(create, ct).ConfigureAwait(false);
                     created = true;
                     if (created2 is not null && !string.IsNullOrEmpty(created2.ApiKey)) apiKey = created2.ApiKey;
                     _log.LogInformation("User {Username} created via REST (id {Id}).", spec.Username, created2?.Id);
@@ -215,7 +216,6 @@ public sealed class UserSummary
     public string? Email { get; set; }
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
-    public string? Company { get; set; }
     public bool Active { get; set; }
     public List<string> Roles { get; set; } = [];
 }

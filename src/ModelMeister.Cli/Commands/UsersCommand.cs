@@ -73,7 +73,7 @@ public static class UsersCommand
                     continue;
                 }
                 var result = await prov.ProvisionAsync(new UserProvisioning.UserSpec(
-                    u.Username, u.Email, u.FirstName, u.LastName, u.Company,
+                    u.Username, u.Email, u.FirstName, u.LastName,
                     u.Roles, u.Language, u.GenerateApiKey), ct).ConfigureAwait(false);
                 if (result.Created) { created++; AnsiConsole.MarkupLine($"  [green]+ {u.Username.EscapeMarkup()}[/]"); }
                 else { updated++; AnsiConsole.MarkupLine($"  [blue]~ {u.Username.EscapeMarkup()}[/]"); }
@@ -111,7 +111,6 @@ public static class UsersCommand
                     Email = u.Email ?? "",
                     FirstName = u.FirstName ?? "",
                     LastName = u.LastName ?? "",
-                    Company = u.Company ?? "",
                     Roles = u.Roles.ToList(),
                     Language = "en",
                 })

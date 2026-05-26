@@ -135,6 +135,9 @@ public sealed class InriverRestClient : IDisposable
 
     public static JsonSerializerOptions JsonOptions { get; } = new()
     {
+        // camelCase so request bodies match the inriver REST contract exactly, e.g.
+        // {"username":...,"segmentRoles":[{"segmentId":0,"roleNames":[...]}]}.
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
@@ -160,15 +163,21 @@ public sealed class UserCreate
     public string? Email { get; set; }
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
-    public string? Company { get; set; }
-    public string? Language { get; set; }
 
     /// <summary>
-    /// Segment-role memberships. The create endpoint rejects the request when this is absent, so it
-    /// is always serialized — even as an empty array. Plain role membership is assigned afterwards
-    /// via Remoting (see <c>UserProvisioning.AssignRolesAsync</c>), so this stays empty here.
+    /// Role memberships, grouped by segment. The create endpoint rejects the request when this is
+    /// absent, so it is always serialized — an empty array when the user has no roles. Roles are
+    /// passed as a single segment 0 (the default/global segment) entry.
     /// </summary>
-    public List<string> SegmentRoles { get; set; } = [];
+    public List<SegmentRole> SegmentRoles { get; set; } = [];
+}
+
+/// <summary>One segment's role memberships within a <see cref="UserCreate"/> request.</summary>
+public sealed class SegmentRole
+{
+    /// <summary>Segment id; 0 is the default/global segment.</summary>
+    public int SegmentId { get; set; }
+    public List<string> RoleNames { get; set; } = [];
 }
 
 /// <summary>Response body returned after a successful user creation; carries the newly-issued API key.</summary>
@@ -187,7 +196,6 @@ public sealed class UserSummary
     public string? Email { get; set; }
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
-    public string? Company { get; set; }
     public List<string>? Roles { get; set; }
     public bool Active { get; set; } = true;
 }

@@ -82,12 +82,12 @@ internal static class DialogHost
 
     /// <summary>Show the Create / Edit User dialog. Returns the populated VM on Save, else <c>null</c>.</summary>
     public static async Task<UserEditorViewModel?> UserEditorAsync(
-        string? username, string? email, string? firstName, string? lastName, string? company, string? language,
+        string? username, string? email, string? firstName, string? lastName, string? language,
         System.Collections.Generic.IReadOnlyList<string> selectedRoles,
         System.Collections.Generic.IReadOnlyList<string> availableRoles,
         bool isEdit)
     {
-        var vm = new UserEditorViewModel(username, email, firstName, lastName, company, language, selectedRoles, availableRoles, isEdit);
+        var vm = new UserEditorViewModel(username, email, firstName, lastName, language, selectedRoles, availableRoles, isEdit);
         var ok = await ShowDialogAsync<UserEditorDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
         return ok ? vm : null;
     }

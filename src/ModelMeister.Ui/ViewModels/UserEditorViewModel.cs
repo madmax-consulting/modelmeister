@@ -16,7 +16,7 @@ namespace ModelMeister.Ui.ViewModels;
 public partial class UserEditorViewModel : ViewModelBase
 {
     public UserEditorViewModel(
-        string? username, string? email, string? firstName, string? lastName, string? company,
+        string? username, string? email, string? firstName, string? lastName,
         string? language, IReadOnlyList<string> selectedRoles, IReadOnlyList<string> availableRoles,
         bool isEdit)
     {
@@ -24,7 +24,6 @@ public partial class UserEditorViewModel : ViewModelBase
         _email = email ?? "";
         _firstName = firstName ?? "";
         _lastName = lastName ?? "";
-        _company = company ?? "";
         _language = string.IsNullOrWhiteSpace(language) ? "en" : language;
         IsEdit = isEdit;
 
@@ -42,7 +41,6 @@ public partial class UserEditorViewModel : ViewModelBase
     [ObservableProperty] private string _email;
     [ObservableProperty] private string _firstName;
     [ObservableProperty] private string _lastName;
-    [ObservableProperty] private string _company;
     [ObservableProperty] private string _language;
     /// <summary>Generate a REST API key for the user on create (ignored on edit).</summary>
     [ObservableProperty] private bool _generateApiKey;

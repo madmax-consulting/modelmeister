@@ -28,11 +28,9 @@ public static class UsersWorkbook
         public string Email { get; set; } = "";
         public string FirstName { get; set; } = "";
         public string LastName { get; set; } = "";
-        public string Company { get; set; } = "";
         public List<string> Roles { get; set; } = [];
         public string Language { get; set; } = "en";
         public bool GenerateApiKey { get; set; }
-        public string Notes { get; set; } = "";
     }
 
     public static void Save(IReadOnlyList<UserRow> users, IReadOnlyList<string> availableRoles, string path)
@@ -63,8 +61,8 @@ public static class UsersWorkbook
         var ws = wb.AddWorksheet(SheetUsers);
         var headers = new[]
         {
-            "Email", "FirstName", "LastName", "Company",
-            "Roles", "Language", "GenerateApiKey", "Notes",
+            "Email", "FirstName", "LastName",
+            "Roles", "Language", "GenerateApiKey",
         };
         for (var i = 0; i < headers.Length; i++) ws.Cell(1, i + 1).Value = headers[i];
         XlIo.StyleHeader(ws.Row(1));
@@ -77,11 +75,9 @@ public static class UsersWorkbook
             ws.Cell(r, c++).Value = u.Email;
             ws.Cell(r, c++).Value = u.FirstName;
             ws.Cell(r, c++).Value = u.LastName;
-            ws.Cell(r, c++).Value = u.Company;
             ws.Cell(r, c++).Value = string.Join(";", u.Roles);
             ws.Cell(r, c++).Value = string.IsNullOrEmpty(u.Language) ? "en" : u.Language;
             ws.Cell(r, c++).Value = u.GenerateApiKey;
-            ws.Cell(r, c++).Value = u.Notes ?? "";
             r++;
         }
         ws.Columns().AdjustToContents();
@@ -114,13 +110,11 @@ public static class UsersWorkbook
                 Email = email,
                 FirstName = XlIo.ReadString(row, hdr, "FirstName"),
                 LastName = XlIo.ReadString(row, hdr, "LastName"),
-                Company = XlIo.ReadString(row, hdr, "Company"),
                 Roles = XlIo.ReadString(row, hdr, "Roles")
                     .Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .ToList(),
                 Language = string.IsNullOrEmpty(language) ? "en" : language,
                 GenerateApiKey = XlIo.ReadBool(row, hdr, "GenerateApiKey"),
-                Notes = XlIo.ReadString(row, hdr, "Notes"),
             });
         }
         return result;
