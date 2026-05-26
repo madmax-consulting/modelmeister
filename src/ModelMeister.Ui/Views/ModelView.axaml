@@ -132,8 +132,10 @@
           <Panel>
 
             <!-- FIELDS: full column set (Entity, Field, Datatype, Mandatory, ReadOnly, MultiValue, TrackChanges, Index, CvlId, Category) -->
-            <DataGrid ItemsSource="{Binding FieldRows}"
-                      IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Fields}"
+            <DockPanel LastChildFill="True"
+                       IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Fields}">
+              <c:GridToolbar DockPanel.Dock="Top" Margin="14,8" TargetGrid="{Binding #FieldsGrid}" />
+            <DataGrid Name="FieldsGrid" ItemsSource="{Binding FieldRows}"
                       AutoGenerateColumns="False" IsReadOnly="True"
                       BorderThickness="0" MaxHeight="360">
               <DataGrid.Columns>
@@ -181,6 +183,7 @@
                 </DataGridTextColumn>
               </DataGrid.Columns>
             </DataGrid>
+            </DockPanel>
 
             <!-- CVLs: CVL / DataType / ValueCount / Parent / Custom; selecting a row reveals values below -->
             <DockPanel IsVisible="{Binding SelectedConcept.Kind, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Cvls}">
@@ -375,7 +378,7 @@
                     ItemsSource="{Binding Issues}"
                     SelectedItem="{Binding SelectedIssue, Mode=TwoWay}"
                     AutoGenerateColumns="False" IsReadOnly="True"
-                    BorderThickness="0"
+                    BorderThickness="0" Classes="fit"
                     DoubleTapped="OnIssueDoubleTapped">
             <DataGrid.ContextMenu>
               <ContextMenu>
@@ -411,10 +414,10 @@
               <DataGridTextColumn Width="90" Binding="{Binding Code}">
                 <DataGridTextColumn.Header><c:FilterableHeader Title="Code" Path="Code" /></DataGridTextColumn.Header>
               </DataGridTextColumn>
-              <DataGridTextColumn Width="*" Binding="{Binding Message}">
+              <DataGridTextColumn Width="2*" MinWidth="160" Binding="{Binding Message}">
                 <DataGridTextColumn.Header><c:FilterableHeader Title="Message" Path="Message" /></DataGridTextColumn.Header>
               </DataGridTextColumn>
-              <DataGridTextColumn Width="380" Binding="{Binding Source}">
+              <DataGridTextColumn Width="1.6*" MinWidth="160" Binding="{Binding Source}">
                 <DataGridTextColumn.Header><c:FilterableHeader Title="Source" Path="Source" /></DataGridTextColumn.Header>
               </DataGridTextColumn>
             </DataGrid.Columns>

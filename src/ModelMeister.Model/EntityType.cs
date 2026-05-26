@@ -12,7 +12,7 @@ public abstract class EntityType
     protected EntityType()
     {
         EntityTypeId = GetType().Name;
-        EntityTypeName = new LocaleString(EntityTypeId);
+        EntityTypeName = new LocaleString(NameHumanizer.Humanize(EntityTypeId));
     }
 
     /// <summary>The inriver entity-type ID. Defaults to the CLR type name.</summary>

@@ -78,7 +78,7 @@ public static class ModelLoader
         if (prop.GetValue(entity) is not Field field) return null;
 
         var id = field.Id ?? $"{entity.EntityTypeId}{prop.Name}";
-        var name = field.Name ?? new LocaleString(prop.Name);
+        var name = field.Name ?? new LocaleString(NameHumanizer.Humanize(prop.Name));
 
         // Stamp metadata onto the field instance via reflection (init-only setters are normal IL setters).
         SetInit(field, nameof(Field.Id), id);
@@ -97,6 +97,13 @@ public static class ModelLoader
             SetInit(field, nameof(Field.IsDisplayDescription), true);
 
         var duplicates = ApplyFieldOptionAttributes(field, attrs);
+
+        // TrackChanges is on by default — the code model is authoritative. An unset value
+        // (no [TrackChanges] attribute, no initializer) means "track"; opt out explicitly with
+        // an object-initializer `TrackChanges = false`. Stamped after the attribute pass so a
+        // false initializer survives.
+        if (field.TrackChanges is null)
+            SetInit(field, nameof(Field.TrackChanges), true);
 
         return new LoadedField
         {

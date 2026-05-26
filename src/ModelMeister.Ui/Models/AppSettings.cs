@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ModelMeister.Inriver.Diff;
 
 namespace ModelMeister.Ui.Models;
 
@@ -47,4 +48,10 @@ public sealed class AppSettings
 
     /// <summary>Per-hub remembered sub-page key, keyed by hub name.</summary>
     public Dictionary<string, string> HubSubPageKeys { get; set; } = new();
+
+    /// <summary>Field-type property names (e.g. "TrackChanges") whose diffs the differ should ignore.</summary>
+    public List<string> IgnoredFieldProperties { get; set; } = [];
+
+    /// <summary>Field-type id ignore rules (contains / starts-with / ends-with) applied during diff.</summary>
+    public List<FieldIdIgnoreRule> IgnoredFieldIdPatterns { get; set; } = [];
 }

@@ -1,9 +1,17 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:svc="using:ModelMeister.Ui.Services"
              xmlns:c="using:ModelMeister.Ui.Controls"
              x:Class="ModelMeister.Ui.Views.ExtensionsView"
-             x:DataType="vm:ExtensionsViewModel">
+             x:DataType="vm:ExtensionsViewModel"
+             x:Name="PageRoot">
+
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedExtensionsCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding ItemsSelection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding ItemsSelection.SelectAllVisibleCommand}" />
+  </UserControl.KeyBindings>
 
   <c:PageShell Eyebrow="EXTENSIONS"
                Subtitle="Extensions registered on the connected environment — settings, events, states"
@@ -11,6 +19,38 @@
                IsBusy="{Binding Busy}">
     <c:PageShell.Actions>
       <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <!-- Bulk actions over the checked extensions. -->
+        <Button Classes="ghost icon" ToolTip.Tip="Start selected extensions"
+                Command="{Binding StartSelectedCommand}"
+                IsVisible="{Binding ItemsSelection.HasSelection}">
+          <Path Data="{DynamicResource IcoPlay}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Button Classes="ghost icon" ToolTip.Tip="Stop selected extensions"
+                Command="{Binding StopSelectedCommand}"
+                IsVisible="{Binding ItemsSelection.HasSelection}">
+          <Path Data="{DynamicResource IcoX}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Button Classes="ghost icon" ToolTip.Tip="Trigger a run on selected extensions"
+                Command="{Binding RunSelectedCommand}"
+                IsVisible="{Binding ItemsSelection.HasSelection}"
+                IsEnabled="{Binding HasRestKey}">
+          <Path Data="{DynamicResource IcoZap}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Button Classes="ghost icon danger" ToolTip.Tip="Delete selected extensions"
+                Command="{Binding DeleteSelectedExtensionsCommand}"
+                IsVisible="{Binding ItemsSelection.HasSelection}">
+          <Path Data="{DynamicResource IcoTrash}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}"
+                IsVisible="{Binding ItemsSelection.HasSelection}" />
         <Button Content="Latest events" Command="{Binding RefreshAllEventsCommand}"
                 Classes="ghost" IsEnabled="{Binding !Busy}" />
         <c:PageActions DataContext="{Binding}" />
@@ -22,14 +62,16 @@
       <Grid ColumnDefinitions="*,1,1.4*">
 
         <!-- Left: extensions list -->
-        <DataGrid Grid.Column="0"
-                  Name="ExtensionsGrid"
+        <DockPanel Grid.Column="0" LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #ExtensionsGrid}" />
+        <DataGrid Name="ExtensionsGrid"
                   ItemsSource="{Binding Items}"
                   SelectedItem="{Binding Selected, Mode=TwoWay}"
                   IsReadOnly="True"
                   AutoGenerateColumns="False"
                   SelectionMode="Single"
-                  Margin="0" BorderThickness="0" CornerRadius="0">
+                  Margin="0" BorderThickness="0" CornerRadius="0"
+                  svc:GridSelectionBehavior.Selection="{Binding ItemsSelection}">
           <DataGrid.ContextMenu>
             <ContextMenu>
               <MenuItem Header="Start"
@@ -55,9 +97,23 @@
               <MenuItem Header="Copy type"
                         Command="{Binding CopyExtensionTypeCommand}"
                         CommandParameter="{Binding #ExtensionsGrid.SelectedItem}" />
+              <Separator />
+              <MenuItem Header="Delete"
+                        Command="{Binding DeleteExtensionCommand}"
+                        CommandParameter="{Binding #ExtensionsGrid.SelectedItem}" />
+              <MenuItem Header="Delete selected"
+                        Command="{Binding DeleteSelectedExtensionsCommand}"
+                        IsEnabled="{Binding ItemsSelection.HasSelection}" />
             </ContextMenu>
           </DataGrid.ContextMenu>
           <DataGrid.Columns>
+            <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                    CellTemplate="{StaticResource RowSelectCell}">
+              <DataGridTemplateColumn.Header>
+                <CheckBox IsChecked="{Binding #PageRoot.((vm:ExtensionsViewModel)DataContext).ItemsSelection.AllSelected, Mode=TwoWay}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+              </DataGridTemplateColumn.Header>
+            </DataGridTemplateColumn>
             <DataGridTextColumn Binding="{Binding Id}" Width="*" MinWidth="120">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Id" Path="Id" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
@@ -70,7 +126,7 @@
             <DataGridTextColumn Binding="{Binding RecentErrorCount}" Width="50" MinWidth="50">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Errs" Path="RecentErrorCount" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTemplateColumn Header="" Width="120">
+            <DataGridTemplateColumn Header="" Width="150">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="vm:ExtensionRow">
                   <StackPanel Orientation="Horizontal" Spacing="3" Margin="4,0">
@@ -89,12 +145,19 @@
                             Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).RunCommand}"
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).HasRestKey}" />
+                    <Button Classes="ghost icon danger" Padding="6" MinHeight="22" ToolTip.Tip="Delete extension"
+                            Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).DeleteExtensionCommand}"
+                            CommandParameter="{Binding}">
+                      <Path Data="{DynamicResource IcoTrash}" Width="11" Height="11" Stretch="Uniform"
+                            Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent" />
+                    </Button>
                   </StackPanel>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
           </DataGrid.Columns>
         </DataGrid>
+        </DockPanel>
 
         <!-- Vertical divider -->
         <Border Grid.Column="1" Background="{DynamicResource Border}" Width="1" />
@@ -102,29 +165,53 @@
         <!-- Right: detail tabs (slim) -->
         <TabControl Grid.Column="2" Padding="0">
           <TabItem Header="Settings">
-            <Grid RowDefinitions="*,Auto" Margin="6">
-              <DataGrid Grid.Row="0" ItemsSource="{Binding Settings}" IsReadOnly="True"
-                        AutoGenerateColumns="False" SelectionMode="Single" BorderThickness="1">
+            <Grid RowDefinitions="Auto,*,Auto" Margin="6">
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                <c:GridToolbar Grid.Column="0" TargetGrid="{Binding #SettingsGrid}" />
+                <Button Grid.Column="1" Classes="ghost danger" Padding="8,3" Content="Delete selected"
+                        Command="{Binding DeleteSelectedSettingsCommand}"
+                        IsVisible="{Binding SettingsSelection.HasSelection}" />
+              </Grid>
+              <DataGrid Grid.Row="1" Name="SettingsGrid" ItemsSource="{Binding Settings}" IsReadOnly="True"
+                        AutoGenerateColumns="False" SelectionMode="Single" BorderThickness="1"
+                        svc:GridSelectionBehavior.Selection="{Binding SettingsSelection}">
                 <DataGrid.Columns>
+                  <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                          CellTemplate="{StaticResource RowSelectCell}">
+                    <DataGridTemplateColumn.Header>
+                      <CheckBox IsChecked="{Binding #PageRoot.((vm:ExtensionsViewModel)DataContext).SettingsSelection.AllSelected, Mode=TwoWay}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                    </DataGridTemplateColumn.Header>
+                  </DataGridTemplateColumn>
                   <DataGridTextColumn Binding="{Binding Key}" Width="200" MinWidth="120">
                     <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
                   </DataGridTextColumn>
                   <DataGridTextColumn Binding="{Binding Value}" Width="*" MinWidth="120">
                     <DataGridTextColumn.Header><c:FilterableHeader Title="Value" Path="Value" /></DataGridTextColumn.Header>
                   </DataGridTextColumn>
-                  <DataGridTemplateColumn Header="" Width="70">
+                  <DataGridTemplateColumn Header="" Width="74">
                     <DataGridTemplateColumn.CellTemplate>
                       <DataTemplate x:DataType="vm:ExtensionSettingRow">
-                        <Button Content="✕" Classes="ghost danger" Padding="6,2" MinHeight="22"
-                                ToolTip.Tip="Delete setting"
-                                Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).DeleteSettingCommand}"
-                                CommandParameter="{Binding}" />
+                        <StackPanel Orientation="Horizontal" Spacing="2">
+                          <Button Classes="ghost icon" Padding="6" MinHeight="22" ToolTip.Tip="Edit value"
+                                  Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).EditSettingCommand}"
+                                  CommandParameter="{Binding}">
+                            <Path Data="{DynamicResource IcoEdit}" Width="11" Height="11" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+                          </Button>
+                          <Button Classes="ghost icon danger" Padding="6" MinHeight="22" ToolTip.Tip="Delete setting"
+                                  Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).DeleteSettingCommand}"
+                                  CommandParameter="{Binding}">
+                            <Path Data="{DynamicResource IcoTrash}" Width="11" Height="11" Stretch="Uniform"
+                                  Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent" />
+                          </Button>
+                        </StackPanel>
                       </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                   </DataGridTemplateColumn>
                 </DataGrid.Columns>
               </DataGrid>
-              <Grid Grid.Row="1" Margin="0,6,0,0" ColumnDefinitions="*,1.5*,Auto">
+              <Grid Grid.Row="2" Margin="0,6,0,0" ColumnDefinitions="*,1.5*,Auto">
                 <TextBox Grid.Column="0" Text="{Binding NewSettingKey, Mode=TwoWay}" Watermark="key" />
                 <TextBox Grid.Column="1" Text="{Binding NewSettingValue, Mode=TwoWay}" Watermark="value" Margin="6,0,0,0" />
                 <Button Grid.Column="2" Content="Save" Command="{Binding AddSettingCommand}"
@@ -134,8 +221,10 @@
           </TabItem>
 
           <TabItem Header="Events">
-            <DataGrid ItemsSource="{Binding Events}" IsReadOnly="True"
-                      AutoGenerateColumns="False" Margin="6" BorderThickness="1">
+            <DockPanel LastChildFill="True" Margin="6">
+            <c:GridToolbar DockPanel.Dock="Top" Margin="0,0,0,4" TargetGrid="{Binding #EventsGrid}" />
+            <DataGrid Name="EventsGrid" ItemsSource="{Binding Events}" IsReadOnly="True"
+                      AutoGenerateColumns="False" BorderThickness="1">
               <DataGrid.Columns>
                 <DataGridTextColumn Binding="{Binding Utc}" Width="160" MinWidth="120">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="UTC" Path="Utc" /></DataGridTextColumn.Header>
@@ -148,13 +237,28 @@
                 </DataGridTextColumn>
               </DataGrid.Columns>
             </DataGrid>
+            </DockPanel>
           </TabItem>
 
           <TabItem Header="States">
-            <Grid RowDefinitions="*,Auto" Margin="6">
-              <DataGrid Grid.Row="0" ItemsSource="{Binding States}" IsReadOnly="True"
-                        AutoGenerateColumns="False" BorderThickness="1">
+            <Grid RowDefinitions="Auto,*,Auto" Margin="6">
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                <c:GridToolbar Grid.Column="0" TargetGrid="{Binding #StatesGrid}" />
+                <Button Grid.Column="1" Classes="ghost danger" Padding="8,3" Content="Delete selected"
+                        Command="{Binding DeleteSelectedStatesCommand}"
+                        IsVisible="{Binding StatesSelection.HasSelection}" />
+              </Grid>
+              <DataGrid Grid.Row="1" Name="StatesGrid" ItemsSource="{Binding States}" IsReadOnly="True"
+                        AutoGenerateColumns="False" BorderThickness="1"
+                        svc:GridSelectionBehavior.Selection="{Binding StatesSelection}">
                 <DataGrid.Columns>
+                  <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                          CellTemplate="{StaticResource RowSelectCell}">
+                    <DataGridTemplateColumn.Header>
+                      <CheckBox IsChecked="{Binding #PageRoot.((vm:ExtensionsViewModel)DataContext).StatesSelection.AllSelected, Mode=TwoWay}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                    </DataGridTemplateColumn.Header>
+                  </DataGridTemplateColumn>
                   <DataGridTextColumn Binding="{Binding Id}" Width="50" MinWidth="50">
                     <DataGridTextColumn.Header><c:FilterableHeader Title="Id" Path="Id" /></DataGridTextColumn.Header>
                   </DataGridTextColumn>
@@ -164,18 +268,29 @@
                   <DataGridTextColumn Binding="{Binding Data}" Width="*" MinWidth="160">
                     <DataGridTextColumn.Header><c:FilterableHeader Title="Data" Path="Data" /></DataGridTextColumn.Header>
                   </DataGridTextColumn>
-                  <DataGridTemplateColumn Header="" Width="70">
+                  <DataGridTemplateColumn Header="" Width="74">
                     <DataGridTemplateColumn.CellTemplate>
                       <DataTemplate x:DataType="vm:ExtensionStateRowVm">
-                        <Button Content="✕" Classes="ghost danger" Padding="6,2" MinHeight="22"
-                                Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).DeleteStateCommand}"
-                                CommandParameter="{Binding}" />
+                        <StackPanel Orientation="Horizontal" Spacing="2">
+                          <Button Classes="ghost icon" Padding="6" MinHeight="22" ToolTip.Tip="Edit state data"
+                                  Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).EditStateCommand}"
+                                  CommandParameter="{Binding}">
+                            <Path Data="{DynamicResource IcoEdit}" Width="11" Height="11" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+                          </Button>
+                          <Button Classes="ghost icon danger" Padding="6" MinHeight="22" ToolTip.Tip="Delete state"
+                                  Command="{Binding $parent[DataGrid].((vm:ExtensionsViewModel)DataContext).DeleteStateCommand}"
+                                  CommandParameter="{Binding}">
+                            <Path Data="{DynamicResource IcoTrash}" Width="11" Height="11" Stretch="Uniform"
+                                  Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent" />
+                          </Button>
+                        </StackPanel>
                       </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                   </DataGridTemplateColumn>
                 </DataGrid.Columns>
               </DataGrid>
-              <Grid Grid.Row="1" Margin="0,6,0,0" ColumnDefinitions="*,Auto">
+              <Grid Grid.Row="2" Margin="0,6,0,0" ColumnDefinitions="*,Auto">
                 <TextBox Grid.Column="0" Text="{Binding NewStateData, Mode=TwoWay}" Watermark="state data" />
                 <Button Grid.Column="1" Content="Add" Command="{Binding AddStateCommand}"
                         Classes="primary" IsEnabled="{Binding !Busy}" Margin="6,0,0,0" />
@@ -184,8 +299,10 @@
           </TabItem>
 
           <TabItem Header="Latest (all)">
-            <DataGrid ItemsSource="{Binding AllEvents}" IsReadOnly="True"
-                      AutoGenerateColumns="False" Margin="6" BorderThickness="1">
+            <DockPanel LastChildFill="True" Margin="6">
+            <c:GridToolbar DockPanel.Dock="Top" Margin="0,0,0,4" TargetGrid="{Binding #LatestEventsGrid}" />
+            <DataGrid Name="LatestEventsGrid" ItemsSource="{Binding AllEvents}" IsReadOnly="True"
+                      AutoGenerateColumns="False" BorderThickness="1">
               <DataGrid.Columns>
                 <DataGridTextColumn Binding="{Binding Utc}" Width="160" MinWidth="120">
                   <DataGridTextColumn.Header><c:FilterableHeader Title="UTC" Path="Utc" /></DataGridTextColumn.Header>
@@ -201,6 +318,7 @@
                 </DataGridTextColumn>
               </DataGrid.Columns>
             </DataGrid>
+            </DockPanel>
           </TabItem>
         </TabControl>
       </Grid>

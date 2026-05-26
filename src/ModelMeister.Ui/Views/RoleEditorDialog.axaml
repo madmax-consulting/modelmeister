@@ -1,0 +1,57 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        x:Class="ModelMeister.Ui.Views.RoleEditorDialog"
+        x:DataType="vm:RoleEditorViewModel"
+        Title="{Binding Title}"
+        Width="560" Height="620"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <DockPanel Margin="28,26,28,24" LastChildFill="True">
+
+      <StackPanel DockPanel.Dock="Top" Spacing="2">
+        <TextBlock Text="ROLE" Classes="eyebrow" />
+        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" />
+      </StackPanel>
+
+      <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,14,0,0">
+        <TextBlock Text="Name" Classes="label" />
+        <TextBox Text="{Binding Name, Mode=TwoWay}" Watermark="Role name" IsReadOnly="{Binding IsEdit}" />
+      </StackPanel>
+
+      <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,12,0,0">
+        <TextBlock Text="Description" Classes="label" />
+        <TextBox Text="{Binding Description, Mode=TwoWay}" Watermark="Optional description" />
+      </StackPanel>
+
+      <TextBlock DockPanel.Dock="Top" Text="Permissions" Classes="label" Margin="0,14,0,4" />
+
+      <!-- Buttons + validation pinned to the bottom; the permission list fills the rest. -->
+      <StackPanel DockPanel.Dock="Bottom" Spacing="10" Margin="0,12,0,0">
+        <TextBlock Text="{Binding Validation}" Foreground="{DynamicResource Danger}"
+                   IsVisible="{Binding Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+          <Button Content="Abort" Command="{Binding AbortCommand}" IsCancel="True" />
+          <Button Content="Save" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+        </StackPanel>
+      </StackPanel>
+
+      <Border Classes="cardSubtle" Padding="6">
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding Permissions}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:PermissionToggle">
+                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="2,1" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+
+    </DockPanel>
+  </Border>
+</Window>

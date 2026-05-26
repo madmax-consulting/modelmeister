@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -48,7 +47,9 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
 
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; } = Array.Empty<CompareAction>();
+    public IReadOnlyList<CompareAction> ExtraActions { get; }
+    /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
+    public RowSelectionModel Selection { get; }
     /// <summary>Bucket-bar toggle state: clicking a bar in the bottom chart hides that Bucket's rows.</summary>
     public BucketToggleState Buckets { get; } = new();
     public string BucketPath => nameof(CvlCompareRow.Bucket);
@@ -65,6 +66,7 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
         _log = log;
         _vault = main.Vault;
         _vault.Changed += RefreshEnvList;
+        Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -79,6 +81,11 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
             BuildExportColumns,
             log: _log,
             logSource: "CvlCompare");
+
+        ExtraActions = new[]
+        {
+            new CompareAction("Promote selected →", Primary: true, PromoteSelectedLeftToRightCommand),
+        };
     }
 
     private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
@@ -216,17 +223,24 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
         RebuildBuckets();
     }
 
-    /// <summary>Promote <paramref name="row"/> left→right. CVL-bucket rows sync the whole CVL;
-    /// Value-bucket rows touch a single value (pre-checked against parent CVL existence).</summary>
+    /// <summary>Promote <paramref name="row"/> left→right (one-way; swap envs to reverse). CVL-bucket
+    /// rows sync the whole CVL; Value-bucket rows touch a single value (pre-checked against parent CVL).</summary>
     [RelayCommand]
     public Task ApplyLeftToRightAsync(CvlCompareRow? row) =>
         ApplyRowAsync(row, sourceFromLeft: true);
 
+    /// <summary>Promote every selected row left→right, refreshing once at the end.</summary>
     [RelayCommand]
-    public Task ApplyRightToLeftAsync(CvlCompareRow? row) =>
-        ApplyRowAsync(row, sourceFromLeft: false);
+    public async Task PromoteSelectedLeftToRightAsync()
+    {
+        var rows = Selection.SelectedOf<CvlCompareRow>().ToList();
+        if (rows.Count == 0) { Status = "Select at least one row to promote."; return; }
+        foreach (var row in rows)
+            await ApplyRowAsync(row, sourceFromLeft: true, refresh: false).ConfigureAwait(true);
+        await CompareAsync().ConfigureAwait(true);
+    }
 
-    private async Task ApplyRowAsync(CvlCompareRow? row, bool sourceFromLeft)
+    private async Task ApplyRowAsync(CvlCompareRow? row, bool sourceFromLeft, bool refresh = true)
     {
         if (row is null) return;
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
@@ -313,8 +327,8 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
         }
         finally { Busy = false; }
 
-        // Re-run the compare so rows reflect the new state.
-        await CompareAsync().ConfigureAwait(true);
+        // Re-run the compare so rows reflect the new state (skipped during bulk — caller refreshes once).
+        if (refresh) await CompareAsync().ConfigureAwait(true);
     }
 
     private void RebuildBuckets()
@@ -332,4 +346,22 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
 
 /// <summary>One row in the CVL-compare grid. <see cref="Bucket"/> is "CVL" for CVL-level diffs
 /// (existence or definition) and "Value" for per-key value diffs.</summary>
-public sealed record CvlCompareRow(string Bucket, string CvlId, string Key, string Property, string LeftValue, string RightValue);
+public sealed partial class CvlCompareRow : SelectableRow
+{
+    public CvlCompareRow(string bucket, string cvlId, string key, string property, string leftValue, string rightValue)
+    {
+        Bucket = bucket;
+        CvlId = cvlId;
+        Key = key;
+        Property = property;
+        LeftValue = leftValue;
+        RightValue = rightValue;
+    }
+
+    public string Bucket { get; }
+    public string CvlId { get; }
+    public string Key { get; }
+    public string Property { get; }
+    public string LeftValue { get; }
+    public string RightValue { get; }
+}

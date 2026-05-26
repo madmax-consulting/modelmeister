@@ -1,3 +1,5 @@
+using ModelMeister.Model.Primitives;
+
 namespace ModelMeister.Model.Security;
 
 /// <summary>
@@ -8,7 +10,7 @@ public abstract class Role
 {
     protected Role()
     {
-        Name = GetType().Name;
+        Name = NameHumanizer.Humanize(GetType().Name);
         Description = Name;
     }
 

@@ -23,7 +23,7 @@ public abstract class Category : IFieldBinding
             }
         }
         CategoryId = name;
-        Name = new LocaleString(CategoryId);
+        Name = new LocaleString(NameHumanizer.Humanize(CategoryId));
     }
 
     /// <summary>The inriver category ID.</summary>

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ModelMeister.Inriver.Extensions;
+using ModelMeister.Ui.Models;
 using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
@@ -56,6 +57,11 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
     public ObservableCollection<ExtensionSettingRow> Settings { get; } = [];
     public ObservableCollection<ExtensionStateRowVm> States { get; } = [];
 
+    /// <summary>Checkbox selection for the extensions list, settings grid, and states grid.</summary>
+    public RowSelectionModel ItemsSelection { get; }
+    public RowSelectionModel SettingsSelection { get; }
+    public RowSelectionModel StatesSelection { get; }
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RefreshAllEventsCommand))]
     [NotifyCanExecuteChangedFor(nameof(StartCommand))]
@@ -98,6 +104,9 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         _main = main;
         _shell = shell;
         _log = log;
+        ItemsSelection = new RowSelectionModel(Items);
+        SettingsSelection = new RowSelectionModel(Settings);
+        StatesSelection = new RowSelectionModel(States);
         _main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
@@ -200,6 +209,50 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
             var ok = await _shell.RunExtensionAsync(row.Info.Id, env, secret).ConfigureAwait(true);
             _log.Info("Extensions", $"Run {row.Info.Id}: {(ok ? "triggered" : "failed")}");
             StatusMessage = ok ? $"Run triggered for {row.Info.Id}." : $"Run failed for {row.Info.Id}.";
+        }
+        finally { Busy = false; }
+    }
+
+    // ----- Bulk start / stop / run over the checked extensions -----
+
+    /// <summary>Start every checked extension.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public Task StartSelectedAsync() => BulkExtensionActionAsync("Start",
+        (id, env, secret) => _shell.StartExtensionAsync(id, env, secret));
+
+    /// <summary>Stop every checked extension.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public Task StopSelectedAsync() => BulkExtensionActionAsync("Stop",
+        (id, env, secret) => _shell.StopExtensionAsync(id, env, secret));
+
+    /// <summary>Trigger a run on every checked extension (REST; gated on a configured REST key).</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public Task RunSelectedAsync()
+    {
+        if (!HasRestKey) { StatusMessage = "REST key required for run trigger."; return Task.CompletedTask; }
+        return BulkExtensionActionAsync("Run", (id, env, secret) => _shell.RunExtensionAsync(id, env, secret));
+    }
+
+    private async Task BulkExtensionActionAsync(
+        string verb, Func<string, Models.EnvironmentEntry?, Models.EnvironmentSecret?, Task<bool>> action)
+    {
+        var ids = ItemsSelection.SelectedOf<ExtensionRow>().Select(r => r.Info.Id).ToList();
+        if (ids.Count == 0) { StatusMessage = "Select at least one extension."; return; }
+        Busy = true;
+        var env = _main.ConnectedEnv;
+        var secret = env is null ? null : _main.Vault.GetSecret(env.Id);
+        int ok = 0, failed = 0;
+        try
+        {
+            foreach (var id in ids)
+            {
+                StatusMessage = $"{verb} '{id}'…";
+                try { if (await action(id, env, secret).ConfigureAwait(true)) ok++; else failed++; }
+                catch (Exception ex) { failed++; _log.Warn("Extensions", $"{verb} '{id}' failed: {ex.Message}"); }
+            }
+            StatusMessage = failed == 0 ? $"{verb} · {ok} extension(s)." : $"{verb} · {ok} ok, {failed} failed.";
+            _log.Info("Extensions", StatusMessage);
+            await RefreshAsync().ConfigureAwait(true);
         }
         finally { Busy = false; }
     }
@@ -320,6 +373,131 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
+    // ----- Delete extension (Connector) -----
+
+    /// <summary>Delete a single extension after a confirmation prompt.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public async Task DeleteExtensionAsync(ExtensionRow? row)
+    {
+        if (row is null || !_main.IsConnected) return;
+        await ConfirmAndDeleteExtensionsAsync(new[] { row.Info.Id }).ConfigureAwait(true);
+    }
+
+    /// <summary>Delete every checked extension after a single itemized confirmation prompt.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public async Task DeleteSelectedExtensionsAsync()
+    {
+        var ids = ItemsSelection.SelectedOf<ExtensionRow>().Select(r => r.Info.Id).ToList();
+        if (ids.Count == 0) { StatusMessage = "Select at least one extension."; return; }
+        await ConfirmAndDeleteExtensionsAsync(ids).ConfigureAwait(true);
+    }
+
+    private async Task ConfirmAndDeleteExtensionsAsync(IReadOnlyList<string> ids)
+    {
+        if (!_main.IsConnected) { StatusMessage = "Connect first."; return; }
+        var ok = await DialogHost.ConfirmBulkAsync("Delete extensions", "Delete", "extension", ids,
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+        if (!ok) return;
+        await DeleteExtensionsAsync(ids).ConfigureAwait(true);
+    }
+
+    private async Task DeleteExtensionsAsync(IReadOnlyList<string> ids)
+    {
+        Busy = true;
+        int deleted = 0, errors = 0;
+        try
+        {
+            foreach (var id in ids)
+            {
+                StatusMessage = $"Deleting extension '{id}'…";
+                try { if (await _shell.DeleteExtensionAsync(id).ConfigureAwait(true)) { deleted++; _log.Success("Extensions", $"Deleted '{id}'."); } else errors++; }
+                catch (Exception ex) { errors++; _log.Warn("Extensions", $"Delete '{id}' failed: {ex.Message}"); }
+            }
+            StatusMessage = errors == 0 ? $"Deleted {deleted} extension(s)." : $"Deleted {deleted}, {errors} failed.";
+            MarkDataDirty();
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        finally { Busy = false; }
+    }
+
+    // ----- Settings edit + bulk delete -----
+
+    /// <summary>Edit a setting value via the shared key/value dialog, then persist.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public async Task EditSettingAsync(ExtensionSettingRow? row)
+    {
+        if (Selected is null || row is null) return;
+        var vm = await DialogHost.AddServerSettingAsync(row.Key, row.Value, isEdit: true).ConfigureAwait(true);
+        if (vm is null) return;
+        Busy = true;
+        try
+        {
+            var ok = await _shell.SetExtensionSettingAsync(Selected.Info.Id, row.Key, vm.Value ?? "").ConfigureAwait(true);
+            if (ok) { _log.Success("Extensions", $"Updated '{row.Key}' on {Selected.Info.Id}."); await ReloadSelectedDetailsAsync().ConfigureAwait(true); }
+            else StatusMessage = "Set setting failed.";
+        }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Delete every checked setting from the selected extension.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public async Task DeleteSelectedSettingsAsync()
+    {
+        if (Selected is null) return;
+        var keys = SettingsSelection.SelectedOf<ExtensionSettingRow>().Select(r => r.Key).ToList();
+        if (keys.Count == 0) { StatusMessage = "Select at least one setting."; return; }
+        var ok = await DialogHost.ConfirmBulkAsync($"Delete settings from {Selected.Info.Id}", "Delete", "setting", keys,
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+        if (!ok) return;
+        Busy = true;
+        try
+        {
+            foreach (var key in keys) await _shell.DeleteExtensionSettingAsync(Selected.Info.Id, key).ConfigureAwait(true);
+            _log.Success("Extensions", $"Deleted {keys.Count} setting(s) from {Selected.Info.Id}.");
+            await ReloadSelectedDetailsAsync().ConfigureAwait(true);
+        }
+        finally { Busy = false; }
+    }
+
+    // ----- State edit + bulk delete -----
+
+    /// <summary>Edit a connector state's data via the shared dialog, then persist.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public async Task EditStateAsync(ExtensionStateRowVm? row)
+    {
+        if (row is null) return;
+        var vm = await DialogHost.AddServerSettingAsync($"State #{row.Row.Id}", row.Data, isEdit: true).ConfigureAwait(true);
+        if (vm is null) return;
+        Busy = true;
+        try
+        {
+            var ok = await _shell.UpdateExtensionStateAsync(row.Row.Id, row.ConnectorId, vm.Value ?? "").ConfigureAwait(true);
+            if (ok && Selected is not null) { _log.Success("Extensions", $"Updated state #{row.Row.Id}."); await LoadStatesAsync(Selected).ConfigureAwait(true); }
+            else if (!ok) StatusMessage = "Update state failed.";
+        }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Delete every checked connector state.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public async Task DeleteSelectedStatesAsync()
+    {
+        var rows = StatesSelection.SelectedOf<ExtensionStateRowVm>().ToList();
+        if (rows.Count == 0) { StatusMessage = "Select at least one state."; return; }
+        var ok = await DialogHost.ConfirmBulkAsync("Delete connector states", "Delete", "state",
+            rows.Select(r => $"State #{r.Row.Id}").ToList(),
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+        if (!ok) return;
+        Busy = true;
+        try
+        {
+            foreach (var row in rows)
+                if (await _shell.DeleteExtensionStateAsync(row.Row.Id).ConfigureAwait(true)) States.Remove(row);
+            _log.Success("Extensions", $"Deleted {rows.Count} state(s).");
+        }
+        finally { Busy = false; }
+    }
+
     partial void OnSelectedChanged(ExtensionRow? value)
     {
         if (value is null) return;
@@ -353,7 +531,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
     }
 }
 
-public sealed class ExtensionRow
+public sealed partial class ExtensionRow : SelectableRow
 {
     public ExtensionsService.ExtensionInfo Info { get; }
     public ExtensionRow(ExtensionsService.ExtensionInfo info) => Info = info;
@@ -377,14 +555,14 @@ public sealed class ExtensionEventRow
     public string ConnectorId => Event.ConnectorId ?? "";
 }
 
-public sealed class ExtensionSettingRow
+public sealed partial class ExtensionSettingRow : SelectableRow
 {
     public string Key { get; }
     public string Value { get; }
     public ExtensionSettingRow(string key, string value) { Key = key; Value = value; }
 }
 
-public sealed class ExtensionStateRowVm
+public sealed partial class ExtensionStateRowVm : SelectableRow
 {
     public ExtensionsService.ExtensionStateRow Row { get; }
     public ExtensionStateRowVm(ExtensionsService.ExtensionStateRow row) => Row = row;

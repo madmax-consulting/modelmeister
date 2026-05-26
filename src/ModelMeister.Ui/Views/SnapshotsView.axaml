@@ -4,13 +4,14 @@
              xmlns:svc="using:ModelMeister.Ui.Services"
              xmlns:c="using:ModelMeister.Ui.Controls"
              x:Class="ModelMeister.Ui.Views.SnapshotsView"
-             x:DataType="vm:SnapshotsViewModel">
+             x:DataType="vm:SnapshotsViewModel"
+             x:Name="PageRoot">
 
   <UserControl.KeyBindings>
-    <!-- Delete key targets the currently-selected backup row. -->
-    <KeyBinding Gesture="Delete"
-                Command="{Binding DeleteCommand}"
-                CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
+    <!-- Delete acts on the checkbox selection (not just the focused row). -->
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
   </UserControl.KeyBindings>
 
   <!-- Single-row PageShell header: Eyebrow + Subtitle on the left; Capture + standard PageActions
@@ -25,11 +26,20 @@
         <Button Classes="primary"
                 Content="Capture full snapshot"
                 Command="{Binding CaptureFullCommand}" />
+        <Button Classes="ghost icon danger" ToolTip.Tip="Delete selected backups"
+                Command="{Binding DeleteSelectedCommand}"
+                IsVisible="{Binding Selection.HasSelection}">
+          <Path Data="{DynamicResource IcoTrash}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
         <c:PageActions DataContext="{Binding}" />
       </StackPanel>
     </c:PageShell.Actions>
 
     <Border Classes="card flush" Padding="0">
+      <DockPanel LastChildFill="True">
+      <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #BackupsGrid}" />
       <Grid>
         <!-- Empty state: shown when no backups have been captured yet. Mirrors UsersView's pattern
              (centered text + cta) so an empty library no longer renders as a blank dark surface. -->
@@ -55,6 +65,7 @@
                   GridLinesVisibility="Horizontal"
                   HeadersVisibility="Column"
                   Margin="0" BorderThickness="0" CornerRadius="0"
+                  svc:GridSelectionBehavior.Selection="{Binding Selection}"
                   DoubleTapped="OnRowDoubleTapped">
           <DataGrid.ContextMenu>
             <ContextMenu>
@@ -72,9 +83,19 @@
               <MenuItem Header="Delete"
                         Command="{Binding DeleteCommand}"
                         CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
+              <MenuItem Header="Delete selected"
+                        Command="{Binding DeleteSelectedCommand}"
+                        IsEnabled="{Binding Selection.HasSelection}" />
             </ContextMenu>
           </DataGrid.ContextMenu>
           <DataGrid.Columns>
+            <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                    CellTemplate="{StaticResource RowSelectCell}">
+              <DataGridTemplateColumn.Header>
+                <CheckBox IsChecked="{Binding #PageRoot.((vm:SnapshotsViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+              </DataGridTemplateColumn.Header>
+            </DataGridTemplateColumn>
             <!-- Scope-as-column-filter (preserves commit 51ec2fc). MinWidth lets columns size to
                  content while keeping a sensible floor; only File gets Width="*" so it absorbs
                  the slack rather than every column fighting for it. -->
@@ -115,6 +136,7 @@
           </DataGrid.Columns>
         </DataGrid>
       </Grid>
+      </DockPanel>
     </Border>
 
   </c:PageShell>

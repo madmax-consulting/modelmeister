@@ -1,0 +1,106 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        xmlns:conv="using:ModelMeister.Ui.Converters"
+        x:Class="ModelMeister.Ui.Views.ConfirmBulkDialog"
+        x:DataType="vm:ConfirmBulkViewModel"
+        Title="{Binding Title}"
+        Width="540" SizeToContent="Height" MaxHeight="640"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Window.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter  x:Key="StageText" />
+  </Window.Resources>
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <StackPanel Margin="28,26,28,24" Spacing="14">
+
+      <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+        <Grid Width="44" Height="44">
+          <Border CornerRadius="12"
+                  Background="{DynamicResource PillErrBg}"
+                  BorderBrush="{DynamicResource Danger}"
+                  BorderThickness="1"
+                  IsVisible="{Binding Destructive}" />
+          <Border CornerRadius="12"
+                  Background="{DynamicResource Surface3}"
+                  BorderBrush="{DynamicResource Border}"
+                  BorderThickness="1"
+                  IsVisible="{Binding !Destructive}" />
+          <Path Data="{DynamicResource IcoTrash}" Width="20" Height="20" Stretch="Uniform"
+                IsVisible="{Binding Destructive}"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.7"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Path Data="{DynamicResource IcoCheck}" Width="20" Height="20" Stretch="Uniform"
+                IsVisible="{Binding !Destructive}"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+        <StackPanel Spacing="2">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Eyebrow}" Classes="eyebrow"
+                       Foreground="{DynamicResource Danger}" Margin="0"
+                       IsVisible="{Binding Destructive}" />
+            <TextBlock Text="{Binding Eyebrow}" Classes="eyebrow" Margin="0"
+                       IsVisible="{Binding !Destructive}" />
+            <Border Classes="stage" IsVisible="{Binding HasEnv}"
+                    Background="{Binding Stage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                    BorderBrush="{Binding Stage, Converter={StaticResource StageBrush}}">
+              <TextBlock Text="{Binding Stage, Converter={StaticResource StageText}}"
+                         Foreground="{Binding Stage, Converter={StaticResource StageBrush}}" />
+            </Border>
+          </StackPanel>
+          <TextBlock Text="{Binding Headline}" FontSize="20" FontWeight="Bold" />
+        </StackPanel>
+      </StackPanel>
+
+      <Border Classes="pill err" IsVisible="{Binding IsProd}" HorizontalAlignment="Left">
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Path Data="{DynamicResource IcoWarn}" Width="11" Height="11" Stretch="Uniform"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.7" Fill="Transparent" />
+          <TextBlock Text="PRODUCTION ENVIRONMENT" Foreground="{DynamicResource Danger}" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="cardSubtle" IsVisible="{Binding HasEnv}">
+        <StackPanel Spacing="4">
+          <TextBlock Text="TARGET" Classes="h3" />
+          <TextBlock Text="{Binding EnvName}" Classes="mono"
+                     FontSize="13" Foreground="{DynamicResource TextPri}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="cardSubtle">
+        <DockPanel LastChildFill="True">
+          <TextBlock DockPanel.Dock="Top" Text="ITEMS" Classes="h3" Margin="0,0,0,6" />
+          <TextBlock DockPanel.Dock="Bottom" Text="{Binding OverflowText}" Classes="subtle"
+                     Margin="0,6,0,0" IsVisible="{Binding HasOverflow}" />
+          <ScrollViewer MaxHeight="240" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Items}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding}" Classes="mono" FontSize="12"
+                             Foreground="{DynamicResource TextPri}" TextWrapping="NoWrap" Margin="0,1" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,8,0,0">
+        <Button Content="Abort" Command="{Binding CancelCommand}" IsCancel="True" />
+        <Button Content="{Binding ConfirmLabel}" Command="{Binding ConfirmCommand}"
+                Classes="danger" IsDefault="True" IsVisible="{Binding Destructive}" />
+        <Button Content="{Binding ConfirmLabel}" Command="{Binding ConfirmCommand}"
+                Classes="primary" IsDefault="True" IsVisible="{Binding !Destructive}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

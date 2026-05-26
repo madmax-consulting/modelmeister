@@ -45,6 +45,40 @@ internal static class DialogHost
         return ok ? vm : null;
     }
 
+    /// <summary>Show the Create / Edit Role dialog. Returns the populated VM on Save, else <c>null</c>.</summary>
+    public static async Task<RoleEditorViewModel?> RoleEditorAsync(
+        string? name, string? description,
+        System.Collections.Generic.IReadOnlyList<string> selectedPermissions,
+        System.Collections.Generic.IReadOnlyList<string> availablePermissions,
+        bool isEdit)
+    {
+        var vm = new RoleEditorViewModel(name, description, selectedPermissions, availablePermissions, isEdit);
+        var ok = await ShowDialogAsync<RoleEditorDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
+    /// <summary>Show the Create / Edit CVL dialog (definition + value editor). Returns the VM on Save, else <c>null</c>.</summary>
+    public static async Task<CvlEditorViewModel?> CvlEditorAsync(
+        bool isEdit, string id,
+        ModelMeister.Model.Primitives.CvlDataType dataType, string? parentId, bool customValueList,
+        System.Collections.Generic.IReadOnlyList<ModelMeister.Inriver.Snapshot.LiveCvlValue> values,
+        System.Collections.Generic.IReadOnlyList<string> availableCvlIds)
+    {
+        var vm = new CvlEditorViewModel(isEdit, id, dataType, parentId, customValueList, values, availableCvlIds);
+        var ok = await ShowDialogAsync<CvlEditorDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
+    /// <summary>Show the bulk role-permission dialog (pick a permission + Add/Remove). Returns the VM
+    /// on Apply, else <c>null</c>.</summary>
+    public static async Task<BulkRolePermissionViewModel?> BulkRolePermissionAsync(
+        int roleCount, System.Collections.Generic.IReadOnlyList<string> permissions)
+    {
+        var vm = new BulkRolePermissionViewModel(roleCount, permissions);
+        var ok = await ShowDialogAsync<BulkRolePermissionDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
     /// <summary>Show the per-row promote confirmation. Returns <c>true</c> when the user clicks Continue.</summary>
     public static Task<bool> ConfirmPromoteAsync(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string targetStage)
     {
@@ -55,6 +89,23 @@ internal static class DialogHost
     /// <summary>Show the post-import / post-dry-run result summary. Always returns once the user closes it.</summary>
     public static Task<bool> ShowProvisionResultAsync(ProvisionResultViewModel vm)
         => ShowDialogAsync<ProvisionResultDialog>(vm, dlg => vm.Closed += () => dlg.Close(true));
+
+    /// <summary>
+    /// Show the itemized, stage-aware bulk-confirm dialog. Lists every target by name (capped) plus a
+    /// Prod banner when <paramref name="stage"/> is Prod and the action is destructive. Returns
+    /// <c>true</c> when the user confirms. Use this for every delete (single + bulk) so the user always
+    /// sees what they are about to change.
+    /// </summary>
+    public static Task<bool> ConfirmBulkAsync(
+        string title, string verb, string noun,
+        System.Collections.Generic.IReadOnlyList<string> itemNames,
+        string? envName,
+        ModelMeister.Ui.Models.EnvironmentStage stage = ModelMeister.Ui.Models.EnvironmentStage.Unspecified,
+        bool destructive = true)
+    {
+        var vm = new ConfirmBulkViewModel(title, verb, noun, itemNames, envName, stage, destructive);
+        return ShowDialogAsync<ConfirmBulkDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
+    }
 
     /// <summary>Simple yes/no confirmation. Returns <c>true</c> on the affirmative button.</summary>
     public static async Task<bool> ConfirmAsync(string title, string message, string confirmLabel = "Continue", string cancelLabel = "Abort")

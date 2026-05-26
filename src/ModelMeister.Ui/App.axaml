@@ -1,6 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:ModelMeister.Ui"
+             xmlns:m="using:ModelMeister.Ui.Models"
              x:Class="ModelMeister.Ui.App">
 
   <Application.DataTemplates>
@@ -19,6 +20,20 @@
     <ResourceDictionary>
       <FontFamily x:Key="UiFont">resm:Avalonia.Fonts.Inter#Inter, $Default</FontFamily>
       <FontFamily x:Key="MonoFont">Cascadia Mono, JetBrains Mono, Consolas, Menlo, monospace</FontFamily>
+
+      <!-- Uniform width for every grid's left-hand row-selection checkbox column. -->
+      <x:Double x:Key="RowSelectColWidth">40</x:Double>
+
+      <!-- Shared left-hand row-selection checkbox cell. Every feature grid's selection column reuses
+           this; the bound row is a SelectableRow, and the Tag lets GridSelectionBehavior recognise
+           it for shift-click range selection. The header (select-all) checkbox stays per-grid since
+           it binds to that page's RowSelectionModel. -->
+      <DataTemplate x:Key="RowSelectCell" x:DataType="m:SelectableRow">
+        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Tag="__rowselect"
+                  MinWidth="0" Padding="0"
+                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                  ToolTip.Tip="Select row (Shift+click to select a range)" />
+      </DataTemplate>
 
       <ResourceDictionary.ThemeDictionaries>
 
@@ -97,6 +112,7 @@
           <SolidColorBrush x:Key="InputBg"           Color="#FFFFFF" />
           <SolidColorBrush x:Key="InputBgHover"      Color="#F7F9FC" />
           <SolidColorBrush x:Key="RowHoverHighlight" Color="#0F000000" />
+          <SolidColorBrush x:Key="ZebraRow"          Color="#07000000" />
           <SolidColorBrush x:Key="PillOkBg"          Color="#E8F5EC" />
           <SolidColorBrush x:Key="PillErrBg"         Color="#FBE9E7" />
           <SolidColorBrush x:Key="PillWarnBg"        Color="#FBEFDD" />
@@ -283,6 +299,7 @@
           <SolidColorBrush x:Key="InputBg"           Color="#0D111A" />
           <SolidColorBrush x:Key="InputBgHover"      Color="#10151F" />
           <SolidColorBrush x:Key="RowHoverHighlight" Color="#0AFFFFFF" />
+          <SolidColorBrush x:Key="ZebraRow"          Color="#08FFFFFF" />
           <SolidColorBrush x:Key="PillOkBg"          Color="#142A20" />
           <SolidColorBrush x:Key="PillErrBg"         Color="#2A1316" />
           <SolidColorBrush x:Key="PillWarnBg"        Color="#2E1F0E" />

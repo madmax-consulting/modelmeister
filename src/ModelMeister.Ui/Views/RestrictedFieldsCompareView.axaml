@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:views="using:ModelMeister.Ui.Views"
+             x:Class="ModelMeister.Ui.Views.RestrictedFieldsCompareView"
+             x:DataType="vm:RestrictedFieldsCompareViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter x:Key="StageText" />
+  </UserControl.Resources>
+
+  <views:CompareLayoutView Eyebrow="RESTRICTED FIELDS · COMPARE"
+                           Subtitle="Compare restricted-field permissions across two environments — promote per-row">
+    <views:CompareLayoutView.Body>
+      <DockPanel LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="2,0,0,8" TargetGrid="{Binding #MainGrid}" />
+      <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
+                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                SelectionMode="Extended" svc:GridSelectionBehavior.Selection="{Binding Selection}" Classes="filterable fit">
+        <DataGrid.Columns>
+          <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                  CellTemplate="{StaticResource RowSelectCell}">
+            <DataGridTemplateColumn.Header>
+              <CheckBox IsChecked="{Binding #Root.((vm:RestrictedFieldsCompareViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+            </DataGridTemplateColumn.Header>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Binding="{Binding State}" Width="110">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding RoleName}" Width="1.2*" MinWidth="110">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Role" Path="RoleName" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding RestrictionType}" Width="120" MinWidth="90">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Restriction" Path="RestrictionType" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding EntityTypeId}" Width="1.2*" MinWidth="100">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Entity type" Path="EntityTypeId" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding FieldTypeId}" Width="1.2*" MinWidth="100">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Field type" Path="FieldTypeId" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding CategoryId}" Width="1.2*" MinWidth="100">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Category" Path="CategoryId" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Detail}" Width="1.2*" MinWidth="90">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Detail" Path="Detail" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+
+          <!-- Per-row promote (one-way: source → target), shown as source→target stage pills. Hidden
+               on rows that aren't promotable source→target. Swap the environments to reverse direction. -->
+          <DataGridTemplateColumn Header="" Width="100">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:RestrictedFieldCompareRow">
+                <Button Classes="ghost" Padding="4,2" Margin="4,0"
+                        IsVisible="{Binding CanPromoteLeftToRight}"
+                        ToolTip.Tip="Add this restricted-field permission from the source environment into the target one"
+                        Command="{Binding $parent[DataGrid].((vm:RestrictedFieldsCompareViewModel)DataContext).ApplyLeftToRightCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <Border Classes="pill"
+                            Background="{Binding $parent[DataGrid].((vm:RestrictedFieldsCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:RestrictedFieldsCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="4,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:RestrictedFieldsCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:RestrictedFieldsCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="→" VerticalAlignment="Center" />
+                    <Border Classes="pill"
+                            Background="{Binding $parent[DataGrid].((vm:RestrictedFieldsCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:RestrictedFieldsCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="4,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:RestrictedFieldsCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:RestrictedFieldsCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+      </DockPanel>
+    </views:CompareLayoutView.Body>
+  </views:CompareLayoutView>
+</UserControl>

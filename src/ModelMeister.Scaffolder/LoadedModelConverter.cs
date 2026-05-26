@@ -139,7 +139,7 @@ public static class LoadedModelConverter
             ExcludeFromDefaultView = ff.ExcludeFromDefaultView ?? false,
             CvlId = cvlId,
             Multivalue = ff.MultiValue,
-            TrackChanges = ff.TrackChanges ?? !ff.ReadOnly,
+            TrackChanges = ff.TrackChanges ?? true,
             ExpressionSupport = ff.SupportsExpression,
         };
     }

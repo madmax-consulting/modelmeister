@@ -5,6 +5,9 @@
 **/publish/
 **/AppPackages/
 
+# Claude Code local state (worktrees, plans, agent scratch)
+.claude/
+
 # .NET
 *.user
 *.suo

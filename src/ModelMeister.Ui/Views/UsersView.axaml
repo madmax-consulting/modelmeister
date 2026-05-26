@@ -5,7 +5,14 @@
              xmlns:c="using:ModelMeister.Ui.Controls"
              xmlns:conv="using:ModelMeister.Ui.Converters"
              x:Class="ModelMeister.Ui.Views.UsersView"
-             x:DataType="vm:UsersViewModel">
+             x:DataType="vm:UsersViewModel"
+             x:Name="PageRoot">
+
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
+    <KeyBinding Gesture="Ctrl+C" Command="{Binding CopySelectedCommand}" />
+  </UserControl.KeyBindings>
 
   <c:PageShell Eyebrow="USERS"
                Subtitle="Inspect the live environment's user list — export/import via the icons above"
@@ -13,6 +20,16 @@
                IsBusy="{Binding Busy}">
     <c:PageShell.Actions>
       <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <!-- Copy selected: the one bulk action available on Users (the API can't delete/edit users). -->
+        <Button Classes="ghost icon" ToolTip.Tip="Copy selected users"
+                Command="{Binding CopySelectedCommand}"
+                IsVisible="{Binding Selection.HasSelection}">
+          <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}"
+                IsVisible="{Binding Selection.HasSelection}" />
         <!-- Download dropdown: list vs blank template — the previous Export icon offered only one
              option, which made the template (one example row, no real users) hard to discover. -->
         <Button Classes="ghost icon" ToolTip.Tip="Download…">
@@ -31,6 +48,8 @@
     </c:PageShell.Actions>
 
     <Border Classes="card flush" Padding="0">
+      <DockPanel LastChildFill="True">
+      <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #UsersGrid}" />
       <Grid>
         <!-- Empty state: when no users (typically because we're not connected) -->
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -42,7 +61,7 @@
       <DataGrid Name="UsersGrid"
                 ItemsSource="{Binding Users}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                BorderThickness="0">
+                BorderThickness="0" svc:GridSelectionBehavior.Selection="{Binding Selection}">
         <DataGrid.ContextMenu>
           <ContextMenu>
             <MenuItem Header="Copy username"
@@ -57,6 +76,13 @@
           </ContextMenu>
         </DataGrid.ContextMenu>
         <DataGrid.Columns>
+          <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                  CellTemplate="{StaticResource RowSelectCell}">
+            <DataGridTemplateColumn.Header>
+              <CheckBox IsChecked="{Binding #PageRoot.((vm:UsersViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+            </DataGridTemplateColumn.Header>
+          </DataGridTemplateColumn>
           <!-- Username + Email are identical in inriver for most orgs; only Username is shown.
                If you need to see Email separately, right-click → Copy email or re-add the column. -->
           <DataGridTextColumn Binding="{Binding Username}" Width="200" MinWidth="120">
@@ -75,6 +101,7 @@
         </DataGrid.Columns>
       </DataGrid>
       </Grid>
+      </DockPanel>
     </Border>
 
   </c:PageShell>

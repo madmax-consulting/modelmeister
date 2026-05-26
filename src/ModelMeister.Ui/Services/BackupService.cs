@@ -95,6 +95,30 @@ public sealed class BackupService
         return path;
     }
 
+    /// <summary>Capture a Roles backup and write it to disk. Returns the saved path.</summary>
+    public async Task<string> CaptureRolesAsync(string? label = null, System.Threading.CancellationToken ct = default)
+    {
+        var env = _connection.Connected ?? throw new InvalidOperationException("Not connected.");
+        var meta = BuildMetadata(label);
+        var backup = await _shell.CaptureRolesBackupAsync(meta, ct).ConfigureAwait(false);
+        var path = NewFilePath(env.Name, "Roles");
+        backup.Save(path);
+        RaiseChanged();
+        return path;
+    }
+
+    /// <summary>Capture a Restricted-fields backup and write it to disk. Returns the saved path.</summary>
+    public async Task<string> CaptureRestrictedFieldsAsync(string? label = null, System.Threading.CancellationToken ct = default)
+    {
+        var env = _connection.Connected ?? throw new InvalidOperationException("Not connected.");
+        var meta = BuildMetadata(label);
+        var backup = await _shell.CaptureRestrictedFieldsBackupAsync(meta, ct).ConfigureAwait(false);
+        var path = NewFilePath(env.Name, "RestrictedFields");
+        backup.Save(path);
+        RaiseChanged();
+        return path;
+    }
+
     /// <summary>Capture a ServerSettings backup. Returns the saved path.</summary>
     public async Task<string> CaptureServerSettingsAsync(string? label = null, System.Threading.CancellationToken ct = default)
     {

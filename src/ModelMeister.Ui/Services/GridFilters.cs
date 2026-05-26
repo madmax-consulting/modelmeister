@@ -20,6 +20,8 @@ public static class GridFilters
     {
         public DataGridCollectionView? View;
         public IEnumerable? OriginalSource;
+        /// <summary>Free-text term matched against every scalar property of a row (global search box).</summary>
+        public string? GlobalFilter;
         public readonly Dictionary<string, string> Filters = new(StringComparer.OrdinalIgnoreCase);
         /// <summary>Positive set-membership filters (row passes only if value ∈ allowed). Excel-style.</summary>
         public readonly Dictionary<string, HashSet<string>> SetFilters = new(StringComparer.OrdinalIgnoreCase);
@@ -51,16 +53,36 @@ public static class GridFilters
         st.View?.Refresh();
     }
 
-    /// <summary>Drop every column filter on the given grid (used by a "clear all" affordance).</summary>
+    /// <summary>Drop every column filter on the given grid (used by a "clear all" affordance). The
+    /// negative bucket-chart filters are left intact — those are owned by the bottom bar chart.</summary>
     public static void ClearAll(DataGrid grid)
     {
         if (!States.TryGetValue(grid, out var st)) return;
-        if (st.Filters.Count == 0 && st.SetFilters.Count == 0 && st.ExcludeFilters.Count == 0) return;
+        if (st.Filters.Count == 0 && st.SetFilters.Count == 0 && st.GlobalFilter is null) return;
         st.Filters.Clear();
         st.SetFilters.Clear();
-        st.ExcludeFilters.Clear();
+        st.GlobalFilter = null;
+        EnsureWrapped(grid, st);
         st.View?.Refresh();
     }
+
+    /// <summary>Global search: a single term ANDed across every scalar property of each row.
+    /// Empty / null clears it. Coexists with the per-column filters.</summary>
+    public static void SetGlobalFilter(DataGrid grid, string? text)
+    {
+        var st = EnsureState(grid);
+        var value = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        if (string.Equals(st.GlobalFilter, value, StringComparison.Ordinal)) return;
+        st.GlobalFilter = value;
+        EnsureWrapped(grid, st);
+        st.View?.Refresh();
+    }
+
+    /// <summary>True when the grid has any user-applied filter (per-column or global), so a toolbar
+    /// can enable a "clear filters" affordance. Bucket-chart exclusions are not counted.</summary>
+    public static bool HasAnyFilter(DataGrid grid)
+        => States.TryGetValue(grid, out var st)
+           && (st.Filters.Count > 0 || st.SetFilters.Count > 0 || st.GlobalFilter is not null);
 
     /// <summary>Excel-style multi-select filter: row passes only if its <paramref name="propertyPath"/>
     /// value (string form) is in <paramref name="allowed"/>. Pass <c>null</c> or an empty set to clear.</summary>
@@ -145,6 +167,7 @@ public static class GridFilters
     private static bool RowPasses(State st, object? item)
     {
         if (item is null) return false;
+        if (st.GlobalFilter is { } term && !MatchesAnyScalar(item, term)) return false;
         foreach (var (path, needle) in st.Filters)
         {
             var actual = ReadPropertyChain(item, path)?.ToString();
@@ -162,6 +185,22 @@ public static class GridFilters
             if (excluded.Contains(actual)) return false;
         }
         return true;
+    }
+
+    /// <summary>True when any scalar (string/primitive/enum) property of <paramref name="item"/>
+    /// contains <paramref name="term"/> (ordinal-ignore-case). Backs the global search box.</summary>
+    private static bool MatchesAnyScalar(object item, string term)
+    {
+        foreach (var prop in item.GetType().GetProperties())
+        {
+            if (prop.GetIndexParameters().Length > 0) continue;
+            var t = prop.PropertyType;
+            if (t != typeof(string) && !t.IsPrimitive && !t.IsEnum) continue;
+            var value = prop.GetValue(item)?.ToString();
+            if (!string.IsNullOrEmpty(value) && value.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+        }
+        return false;
     }
 
     private static object? ReadPropertyChain(object root, string path)

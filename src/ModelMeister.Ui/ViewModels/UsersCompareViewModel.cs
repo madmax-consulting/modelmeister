@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -48,7 +47,9 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
 
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; } = Array.Empty<CompareAction>();
+    public IReadOnlyList<CompareAction> ExtraActions { get; }
+    /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
+    public RowSelectionModel Selection { get; }
 
     // Cached captures so per-row promote can look up the source UserSummary without re-querying.
     private IReadOnlyList<UserSummary>? _leftCapture;
@@ -62,6 +63,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         _vault = main.Vault;
         _vault.Changed += RefreshEnvList;
         Buckets.Changed += _ => RebuildVisibleRows();
+        Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -76,6 +78,11 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
             BuildExportColumns,
             log: _log,
             logSource: "UsersCompare");
+
+        ExtraActions = new[]
+        {
+            new CompareAction("Promote selected →", Primary: true, PromoteSelectedLeftToRightCommand),
+        };
     }
 
     private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
@@ -221,8 +228,8 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
                 // only-right: L→R would mean "delete on right", which Remoting cannot do. Hide it.
                 _allRows.Add(new UserCompareRow(name, "only-right", r?.Email ?? "", string.Join(", ", r?.Roles ?? []),
                     $"only in {rightName}",
-                    CanPromoteLeftToRight: false,
-                    CanPromoteRightToLeft: true));
+                    canPromoteLeftToRight: false,
+                    canPromoteRightToLeft: true));
                 continue;
             }
             if (r is null)
@@ -230,8 +237,8 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
                 // only-left: R→L would mean "delete on left" — same Remoting limitation, hide it.
                 _allRows.Add(new UserCompareRow(name, "only-left", l.Email ?? "", string.Join(", ", l.Roles),
                     $"only in {leftName}",
-                    CanPromoteLeftToRight: true,
-                    CanPromoteRightToLeft: false));
+                    canPromoteLeftToRight: true,
+                    canPromoteRightToLeft: false));
                 continue;
             }
 
@@ -252,24 +259,43 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
                 l.Email ?? "",
                 leftRoles,
                 diffs.Count == 0 ? "" : string.Join(" · ", diffs),
-                CanPromoteLeftToRight: state == "changed",
-                CanPromoteRightToLeft: state == "changed"));
+                canPromoteLeftToRight: state == "changed",
+                canPromoteRightToLeft: state == "changed"));
         }
 
         RebuildVisibleRows();
     }
 
-    /// <summary>Promote <paramref name="row"/>'s left-side user into the right env.</summary>
+    /// <summary>Promote <paramref name="row"/>'s left-side user into the right env (one-way; swap to reverse).</summary>
     [RelayCommand]
     public Task ApplyLeftToRightAsync(UserCompareRow? row) =>
         ApplyUserAsync(row, sourceFromLeft: true);
 
-    /// <summary>Promote <paramref name="row"/>'s right-side user into the left env.</summary>
+    /// <summary>Promote every selected (changed) user left→right in one batch, confirming once up front.</summary>
     [RelayCommand]
-    public Task ApplyRightToLeftAsync(UserCompareRow? row) =>
-        ApplyUserAsync(row, sourceFromLeft: false);
+    public async Task PromoteSelectedLeftToRightAsync()
+    {
+        if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
+        var targetEnv = RightEnv;
+        var rows = Selection.SelectedOf<UserCompareRow>()
+            .Where(r => r.CanPromoteLeftToRight)
+            .ToList();
+        if (rows.Count == 0) { Status = "Select at least one promotable user."; return; }
 
-    private async Task ApplyUserAsync(UserCompareRow? row, bool sourceFromLeft)
+        var confirmed = await DialogHost.ConfirmPromoteAsync(
+            conceptLabel: "Users",
+            itemLabel: $"{rows.Count} user(s)",
+            sourceEnv: LeftEnv.Name,
+            targetEnv: targetEnv.Name,
+            targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
+        if (!confirmed) { Status = "Promote cancelled."; return; }
+
+        foreach (var row in rows)
+            await ApplyUserAsync(row, sourceFromLeft: true, refresh: false, confirm: false).ConfigureAwait(true);
+        await CompareAsync().ConfigureAwait(true);
+    }
+
+    private async Task ApplyUserAsync(UserCompareRow? row, bool sourceFromLeft, bool refresh = true, bool confirm = true)
     {
         if (row is null) return;
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
@@ -278,31 +304,34 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         var sourceList = sourceFromLeft ? _leftCapture : _rightCapture;
         var sourceEnv = sourceFromLeft ? LeftEnv : RightEnv;
         var targetEnv = sourceFromLeft ? RightEnv : LeftEnv;
-        var label = sourceFromLeft ? "left→right" : "right→left";
+        var label = sourceFromLeft ? "source→target" : "target→source";
 
         var source = sourceList.FirstOrDefault(u => string.Equals(u.Username, row.Username, StringComparison.OrdinalIgnoreCase));
-        if (source is null) { Status = $"Source user '{row.Username}' not in {(sourceFromLeft ? "left" : "right")} capture."; return; }
+        if (source is null) { Status = $"Source user '{row.Username}' not in {(sourceFromLeft ? "source" : "target")} capture."; return; }
 
         var targetSecret = _vault.GetSecret(targetEnv.Id);
         if (targetSecret is null || string.IsNullOrEmpty(targetSecret.ApiKey))
         { Status = $"No API key on file for target '{targetEnv.Name}'."; return; }
 
-        // Per-row promote is destructive — confirm before doing it. Production targets get the
-        // red banner inside the dialog.
-        var confirmed = await DialogHost.ConfirmPromoteAsync(
-            conceptLabel: "User",
-            itemLabel: row.Username,
-            sourceEnv: sourceEnv.Name,
-            targetEnv: targetEnv.Name,
-            targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
-        if (!confirmed)
+        // Per-row promote is destructive — confirm before doing it (skipped when the bulk command
+        // already confirmed once). Production targets get the red banner inside the dialog.
+        if (confirm)
         {
-            Status = "Promote cancelled.";
-            return;
+            var confirmed = await DialogHost.ConfirmPromoteAsync(
+                conceptLabel: "User",
+                itemLabel: row.Username,
+                sourceEnv: sourceEnv.Name,
+                targetEnv: targetEnv.Name,
+                targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
+            if (!confirmed)
+            {
+                Status = "Promote cancelled.";
+                return;
+            }
         }
 
         Busy = true;
-        Status = $"Promoting '{row.Username}' {label} → '{targetEnv.Name}'…";
+        Status = $"Promoting '{row.Username}' → '{targetEnv.Name}'…";
         try
         {
             if (_main.ConnectedEnv?.Id != targetEnv.Id)
@@ -338,8 +367,8 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         }
         finally { Busy = false; }
 
-        // Re-run the compare so rows reflect the new state.
-        await CompareAsync().ConfigureAwait(true);
+        // Re-run the compare so rows reflect the new state (skipped during bulk — caller refreshes once).
+        if (refresh) await CompareAsync().ConfigureAwait(true);
     }
 
     private void RebuildCounts()
@@ -357,11 +386,31 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
     }
 }
 
-public sealed record UserCompareRow(
-    string Username,
-    string State,
-    string Email,
-    string Roles,
-    string Detail,
-    bool CanPromoteLeftToRight,
-    bool CanPromoteRightToLeft);
+public sealed partial class UserCompareRow : SelectableRow
+{
+    public UserCompareRow(
+        string username,
+        string state,
+        string email,
+        string roles,
+        string detail,
+        bool canPromoteLeftToRight,
+        bool canPromoteRightToLeft)
+    {
+        Username = username;
+        State = state;
+        Email = email;
+        Roles = roles;
+        Detail = detail;
+        CanPromoteLeftToRight = canPromoteLeftToRight;
+        CanPromoteRightToLeft = canPromoteRightToLeft;
+    }
+
+    public string Username { get; }
+    public string State { get; }
+    public string Email { get; }
+    public string Roles { get; }
+    public string Detail { get; }
+    public bool CanPromoteLeftToRight { get; }
+    public bool CanPromoteRightToLeft { get; }
+}

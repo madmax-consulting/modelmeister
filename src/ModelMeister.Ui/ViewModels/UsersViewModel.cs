@@ -11,6 +11,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ModelMeister.Excel;
 using ModelMeister.Inriver.Users;
+using ModelMeister.Ui.Models;
 using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
@@ -66,8 +67,11 @@ public partial class UsersViewModel : FeaturePageViewModel
         await ProvisionAsync().ConfigureAwait(true);
     }
 
-    public ObservableCollection<UserSummary> Users { get; } = [];
+    public ObservableCollection<UserListRow> Users { get; } = [];
     public ObservableCollection<string> Roles { get; } = [];
+
+    /// <summary>Checkbox multi-selection over <see cref="Users"/> (header select-all + shift-click range).</summary>
+    public RowSelectionModel Selection { get; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ExportTemplateCommand))]
@@ -84,6 +88,7 @@ public partial class UsersViewModel : FeaturePageViewModel
         _main = main;
         _shell = shell;
         _log = log;
+        Selection = new RowSelectionModel(Users);
         _main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
@@ -112,7 +117,7 @@ public partial class UsersViewModel : FeaturePageViewModel
             var users = await _shell.ListUsersAsync().ConfigureAwait(true);
             var roles = await _shell.ListRoleNamesAsync().ConfigureAwait(true);
             Users.Clear();
-            foreach (var u in users.OrderBy(u => u.Username, StringComparer.OrdinalIgnoreCase)) Users.Add(u);
+            foreach (var u in users.OrderBy(u => u.Username, StringComparer.OrdinalIgnoreCase)) Users.Add(new UserListRow(u));
             Roles.Clear();
             foreach (var r in roles) Roles.Add(r);
             Status = $"{Users.Count} users · {Roles.Count} roles";
@@ -125,9 +130,22 @@ public partial class UsersViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
-    [RelayCommand] private Task CopyUsername(UserSummary? u) => ClipboardHelpers.CopyAsync(u?.Username);
-    [RelayCommand] private Task CopyEmail(UserSummary? u)    => ClipboardHelpers.CopyAsync(u?.Email);
-    [RelayCommand] private Task CopyRoles(UserSummary? u)    => ClipboardHelpers.CopyAsync(u is null ? null : string.Join(", ", u.Roles));
+    [RelayCommand] private Task CopyUsername(UserListRow? u) => ClipboardHelpers.CopyAsync(u?.Username);
+    [RelayCommand] private Task CopyEmail(UserListRow? u)    => ClipboardHelpers.CopyAsync(u?.Email);
+    [RelayCommand] private Task CopyRoles(UserListRow? u)    => ClipboardHelpers.CopyAsync(u is null ? null : string.Join(", ", u.Roles));
+
+    /// <summary>Copy every checked user as tab-separated rows (username, email, roles) — the one bulk
+    /// action available on Users since the Remoting/REST surface can't delete or edit users here.</summary>
+    [RelayCommand]
+    private async Task CopySelectedAsync()
+    {
+        var rows = Selection.SelectedOf<UserListRow>();
+        if (rows.Count == 0) { Status = "Select at least one user."; return; }
+        var text = string.Join(Environment.NewLine,
+            rows.Select(u => string.Join('\t', u.Username, u.Email ?? "", string.Join(", ", u.Roles))));
+        await ClipboardHelpers.CopyAsync(text).ConfigureAwait(true);
+        Status = $"Copied {rows.Count} user(s) to the clipboard.";
+    }
 
     /// <summary>Download the current user list as an xlsx workbook.</summary>
     [RelayCommand(CanExecute = nameof(CanExportTemplate))]
@@ -296,4 +314,17 @@ public partial class UsersViewModel : FeaturePageViewModel
         }).ConfigureAwait(true);
         return pick?.TryGetLocalPath();
     }
+}
+
+/// <summary>Selectable grid row wrapping a <see cref="UserSummary"/> for the Users page.</summary>
+public sealed partial class UserListRow : SelectableRow
+{
+    public UserListRow(UserSummary source) => Source = source;
+    public UserSummary Source { get; }
+    public string Username => Source.Username;
+    public string? FirstName => Source.FirstName;
+    public string? LastName => Source.LastName;
+    public string? Email => Source.Email;
+    public IReadOnlyList<string> Roles => Source.Roles;
+    public string? Company => Source.Company;
 }

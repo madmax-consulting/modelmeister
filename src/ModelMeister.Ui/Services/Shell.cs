@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelMeister.Excel;
@@ -105,6 +106,48 @@ public sealed class Shell
             var model = LiveModelConverter.ToJsonModel(live);
             return new ProjectScaffolder().Scaffold(model, outDir, rootNamespace, detectBaseClasses);
         }, ct);
+
+    /// <summary>
+    /// Scaffold an in-memory <see cref="LiveModel"/> to a temp C# project and load it as a
+    /// <see cref="LoadedModel"/> — the same round-trip restore-from-backup uses. Lets env→env
+    /// promotion reuse the regular diff/apply pipeline by treating the source env as the "code" side.
+    /// Multi-second (runs <c>dotnet build</c>); callers cache the result per direction.
+    /// </summary>
+    public async Task<LoadedModel> LoadModelFromLiveAsync(LiveModel live, CancellationToken ct = default)
+    {
+        var token = Guid.NewGuid().ToString("N")[..8];
+        var tempDir = Path.Combine(Path.GetTempPath(), $"modelmeister-promote-{token}");
+        Directory.CreateDirectory(tempDir);
+        await ScaffoldFromLiveModelAsync(live, tempDir, "Promote.PimModel", detectBaseClasses: true, ct).ConfigureAwait(false);
+        var csproj = Directory.EnumerateFiles(tempDir, "*.csproj").FirstOrDefault()
+            ?? throw new InvalidOperationException("Scaffold did not produce a csproj.");
+        return await LoadModelAsync(csproj, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Promote the given concept scopes from <paramref name="sourceLoaded"/> (a model loaded from the
+    /// source env) into the currently-connected <b>target</b> env. Re-captures the target fresh (the
+    /// applier needs live ids), diffs, filters to the scopes via <see cref="ModelChangeFilter"/>, then
+    /// applies through the regular <c>ChangeApplier</c> (which re-sorts by ApplyOrder).
+    /// </summary>
+    public async Task<ChangeReceipt> PromoteConceptsAsync(
+        LoadedModel sourceLoaded,
+        IEnumerable<PromoteScope> scopes,
+        MergePolicy policy,
+        string? backupPath,
+        IProgress<ChangeReceiptEntry>? progress = null,
+        CancellationToken ct = default)
+    {
+        var targetLive = await CaptureSnapshotAsync(ct).ConfigureAwait(false);
+
+        // Back up the target before mutating it (ChangeApplier only records the path, it doesn't write).
+        if (!string.IsNullOrEmpty(backupPath))
+            await SaveSnapshotAsync(targetLive, backupPath!, ct).ConfigureAwait(false);
+
+        var full = ComputeDiff(sourceLoaded, targetLive, policy);
+        var filtered = ModelChangeFilter.ForConcepts(full, scopes);
+        return await ApplyAsync(filtered, sourceLoaded, targetLive, dryRun: false, backupPath, progress, ct).ConfigureAwait(false);
+    }
 
     /// <summary>Merge two JSON model exports under the given conflict policy and return the merged document plus any conflicts.</summary>
     public Task<(InriverModelJson Merged, List<string> Conflicts)> MergeJsonAsync(
@@ -231,6 +274,43 @@ public sealed class Shell
         return Task.Run(() => CvlSync.TargetHasCvl(client, cvlId), ct);
     }
 
+    // ---------------- CVL admin (workbench CRUD) ----------------
+
+    /// <summary>Create a new CVL definition on the connected env.</summary>
+    public Task AddCvlAsync(string id, ModelMeister.Model.Primitives.CvlDataType dataType, string? parentId, bool customValueList, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new CvlAdmin(client).AddCvlAsync(id, dataType, parentId, customValueList, ct);
+    }
+
+    /// <summary>Update an existing CVL definition (datatype / parent / custom flag) on the connected env.</summary>
+    public Task UpdateCvlAsync(string id, ModelMeister.Model.Primitives.CvlDataType dataType, string? parentId, bool customValueList, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new CvlAdmin(client).UpdateCvlAsync(id, dataType, parentId, customValueList, ct);
+    }
+
+    /// <summary>Delete a CVL definition (and its values) from the connected env.</summary>
+    public Task DeleteCvlAsync(string id, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new CvlAdmin(client).DeleteCvlAsync(id, ct);
+    }
+
+    /// <summary>List a CVL's values (index order) for the in-place value editor.</summary>
+    public Task<IReadOnlyList<LiveCvlValue>> ListCvlValuesAsync(string cvlId, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new CvlAdmin(client).ListValues(cvlId), ct);
+    }
+
+    /// <summary>Add or update a single CVL value (matched by key) on the connected env.</summary>
+    public Task UpsertCvlValueAsync(string cvlId, LiveCvlValue value, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new CvlAdmin(client).UpsertValueAsync(cvlId, value, ct);
+    }
+
     // ---------------- Users ----------------
 
     public Task<IReadOnlyList<ModelMeister.Inriver.Users.UserSummary>> ListUsersAsync(CancellationToken ct = default)
@@ -254,6 +334,63 @@ public sealed class Shell
             rest = new InriverRestClient(env.RestBaseUrl!, secret.RestApiKey!);
         var prov = new UserProvisioning(client, rest);
         return prov.ProvisionAsync(spec, ct);
+    }
+
+    // ---------------- Roles ----------------
+
+    public Task<IReadOnlyList<RoleSummary>> ListRolesAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new RoleProvisioning(client).ListRoles(), ct);
+    }
+
+    public Task<IReadOnlyList<string>> ListPermissionNamesAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new RoleProvisioning(client).ListPermissionNames(), ct);
+    }
+
+    public Task<RoleProvisioning.ProvisionResult> ProvisionRoleAsync(
+        RoleProvisioning.RoleSpec spec, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new RoleProvisioning(client).ProvisionAsync(spec, ct);
+    }
+
+    /// <summary>Delete a role by name from the connected env (resolves the live id internally).</summary>
+    public Task<RoleProvisioning.ProvisionResult> DeleteRoleAsync(string roleName, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new RoleProvisioning(client).DeleteAsync(roleName, ct);
+    }
+
+    /// <summary>Bulk add or remove a single permission across many roles in the connected env.</summary>
+    public Task<IReadOnlyList<RoleProvisioning.ProvisionResult>> BulkSetRolePermissionAsync(
+        IReadOnlyList<string> roleNames, string permission, bool add, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new RoleProvisioning(client).SetPermissionOnRolesAsync(roleNames, permission, add, ct);
+    }
+
+    // ---------------- Restricted fields ----------------
+
+    public Task<IReadOnlyList<RestrictedFieldSummary>> ListRestrictedFieldsAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new RestrictedFieldProvisioning(client).ListRestrictedFields(), ct);
+    }
+
+    public Task<RestrictedFieldProvisioning.ProvisionResult> AddRestrictedFieldAsync(
+        RestrictedFieldProvisioning.RestrictedFieldSpec spec, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new RestrictedFieldProvisioning(client).AddAsync(spec, ct);
+    }
+
+    public Task<RestrictedFieldProvisioning.ProvisionResult> DeleteRestrictedFieldAsync(int liveId, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new RestrictedFieldProvisioning(client).DeleteAsync(liveId, ct);
     }
 
     // ---------------- Extensions ----------------
@@ -400,6 +537,20 @@ public sealed class Shell
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
         return Task.Run(() => ServerSettingsBackup.Capture(new ServerSettingsService(client), metadata), ct);
+    }
+
+    /// <summary>Capture a <see cref="RolesBackup"/> from the currently connected env.</summary>
+    public Task<RolesBackup> CaptureRolesBackupAsync(BackupMetadata metadata, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => RolesBackup.Capture(new RoleProvisioning(client), metadata), ct);
+    }
+
+    /// <summary>Capture a <see cref="RestrictedFieldsBackup"/> from the currently connected env.</summary>
+    public Task<RestrictedFieldsBackup> CaptureRestrictedFieldsBackupAsync(BackupMetadata metadata, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => RestrictedFieldsBackup.Capture(new RestrictedFieldProvisioning(client), metadata), ct);
     }
 
     /// <summary>Capture an <see cref="ExtensionsBackup"/> from the currently connected env.</summary>

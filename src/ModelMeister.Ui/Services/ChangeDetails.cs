@@ -24,9 +24,11 @@ public static class ChangeDetails
     private const string None = "—";
 
     /// <summary>Returns property deltas for Updates, or the full property set for Adds. Deletes return empty.</summary>
-    public static IReadOnlyList<PropertyDelta> For(ModelChange change, LiveModel live) => change switch
+    /// <param name="policy">Active merge policy — its field-id and field-property ignore rules
+    /// suppress the matching deltas so the details pane mirrors what the diff actually applies.</param>
+    public static IReadOnlyList<PropertyDelta> For(ModelChange change, LiveModel live, MergePolicy? policy = null) => change switch
     {
-        UpdateFieldType u    => FieldDeltas(u, live),
+        UpdateFieldType u    => FieldDeltas(u, live, policy ?? MergePolicy.Default),
         UpdateEntityType u   => EntityDeltas(u, live),
         UpdateLinkType u     => LinkDeltas(u, live),
         UpdateCategory u     => CategoryDeltas(u, live),
@@ -46,8 +48,11 @@ public static class ChangeDetails
         _ => [],
     };
 
-    private static List<PropertyDelta> FieldDeltas(UpdateFieldType u, LiveModel live)
+    private static List<PropertyDelta> FieldDeltas(UpdateFieldType u, LiveModel live, MergePolicy policy)
     {
+        // Whole-field suppression mirrors the differ — an ignored id shows no deltas.
+        if (policy.IgnoresFieldId(u.Field.Id)) return new List<PropertyDelta>();
+
         var deltas = new List<PropertyDelta>();
         var owner = live.EntityTypes.FirstOrDefault(e => string.Equals(e.Id, u.Owner.EntityTypeId, StringComparison.OrdinalIgnoreCase));
         var lf = owner?.Fields.FirstOrDefault(f => string.Equals(f.Id, u.Field.Id, StringComparison.OrdinalIgnoreCase));
@@ -82,7 +87,9 @@ public static class ChangeDetails
             if ((liveExpr ?? "") != codeExpr)
                 deltas.Add(new PropertyDelta("DefaultExpression", liveExpr ?? "", codeExpr));
         }
-        return deltas;
+
+        // Drop deltas for properties the policy ignores, so the details pane matches the diff.
+        return deltas.Where(d => !policy.IgnoresProperty(d.Property)).ToList();
     }
 
     private static List<PropertyDelta> EntityDeltas(UpdateEntityType u, LiveModel live)

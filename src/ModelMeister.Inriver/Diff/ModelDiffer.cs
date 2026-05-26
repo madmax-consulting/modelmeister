@@ -189,6 +189,9 @@ public static class ModelDiffer
         var liveById = l.Fields.ToDictionary(f => f.Id, IdComparer);
         foreach (var f in e.Fields)
         {
+            // Field-id ignore rules suppress every kind of difference (add/datatype/update) for
+            // matching ids — see MergePolicy.IgnoredFieldIdPatterns.
+            if (policy.IgnoresFieldId(f.Id)) continue;
             if (!liveById.TryGetValue(f.Id, out var lf))
             {
                 changes.Add(new AddFieldType(f, e));
@@ -215,7 +218,7 @@ public static class ModelDiffer
         {
             var codeIds = e.Fields.Select(f => f.Id).ToHashSet(IdComparer);
             changes.AddRange(l.Fields
-                .Where(lf => !codeIds.Contains(lf.Id))
+                .Where(lf => !codeIds.Contains(lf.Id) && !policy.IgnoresFieldId(lf.Id))
                 .Select(lf => new DeleteFieldType(lf.Id)));
         }
     }
@@ -234,33 +237,39 @@ public static class ModelDiffer
     {
         var ff = f.Field;
 
+        // Field-type id ignore rules: a matching id suppresses all of this field's differences.
+        if (policy.IgnoresFieldId(f.Id)) return false;
+
         // Straight code-vs-live comparisons for non-nullable / required code-side properties.
+        // Each check is gated by policy.IgnoresProperty(...) so a user can suppress noise on
+        // specific properties (e.g. TrackChanges, Index) via settings.
         if (policy.OverwriteNamesAndDescriptions)
         {
-            if (!LsEquals(f.Name, lf.Name)) return true;
-            if (ff.Description is not null && !LsEquals(ff.Description, lf.Description)) return true;
+            if (!policy.IgnoresProperty("Name") && !LsEquals(f.Name, lf.Name)) return true;
+            if (!policy.IgnoresProperty("Description") && ff.Description is not null && !LsEquals(ff.Description, lf.Description)) return true;
         }
-        if (ff.Mandatory != lf.Mandatory) return true;
-        if (ff.Unique != lf.Unique) return true;
-        if (ff.ReadOnly != lf.ReadOnly) return true;
-        if (ff.Hidden != lf.Hidden) return true;
-        if (ff.MultiValue != lf.MultiValue) return true;
-        if (ff.IsDisplayName != lf.IsDisplayName) return true;
-        if (ff.IsDisplayDescription != lf.IsDisplayDescription) return true;
-        if (ff.SupportsExpression != lf.ExpressionSupport) return true;
+        if (!policy.IgnoresProperty("Mandatory") && ff.Mandatory != lf.Mandatory) return true;
+        if (!policy.IgnoresProperty("Unique") && ff.Unique != lf.Unique) return true;
+        if (!policy.IgnoresProperty("ReadOnly") && ff.ReadOnly != lf.ReadOnly) return true;
+        if (!policy.IgnoresProperty("Hidden") && ff.Hidden != lf.Hidden) return true;
+        if (!policy.IgnoresProperty("MultiValue") && ff.MultiValue != lf.MultiValue) return true;
+        if (!policy.IgnoresProperty("IsDisplayName") && ff.IsDisplayName != lf.IsDisplayName) return true;
+        if (!policy.IgnoresProperty("IsDisplayDescription") && ff.IsDisplayDescription != lf.IsDisplayDescription) return true;
+        if (!policy.IgnoresProperty("SupportsExpression") && ff.SupportsExpression != lf.ExpressionSupport) return true;
 
-        // Read-through invariant: for nullable code-side properties (TrackChanges,
-        // ExcludeFromDefaultView, Index, DefaultValue, Category, CvlId) an UNSET code value
-        // means "leave inriver's value alone" — NOT "set to default". The mapper
-        // (FieldTypeMapper.ToInriver) agrees: when the code value is null, it falls back
-        // to the live read-through. If the two disagree, diff -> apply -> diff oscillates.
-        // The scaffolder does not currently emit these on every field, so a stricter
-        // comparison would cause every scaffolded field to diff against its source env.
+        // Read-through invariant: for nullable code-side properties (ExcludeFromDefaultView,
+        // Index, DefaultValue, Category, CvlId) an UNSET code value means "leave inriver's value
+        // alone" — NOT "set to default". The mapper (FieldTypeMapper.ToInriver) agrees: when the
+        // code value is null, it falls back to the live read-through. If the two disagree, diff ->
+        // apply -> diff oscillates. The scaffolder does not emit these on every field, so a
+        // stricter comparison would cause every scaffolded field to diff against its source env.
+        // TrackChanges is NOT read-through: it defaults to true (stamped by ModelLoader), so the
+        // code model is authoritative and the comparison below always runs.
 
         // Field.Cvl / Field.Category MUST be read off the base Field type — the derived
         // Field<TData, TBinding> ctors stamp these properties; the base is authoritative.
 
-        if (ff.Category is not null)
+        if (!policy.IgnoresProperty("Category") && ff.Category is not null)
         {
             // Resolve the code-side category id via the CLR-type lookup so a sanitized class
             // name doesn't silently overwrite the real inriver id.
@@ -268,11 +277,11 @@ public static class ModelDiffer
             if (codeCategoryId != (lf.CategoryId ?? string.Empty)) return true;
         }
 
-        if (!policy.IgnoreIndexSortingOnUpdate && ff.Index is { } codeIndex && codeIndex != lf.Index) return true;
-        if (ff.TrackChanges is { } codeTrack && codeTrack != lf.TrackChanges) return true;
-        if (ff.ExcludeFromDefaultView is { } codeExcl && codeExcl != lf.ExcludeFromDefaultView) return true;
+        if (!policy.IgnoresProperty("Index") && !policy.IgnoreIndexSortingOnUpdate && ff.Index is { } codeIndex && codeIndex != lf.Index) return true;
+        if (!policy.IgnoresProperty("TrackChanges") && ff.TrackChanges is { } codeTrack && codeTrack != lf.TrackChanges) return true;
+        if (!policy.IgnoresProperty("ExcludeFromDefaultView") && ff.ExcludeFromDefaultView is { } codeExcl && codeExcl != lf.ExcludeFromDefaultView) return true;
 
-        if (ff.DefaultValue is not null)
+        if (!policy.IgnoresProperty("DefaultValue") && ff.DefaultValue is not null)
         {
             var codeDefault = ff.DefaultValue.ToString() ?? string.Empty;
             var liveDefault = lf.DefaultValue ?? string.Empty;
@@ -282,14 +291,17 @@ public static class ModelDiffer
         // CVL re-bind: a code-side CVL CLR-type maps to a CvlId via the model-wide lookup.
         // Without this, an in-place CVL swap (the field still exists, but bound to a different CVL)
         // would silently never produce an update.
-        var codeCvlId = ff.Cvl is null
-            ? null
-            : cvlIdByClrType.GetValueOrDefault(ff.Cvl, ff.Cvl.Name);
-        if (!string.Equals(codeCvlId ?? string.Empty, lf.CvlId ?? string.Empty, StringComparison.OrdinalIgnoreCase))
-            return true;
+        if (!policy.IgnoresProperty("Cvl"))
+        {
+            var codeCvlId = ff.Cvl is null
+                ? null
+                : cvlIdByClrType.GetValueOrDefault(ff.Cvl, ff.Cvl.Name);
+            if (!string.Equals(codeCvlId ?? string.Empty, lf.CvlId ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
 
         // Expression text comparison (string-equal; semantic compare would parse both, deferred for parser delivery).
-        if (ff.RawDefaultExpression is not null)
+        if (!policy.IgnoresProperty("DefaultExpression") && ff.RawDefaultExpression is not null)
         {
             var codeText = ff.RawDefaultExpression.RenderTopLevel();
             lf.Settings.TryGetValue(FieldTypeMapper.DefaultExpressionSettingKey, out var liveText);

@@ -11,20 +11,20 @@ namespace ModelMeister.Inriver.Tests;
 /// <summary>
 /// Idempotency: after the code-defined model has been applied, diffing the same model against a snapshot
 /// that mirrors what the applier writes must produce zero changes — otherwise apply-then-diff loops forever.
-/// These pin the bug fixes in <see cref="ModelDiffer"/> FieldDiffers (DefaultValue, CvlId, Description, nullable
-/// TrackChanges/ExcludeFromDefaultView).
+/// These pin the bug fixes in <see cref="ModelDiffer"/> FieldDiffers (DefaultValue, CvlId, Description,
+/// read-through ExcludeFromDefaultView) and the TrackChanges default-true contract (the code model is
+/// authoritative — the loader stamps TrackChanges=true when unset, simulated here by passing true).
 /// </summary>
 public class IdempotencyDiffTests
 {
     [Fact]
-    public void Field_with_null_TrackChanges_and_ExcludeFromDefaultView_is_idempotent_against_live_readthrough()
+    public void Default_TrackChanges_matching_live_true_is_idempotent()
     {
-        // Code model: a field that doesn't pin TrackChanges or ExcludeFromDefaultView.
-        var lf = MakeField<int>("ProductCount", Datatype.Integer, trackChanges: null, exclude: null, defaultValue: null);
+        // ModelLoader stamps TrackChanges=true when unset; simulate the stamped field here.
+        var lf = MakeField<int>("ProductCount", Datatype.Integer, trackChanges: true, exclude: null, defaultValue: null);
         var owner = MakeEntity("Product", lf);
         var code = new LoadedModel { EntityTypes = new[] { owner } };
 
-        // Live: server side has TrackChanges=true (derived elsewhere) and ExcludeFromDefaultView=false.
         var liveFt = new LiveFieldType
         {
             Id = "ProductCount",
@@ -36,8 +36,70 @@ public class IdempotencyDiffTests
         };
         var live = MakeLive("Product", liveFt);
 
-        var diff = ModelDiffer.Diff(code, live);
-        diff.Of<UpdateFieldType>().ShouldBeEmpty();
+        ModelDiffer.Diff(code, live).Of<UpdateFieldType>().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Default_TrackChanges_flips_live_false_to_true()
+    {
+        // Model is authoritative: a (stamped-true) field flips inriver's false to true.
+        var lf = MakeField<int>("ProductCount", Datatype.Integer, trackChanges: true);
+        var owner = MakeEntity("Product", lf);
+        var code = new LoadedModel { EntityTypes = new[] { owner } };
+
+        var liveFt = new LiveFieldType
+        {
+            Id = "ProductCount",
+            EntityTypeId = "Product",
+            Name = new LocaleString("Count"),
+            DataType = Datatype.Integer,
+            TrackChanges = false,
+        };
+        var live = MakeLive("Product", liveFt);
+
+        ModelDiffer.Diff(code, live).Of<UpdateFieldType>().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void Explicit_false_TrackChanges_flips_live_true_to_false()
+    {
+        var lf = MakeField<int>("ProductCount", Datatype.Integer, trackChanges: false);
+        var owner = MakeEntity("Product", lf);
+        var code = new LoadedModel { EntityTypes = new[] { owner } };
+
+        var liveFt = new LiveFieldType
+        {
+            Id = "ProductCount",
+            EntityTypeId = "Product",
+            Name = new LocaleString("Count"),
+            DataType = Datatype.Integer,
+            TrackChanges = true,
+        };
+        var live = MakeLive("Product", liveFt);
+
+        ModelDiffer.Diff(code, live).Of<UpdateFieldType>().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void Field_with_null_ExcludeFromDefaultView_is_idempotent_against_live_readthrough()
+    {
+        // ExcludeFromDefaultView keeps read-through semantics (unset = leave inriver's value alone).
+        var lf = MakeField<int>("ProductCount", Datatype.Integer, trackChanges: true, exclude: null);
+        var owner = MakeEntity("Product", lf);
+        var code = new LoadedModel { EntityTypes = new[] { owner } };
+
+        var liveFt = new LiveFieldType
+        {
+            Id = "ProductCount",
+            EntityTypeId = "Product",
+            Name = new LocaleString("Count"),
+            DataType = Datatype.Integer,
+            TrackChanges = true,
+            ExcludeFromDefaultView = true,
+        };
+        var live = MakeLive("Product", liveFt);
+
+        ModelDiffer.Diff(code, live).Of<UpdateFieldType>().ShouldBeEmpty();
     }
 
     [Fact]

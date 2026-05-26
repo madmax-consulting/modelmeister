@@ -67,6 +67,7 @@
                   <TextBlock Text="RECEIPTS" Classes="h3" />
                 </StackPanel>
               </Border>
+              <c:GridToolbar DockPanel.Dock="Top" Margin="8,6,8,4" TargetGrid="{Binding #ReceiptsGrid}" />
               <DataGrid Name="ReceiptsGrid"
                         ItemsSource="{Binding Receipts}"
                         SelectedItem="{Binding SelectedReceipt, Mode=TwoWay}"
@@ -132,6 +133,7 @@
                 </Button>
               </Grid>
             </Border>
+            <c:GridToolbar DockPanel.Dock="Top" Margin="8,6,8,4" TargetGrid="{Binding #BackupsGrid}" />
             <DataGrid Name="BackupsGrid"
                       ItemsSource="{Binding Backups}"
                       SelectedItem="{Binding SelectedBackup, Mode=TwoWay}"

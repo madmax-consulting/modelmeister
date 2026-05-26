@@ -1,8 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
              xmlns:c="using:ModelMeister.Ui.Controls"
              xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:svc="using:ModelMeister.Ui.Services"
              xmlns:views="using:ModelMeister.Ui.Views"
              x:Class="ModelMeister.Ui.Views.ServerSettingsView"
              x:DataType="vm:ServerSettingsViewModel"
@@ -18,18 +20,28 @@
   <views:CompareLayoutView Eyebrow="SERVER SETTINGS · COMPARE"
                            Subtitle="Compare server settings across two environments — promote per-key">
     <views:CompareLayoutView.Body>
-        <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
-                  AutoGenerateColumns="False" SelectionMode="Single"
-                  GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable">
+      <DockPanel LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="2,0,0,8" TargetGrid="{Binding #MainGrid}" />
+        <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
+                  AutoGenerateColumns="False" SelectionMode="Extended"
+                  svc:GridSelectionBehavior.Selection="{Binding Selection}"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable fit">
           <DataGrid.Columns>
+            <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                    CellTemplate="{StaticResource RowSelectCell}">
+              <DataGridTemplateColumn.Header>
+                <CheckBox IsChecked="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+              </DataGridTemplateColumn.Header>
+            </DataGridTemplateColumn>
             <DataGridTextColumn Binding="{Binding State}" Width="100">
               <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTextColumn Binding="{Binding Key}" Width="280">
+            <DataGridTextColumn Binding="{Binding Key}" Width="1.2*" MinWidth="120">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
 
-            <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="LeftDisplay">
+            <DataGridTemplateColumn Width="1.4*" MinWidth="90" CanUserSort="True" SortMemberPath="LeftDisplay">
               <DataGridTemplateColumn.Header>
                 <c:FilterableHeader Path="LeftDisplay">
                   <c:FilterableHeader.Title>
@@ -54,7 +66,7 @@
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
 
-            <DataGridTemplateColumn Width="*" CanUserSort="True" SortMemberPath="RightDisplay">
+            <DataGridTemplateColumn Width="1.4*" MinWidth="90" CanUserSort="True" SortMemberPath="RightDisplay">
               <DataGridTemplateColumn.Header>
                 <c:FilterableHeader Path="RightDisplay">
                   <c:FilterableHeader.Title>
@@ -79,9 +91,9 @@
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
 
-            <!-- Per-row apply buttons — unique to ServerSettings. Direction is shown as
-                 source→target stage pills (e.g. [DEV]→[PROD]) instead of generic L/R. -->
-            <DataGridTemplateColumn Header="" Width="180">
+            <!-- Per-row apply (one-way: source → target). Direction is shown as source→target stage
+                 pills (e.g. [DEV]→[PROD]). Swap the environments to apply the other direction. -->
+            <DataGridTemplateColumn Header="" Width="100">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="vm:ServerSettingRow">
                   <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0">
@@ -109,36 +121,13 @@
                         </Border>
                       </StackPanel>
                     </Button>
-                    <Button Classes="ghost" Padding="4,2"
-                            ToolTip.Tip="Apply right value to left environment"
-                            Command="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).ApplyRightToLeftCommand}"
-                            CommandParameter="{Binding}">
-                      <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                        <Border Classes="pill"
-                                Background="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
-                                BorderBrush="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
-                                BorderThickness="1" Padding="4,0">
-                          <TextBlock Text="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
-                                     Foreground="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
-                                     FontSize="9" FontWeight="SemiBold" />
-                        </Border>
-                        <TextBlock Text="→" VerticalAlignment="Center" />
-                        <Border Classes="pill"
-                                Background="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
-                                BorderBrush="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
-                                BorderThickness="1" Padding="4,0">
-                          <TextBlock Text="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
-                                     Foreground="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
-                                     FontSize="9" FontWeight="SemiBold" />
-                        </Border>
-                      </StackPanel>
-                    </Button>
                   </StackPanel>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
           </DataGrid.Columns>
         </DataGrid>
+      </DockPanel>
     </views:CompareLayoutView.Body>
   </views:CompareLayoutView>
 </UserControl>

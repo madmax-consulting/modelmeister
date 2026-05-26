@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:views="using:ModelMeister.Ui.Views"
+             x:Class="ModelMeister.Ui.Views.RolesCompareView"
+             x:DataType="vm:RolesCompareViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter x:Key="StageText" />
+  </UserControl.Resources>
+
+  <views:CompareLayoutView Eyebrow="ROLES · COMPARE"
+                           Subtitle="Compare roles across two environments — promote per-row">
+    <views:CompareLayoutView.Body>
+      <DockPanel LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="2,0,0,8" TargetGrid="{Binding #MainGrid}" />
+      <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
+                AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                SelectionMode="Extended" svc:GridSelectionBehavior.Selection="{Binding Selection}" Classes="filterable fit">
+        <DataGrid.Columns>
+          <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                  CellTemplate="{StaticResource RowSelectCell}">
+            <DataGridTemplateColumn.Header>
+              <CheckBox IsChecked="{Binding #Root.((vm:RolesCompareViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+            </DataGridTemplateColumn.Header>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Binding="{Binding State}" Width="110">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding RoleName}" Width="1.2*" MinWidth="120">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Role" Path="RoleName" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Description}" Width="1.4*" MinWidth="120">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Description" Path="Description" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Permissions}" Width="1.4*" MinWidth="120">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Permissions" Path="Permissions" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+          <DataGridTextColumn Binding="{Binding Detail}" Width="1.6*" MinWidth="120">
+            <DataGridTextColumn.Header><c:FilterableHeader Title="Detail" Path="Detail" /></DataGridTextColumn.Header>
+          </DataGridTextColumn>
+
+          <!-- Per-row promote (one-way: source → target), shown as source→target stage pills. Hidden
+               on rows that aren't promotable source→target. Swap the environments to reverse direction. -->
+          <DataGridTemplateColumn Header="" Width="100">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:RoleCompareRow">
+                <Button Classes="ghost" Padding="4,2" Margin="4,0"
+                        IsVisible="{Binding CanPromoteLeftToRight}"
+                        ToolTip.Tip="Promote this role (create / sync permissions) from the source environment into the target one"
+                        Command="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).ApplyLeftToRightCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <Border Classes="pill"
+                            Background="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="4,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="→" VerticalAlignment="Center" />
+                    <Border Classes="pill"
+                            Background="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="4,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:RolesCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+      </DockPanel>
+    </views:CompareLayoutView.Body>
+  </views:CompareLayoutView>
+</UserControl>

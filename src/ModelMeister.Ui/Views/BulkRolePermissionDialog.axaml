@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        x:Class="ModelMeister.Ui.Views.BulkRolePermissionDialog"
+        x:DataType="vm:BulkRolePermissionViewModel"
+        Title="Bulk permission"
+        Width="460" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <StackPanel Margin="28,26,28,22" Spacing="14">
+
+      <StackPanel Spacing="2">
+        <TextBlock Text="ROLES" Classes="eyebrow" />
+        <TextBlock FontSize="20" FontWeight="Bold">
+          <Run Text="Grant or revoke a permission" />
+        </TextBlock>
+        <TextBlock Foreground="{DynamicResource TextSec}" FontSize="13">
+          <Run Text="Applies to " />
+          <Run Text="{Binding RoleCount, Mode=OneTime}" FontWeight="Bold" Foreground="{DynamicResource TextPri}" />
+          <Run Text=" selected role(s)." />
+        </TextBlock>
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Permission" Classes="label" />
+        <ComboBox ItemsSource="{Binding Permissions}"
+                  SelectedItem="{Binding SelectedPermission, Mode=TwoWay}"
+                  HorizontalAlignment="Stretch" />
+      </StackPanel>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="Action" Classes="label" />
+        <StackPanel Orientation="Horizontal" Spacing="18">
+          <!-- Only the Add radio is bound; group exclusivity unchecks it (→ Add=false) when Remove is picked. -->
+          <RadioButton GroupName="act" Content="Add (grant)"     IsChecked="{Binding Add, Mode=TwoWay}" />
+          <RadioButton GroupName="act" Content="Remove (revoke)" />
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,6,0,0">
+        <Button Content="Abort" Command="{Binding CancelCommand}" IsCancel="True" />
+        <Button Content="Apply" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

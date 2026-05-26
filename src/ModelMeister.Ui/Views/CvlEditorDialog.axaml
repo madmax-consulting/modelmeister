@@ -1,0 +1,113 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        xmlns:svc="using:ModelMeister.Ui.Services"
+        x:Class="ModelMeister.Ui.Views.CvlEditorDialog"
+        x:DataType="vm:CvlEditorViewModel"
+        x:Name="DlgRoot"
+        Title="{Binding Title}"
+        Width="720" Height="640"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <DockPanel Margin="24,22,24,20" LastChildFill="True">
+
+      <StackPanel DockPanel.Dock="Top" Spacing="2">
+        <TextBlock Text="CONTROLLED VALUE LIST" Classes="eyebrow" />
+        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" />
+      </StackPanel>
+
+      <!-- Definition fields -->
+      <Grid DockPanel.Dock="Top" Margin="0,14,0,0" ColumnDefinitions="*,12,160,12,*,12,Auto"
+            VerticalAlignment="Center">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Text="Id" Classes="label" />
+          <TextBox Text="{Binding Id, Mode=TwoWay}" Watermark="CvlId" IsReadOnly="{Binding IsEdit}" Classes="mono" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Spacing="4">
+          <TextBlock Text="Data type" Classes="label" />
+          <ComboBox ItemsSource="{Binding DataTypes}" SelectedItem="{Binding DataType, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch" />
+        </StackPanel>
+        <StackPanel Grid.Column="4" Spacing="4">
+          <TextBlock Text="Parent CVL" Classes="label" />
+          <ComboBox ItemsSource="{Binding AvailableParents}" SelectedItem="{Binding ParentId, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch" />
+        </StackPanel>
+        <CheckBox Grid.Column="6" Content="Custom" IsChecked="{Binding CustomValueList, Mode=TwoWay}"
+                  VerticalAlignment="Bottom" Margin="0,0,0,4"
+                  ToolTip.Tip="Custom value list (users may add values in the inriver UI)" />
+      </Grid>
+
+      <!-- Values toolbar -->
+      <Grid DockPanel.Dock="Top" Margin="0,16,0,6" ColumnDefinitions="Auto,*,Auto,Auto">
+        <TextBlock Grid.Column="0" Text="Values" Classes="label" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Classes="ghost" Padding="8,3" Command="{Binding AddValueCommand}"
+                ToolTip.Tip="Add a value row">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Data="{DynamicResource IcoPlus}" Width="11" Height="11" Stretch="Uniform"
+                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.8" Fill="Transparent" />
+            <TextBlock Text="Add value" />
+          </StackPanel>
+        </Button>
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="6,0,0,0"
+                    IsVisible="{Binding Selection.HasSelection}">
+          <Button Classes="ghost" Padding="8,3" Command="{Binding ActivateSelectedValuesCommand}"
+                  ToolTip.Tip="Mark selected values active" Content="Activate" />
+          <Button Classes="ghost" Padding="8,3" Command="{Binding DeactivateSelectedValuesCommand}"
+                  ToolTip.Tip="Mark selected values deactivated" Content="Deactivate" />
+          <Button Classes="ghost danger" Padding="8,3" Command="{Binding DeleteSelectedValuesCommand}"
+                  Content="Delete selected" />
+        </StackPanel>
+      </Grid>
+
+      <!-- Buttons + validation at the bottom -->
+      <StackPanel DockPanel.Dock="Bottom" Spacing="10" Margin="0,12,0,0">
+        <TextBlock Text="{Binding Validation}" Foreground="{DynamicResource Danger}"
+                   IsVisible="{Binding Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+          <Button Content="Abort" Command="{Binding AbortCommand}" IsCancel="True" />
+          <Button Content="Save" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Editable value grid -->
+      <Border Classes="cardSubtle" Padding="0">
+        <DataGrid Name="ValuesGrid" ItemsSource="{Binding Values}" IsReadOnly="False"
+                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                  BorderThickness="0" svc:GridSelectionBehavior.Selection="{Binding Selection}">
+          <DataGrid.Columns>
+            <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                    CellTemplate="{StaticResource RowSelectCell}">
+              <DataGridTemplateColumn.Header>
+                <CheckBox IsChecked="{Binding #DlgRoot.((vm:CvlEditorViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+              </DataGridTemplateColumn.Header>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="Key" Binding="{Binding Key, Mode=TwoWay}" Width="1.4*" MinWidth="120" />
+            <DataGridTextColumn Header="Value" Binding="{Binding Value, Mode=TwoWay}" Width="2*" MinWidth="140" />
+            <DataGridTextColumn Header="Parent key" Binding="{Binding ParentKey, Mode=TwoWay}" Width="1*" MinWidth="90" />
+            <DataGridTextColumn Header="Index" Binding="{Binding Index, Mode=TwoWay}" Width="70" MinWidth="60" />
+            <DataGridCheckBoxColumn Header="Off" Binding="{Binding Deactivated, Mode=TwoWay}" Width="50" MinWidth="44" />
+            <DataGridTemplateColumn Header="" Width="44">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:CvlValueEditRow">
+                  <Button Classes="ghost icon danger" Padding="6" Margin="2,0" ToolTip.Tip="Delete value"
+                          Command="{Binding $parent[DataGrid].((vm:CvlEditorViewModel)DataContext).DeleteValueCommand}"
+                          CommandParameter="{Binding}">
+                    <Path Data="{DynamicResource IcoTrash}" Width="11" Height="11" Stretch="Uniform"
+                          Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent" />
+                  </Button>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </Border>
+
+    </DockPanel>
+  </Border>
+</Window>

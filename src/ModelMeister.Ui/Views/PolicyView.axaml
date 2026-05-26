@@ -8,60 +8,112 @@
   <c:PageShell Eyebrow="MERGE POLICY"
                Subtitle="Choose what diff operations are permitted when applying changes to inriver">
 
-    <DockPanel LastChildFill="True">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="12">
 
-      <!-- Policy card -->
-      <Border DockPanel.Dock="Top" Classes="card">
-        <StackPanel Spacing="10">
+        <!-- Policy card -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
 
-          <Grid ColumnDefinitions="Auto,*">
-            <CheckBox Grid.Column="0" Content="Overwrite names &amp; descriptions"
-                      IsChecked="{Binding OverwriteNamesAndDescriptions, Mode=TwoWay}" />
-            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
-                       Text="When code differs from inriver, push the code-side display strings (Name, Description)." />
-          </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <CheckBox Grid.Column="0" Content="Overwrite names &amp; descriptions"
+                        IsChecked="{Binding OverwriteNamesAndDescriptions, Mode=TwoWay}" />
+              <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                         Text="When code differs from inriver, push the code-side display strings (Name, Description)." />
+            </Grid>
 
-          <Grid ColumnDefinitions="Auto,*">
-            <CheckBox Grid.Column="0" Content="Overwrite CVL values"
-                      IsChecked="{Binding OverwriteCvlValues, Mode=TwoWay}" />
-            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
-                       Text="Allow updates to the label/index of existing CVL values." />
-          </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <CheckBox Grid.Column="0" Content="Overwrite CVL values"
+                        IsChecked="{Binding OverwriteCvlValues, Mode=TwoWay}" />
+              <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                         Text="Allow updates to the label/index of existing CVL values." />
+            </Grid>
 
-          <Grid ColumnDefinitions="Auto,*">
-            <CheckBox Grid.Column="0" Content="Allow deletes"
-                      IsChecked="{Binding AllowDeletes, Mode=TwoWay}" />
-            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
-                       Text="Allow Delete / Deactivate operations on concepts that exist in inriver but not in code." />
-          </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <CheckBox Grid.Column="0" Content="Allow deletes"
+                        IsChecked="{Binding AllowDeletes, Mode=TwoWay}" />
+              <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                         Text="Allow Delete / Deactivate operations on concepts that exist in inriver but not in code." />
+            </Grid>
 
-          <Grid ColumnDefinitions="Auto,*">
-            <CheckBox Grid.Column="0" Content="Allow datatype change (dangerous)"
-                      IsChecked="{Binding AllowDatatypeChange, Mode=TwoWay}" />
-            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
-                       Text="Allow a field's datatype to change. Inriver may drop or coerce existing values." />
-          </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <CheckBox Grid.Column="0" Content="Allow datatype change (dangerous)"
+                        IsChecked="{Binding AllowDatatypeChange, Mode=TwoWay}" />
+              <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                         Text="Allow a field's datatype to change. Inriver may drop or coerce existing values." />
+            </Grid>
 
-          <Grid ColumnDefinitions="Auto,*">
-            <CheckBox Grid.Column="0" Content="Allow CVL value rename"
-                      IsChecked="{Binding AllowCvlValueRename, Mode=TwoWay}" />
-            <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
-                       Text="Permit renaming an existing CVL value's key (migrate references). Most setups do not need this." />
-          </Grid>
-        </StackPanel>
-      </Border>
+            <Grid ColumnDefinitions="Auto,*">
+              <CheckBox Grid.Column="0" Content="Allow CVL value rename"
+                        IsChecked="{Binding AllowCvlValueRename, Mode=TwoWay}" />
+              <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                         Text="Permit renaming an existing CVL value's key (migrate references). Most setups do not need this." />
+            </Grid>
+          </StackPanel>
+        </Border>
 
-      <!-- Footer: current policy summary -->
-      <Border DockPanel.Dock="Top" Classes="card">
-        <StackPanel Spacing="4">
-          <TextBlock Text="CURRENT POLICY" Classes="h3" />
-          <TextBlock Text="{Binding Summary}" Classes="subtle" />
-        </StackPanel>
-      </Border>
+        <!-- Ignore field-type properties -->
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="IGNORE FIELD PROPERTIES" Classes="h3" />
+            <TextBlock Classes="dim"
+                       Text="Differences in the checked properties are ignored across all field types — they never surface as a change." />
+            <ItemsControl ItemsSource="{Binding IgnorableProperties}" Margin="0,4,0,0">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:FieldPropertyIgnoreToggle">
+                  <CheckBox Width="200" Margin="0,2"
+                            Content="{Binding Property}"
+                            IsChecked="{Binding Ignored, Mode=TwoWay}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
 
-      <!-- Spacer -->
-      <Grid />
-    </DockPanel>
+        <!-- Ignore field-type ids by pattern -->
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="IGNORE FIELD IDS" Classes="h3" />
+            <TextBlock Classes="dim"
+                       Text="Field types whose id matches a rule are ignored entirely (no add, update, or delete)." />
+
+            <ItemsControl ItemsSource="{Binding FieldIdRules}" Margin="0,4,0,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:FieldIdRuleRow">
+                  <Grid ColumnDefinitions="140,*,Auto" Margin="0,3">
+                    <ComboBox Grid.Column="0" MinWidth="130"
+                              ItemsSource="{Binding $parent[ItemsControl].((vm:PolicyViewModel)DataContext).MatchKinds}"
+                              SelectedItem="{Binding Kind, Mode=TwoWay}" />
+                    <TextBox Grid.Column="1" Margin="8,0,0,0" Watermark="id fragment, e.g. _internal"
+                             Text="{Binding Value, Mode=TwoWay}" />
+                    <Button Grid.Column="2" Margin="8,0,0,0" Content="Remove"
+                            Command="{Binding $parent[ItemsControl].((vm:PolicyViewModel)DataContext).RemoveFieldIdRuleCommand}"
+                            CommandParameter="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Button Content="Add rule" HorizontalAlignment="Left" Margin="0,4,0,0"
+                    Command="{Binding AddFieldIdRuleCommand}" />
+          </StackPanel>
+        </Border>
+
+        <!-- Footer: current policy summary -->
+        <Border Classes="card">
+          <StackPanel Spacing="4">
+            <TextBlock Text="CURRENT POLICY" Classes="h3" />
+            <TextBlock Text="{Binding Summary}" Classes="subtle" />
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
 
   </c:PageShell>
 </UserControl>

@@ -13,6 +13,8 @@ public enum BackupScope
     Fieldsets,
     LinkTypes,
     Users,
+    Roles,
+    RestrictedFields,
     ServerSettings,
     Extensions,
 }

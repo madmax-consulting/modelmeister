@@ -1,14 +1,16 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:svc="using:ModelMeister.Ui.Services"
              xmlns:c="using:ModelMeister.Ui.Controls"
              x:Class="ModelMeister.Ui.Views.ServerSettingsManageView"
-             x:DataType="vm:ServerSettingsManageViewModel">
+             x:DataType="vm:ServerSettingsManageViewModel"
+             x:Name="PageRoot">
 
   <UserControl.KeyBindings>
-    <KeyBinding Gesture="Delete"
-                Command="{Binding ConfirmAndDeleteCommand}"
-                CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
   </UserControl.KeyBindings>
 
   <c:PageShell Eyebrow="SERVER SETTINGS"
@@ -25,6 +27,13 @@
                 Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
                 StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
         </Button>
+        <Button Classes="ghost icon danger" ToolTip.Tip="Delete selected settings"
+                Command="{Binding DeleteSelectedCommand}"
+                IsVisible="{Binding Selection.HasSelection}">
+          <Path Data="{DynamicResource IcoTrash}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
         <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
         <c:PageActions DataContext="{Binding}" />
       </StackPanel>
@@ -34,11 +43,14 @@
       <!-- The grid is read-only (no inline editing) so users can freely select cell text without
            triggering an edit. Mutation happens through Edit / Delete / Copy icons per row, each
            routed through a popup. -->
+      <DockPanel LastChildFill="True">
+      <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #SettingsGrid}" />
       <DataGrid Name="SettingsGrid"
                 ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" SelectionMode="Single"
                 GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                Margin="0" BorderThickness="0" CornerRadius="0">
+                Margin="0" BorderThickness="0" CornerRadius="0"
+                svc:GridSelectionBehavior.Selection="{Binding Selection}">
         <DataGrid.ContextMenu>
           <ContextMenu>
             <MenuItem Header="Edit"
@@ -54,9 +66,19 @@
             <MenuItem Header="Delete"
                       Command="{Binding ConfirmAndDeleteCommand}"
                       CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
+            <MenuItem Header="Delete selected"
+                      Command="{Binding DeleteSelectedCommand}"
+                      IsEnabled="{Binding Selection.HasSelection}" />
           </ContextMenu>
         </DataGrid.ContextMenu>
         <DataGrid.Columns>
+          <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                  CellTemplate="{StaticResource RowSelectCell}">
+            <DataGridTemplateColumn.Header>
+              <CheckBox IsChecked="{Binding #PageRoot.((vm:ServerSettingsManageViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+            </DataGridTemplateColumn.Header>
+          </DataGridTemplateColumn>
           <DataGridTextColumn Binding="{Binding Key}" Width="320">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
@@ -92,6 +114,7 @@
           </DataGridTemplateColumn>
         </DataGrid.Columns>
       </DataGrid>
+      </DockPanel>
     </Border>
 
   </c:PageShell>

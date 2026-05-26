@@ -1,48 +1,114 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:svc="using:ModelMeister.Ui.Services"
              xmlns:c="using:ModelMeister.Ui.Controls"
              x:Class="ModelMeister.Ui.Views.CvlWorkbenchView"
-             x:DataType="vm:CvlWorkbenchViewModel">
+             x:DataType="vm:CvlWorkbenchViewModel"
+             x:Name="PageRoot">
+
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCvlsCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
+  </UserControl.KeyBindings>
 
   <c:PageShell Eyebrow="CVL WORKBENCH"
                Subtitle="Controlled Value Lists on the connected environment"
                Status="{Binding Status}"
                IsBusy="{Binding Busy}">
     <c:PageShell.Actions>
-      <c:PageActions DataContext="{Binding}" />
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Button Classes="ghost icon" ToolTip.Tip="New CVL"
+                Command="{Binding AddCvlCommand}">
+          <Path Data="{DynamicResource IcoPlus}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Button Classes="ghost icon danger" ToolTip.Tip="Delete selected CVLs"
+                Command="{Binding DeleteSelectedCvlsCommand}"
+                IsVisible="{Binding Selection.HasSelection}">
+          <Path Data="{DynamicResource IcoTrash}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
+        <c:PageActions DataContext="{Binding}" />
+      </StackPanel>
     </c:PageShell.Actions>
 
     <Border Classes="card flush" Padding="0">
+      <DockPanel LastChildFill="True">
+      <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #CvlGrid}" />
       <DataGrid Name="CvlGrid"
                 ItemsSource="{Binding Cvls}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                BorderThickness="0">
+                BorderThickness="0" svc:GridSelectionBehavior.Selection="{Binding Selection}">
         <DataGrid.ContextMenu>
           <ContextMenu>
+            <MenuItem Header="Edit"
+                      Command="{Binding EditCvlCommand}"
+                      CommandParameter="{Binding #CvlGrid.SelectedItem}" />
             <MenuItem Header="Copy CVL id"
                       Command="{Binding CopyCvlIdCommand}"
                       CommandParameter="{Binding #CvlGrid.SelectedItem}" />
+            <Separator />
+            <MenuItem Header="Delete"
+                      Command="{Binding DeleteCvlCommand}"
+                      CommandParameter="{Binding #CvlGrid.SelectedItem}" />
+            <MenuItem Header="Delete selected"
+                      Command="{Binding DeleteSelectedCvlsCommand}"
+                      IsEnabled="{Binding Selection.HasSelection}" />
           </ContextMenu>
         </DataGrid.ContextMenu>
         <DataGrid.Columns>
-          <DataGridTextColumn Binding="{Binding Id}" Width="*" MinWidth="160">
+          <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                  CellTemplate="{StaticResource RowSelectCell}">
+            <DataGridTemplateColumn.Header>
+              <CheckBox IsChecked="{Binding #PageRoot.((vm:CvlWorkbenchViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+            </DataGridTemplateColumn.Header>
+          </DataGridTemplateColumn>
+          <!-- Id and Parent share the flexible space (both star) so Id no longer hogs all the slack;
+               every column stays >= ~100px so the FilterableHeader filter box + title aren't clipped. -->
+          <DataGridTextColumn Binding="{Binding Id}" Width="2*" MinWidth="200">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Id" Path="Id" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding DataType}" Width="120" MinWidth="90">
+          <DataGridTextColumn Binding="{Binding DataType}" Width="130" MinWidth="110">
             <DataGridTextColumn.Header><c:FilterableHeader Title="DataType" Path="DataType" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding ValueCount}" Width="90" MinWidth="60">
+          <DataGridTextColumn Binding="{Binding ValueCount}" Width="120" MinWidth="100">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Values" Path="ValueCount" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding ParentId}" Width="160" MinWidth="100">
+          <DataGridTextColumn Binding="{Binding ParentId}" Width="1.4*" MinWidth="160">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Parent" Path="ParentId" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridCheckBoxColumn Binding="{Binding CustomValueList}" Width="80" MinWidth="70">
+          <DataGridCheckBoxColumn Binding="{Binding CustomValueList}" Width="120" MinWidth="100" IsReadOnly="True">
             <DataGridCheckBoxColumn.Header><c:FilterableHeader Title="Custom" Path="CustomValueList" /></DataGridCheckBoxColumn.Header>
           </DataGridCheckBoxColumn>
+          <DataGridTemplateColumn Header="" Width="92">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="vm:CvlRow">
+                <StackPanel Orientation="Horizontal" Spacing="3" Margin="4,0">
+                  <Button Classes="ghost icon" Padding="6" ToolTip.Tip="Edit CVL + values"
+                          Command="{Binding $parent[DataGrid].((vm:CvlWorkbenchViewModel)DataContext).EditCvlCommand}"
+                          CommandParameter="{Binding}">
+                    <Path Data="{DynamicResource IcoEdit}" Width="12" Height="12" Stretch="Uniform"
+                          Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+                  </Button>
+                  <Button Classes="ghost icon danger" Padding="6" ToolTip.Tip="Delete CVL"
+                          Command="{Binding $parent[DataGrid].((vm:CvlWorkbenchViewModel)DataContext).DeleteCvlCommand}"
+                          CommandParameter="{Binding}">
+                    <Path Data="{DynamicResource IcoTrash}" Width="12" Height="12" Stretch="Uniform"
+                          Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent" />
+                  </Button>
+                </StackPanel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
         </DataGrid.Columns>
       </DataGrid>
+      </DockPanel>
     </Border>
 
   </c:PageShell>

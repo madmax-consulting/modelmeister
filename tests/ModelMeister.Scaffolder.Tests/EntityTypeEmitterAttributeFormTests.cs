@@ -30,6 +30,7 @@ public class EntityTypeEmitterAttributeFormTests
             DataType = "String",
             EntityTypeId = "Product",
             Mandatory = true,
+            TrackChanges = true, // a normal tracked field — the default, so it is not emitted
         });
 
         src.ShouldContain("[Mandatory]");
@@ -94,6 +95,7 @@ public class EntityTypeEmitterAttributeFormTests
             Id = "ProductMemo",
             DataType = "String",
             EntityTypeId = "Product",
+            TrackChanges = true, // default — not emitted
         });
 
         src.ShouldContain("public Field<string> Memo { get; init; } = new();");
@@ -103,18 +105,43 @@ public class EntityTypeEmitterAttributeFormTests
     [Fact]
     public void Index_is_not_emitted_as_attribute_to_preserve_read_through_semantics()
     {
-        // Index/TrackChanges/ExcludeFromDefaultView are nullable read-through properties — the
-        // scaffolder must NOT emit them so that an unspecified code-side value continues to mean
-        // "leave inriver's value alone" (see CLAUDE.md > Diff/apply contract).
+        // Index/ExcludeFromDefaultView are nullable read-through properties — the scaffolder must
+        // NOT emit them so that an unspecified code-side value continues to mean "leave inriver's
+        // value alone" (see CLAUDE.md > Diff/apply contract).
         var src = EmitField(new JsonFieldType
         {
             Id = "ProductSort",
             DataType = "String",
             EntityTypeId = "Product",
             Index = 7,
+            TrackChanges = true,
         });
 
         src.ShouldNotContain("[Index");
         src.ShouldNotContain("Index = 7");
+    }
+
+    [Fact]
+    public void TrackChanges_off_emits_initializer_default_on_does_not()
+    {
+        // TrackChanges defaults to true (code model is authoritative). The scaffolder pins it only
+        // when the source has tracking off.
+        var off = EmitField(new JsonFieldType
+        {
+            Id = "ProductHidden",
+            DataType = "String",
+            EntityTypeId = "Product",
+            TrackChanges = false,
+        });
+        off.ShouldContain("TrackChanges = false");
+
+        var on = EmitField(new JsonFieldType
+        {
+            Id = "ProductVisible",
+            DataType = "String",
+            EntityTypeId = "Product",
+            TrackChanges = true,
+        });
+        on.ShouldNotContain("TrackChanges");
     }
 }
