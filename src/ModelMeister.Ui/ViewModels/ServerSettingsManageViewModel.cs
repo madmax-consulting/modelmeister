@@ -330,15 +330,25 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
             "Import server settings from workbook",
             "Bulk-apply server settings to the connected environment from an edited workbook.",
             "serversettings.xlsx",
-            supportsDryRun: false).ConfigureAwait(true);
+            _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
         if (vm?.WorkbookPath is null) return;
         try
         {
-            var dict = ModelMeister.Excel.ServerSettingsWorkbook.Load(vm.WorkbookPath);
+            var dict = await Task.Run(() => ModelMeister.Excel.ServerSettingsWorkbook.Load(vm.WorkbookPath)).ConfigureAwait(true);
+
+            // Verify + dry-run preview first, then require explicit approval before writing.
+            var previewRows = dict.Select(kvp => new ProvisionResultRow(
+                kvp.Key, "would-set", string.IsNullOrEmpty(kvp.Value) ? "(clear)" : kvp.Value)).ToList();
+            var previewVm = new ProvisionResultViewModel(
+                dryRun: true, created: dict.Count, updated: 0, errors: 0, warnings: 0, rows: previewRows,
+                importEyebrow: "SERVER SETTINGS IMPORT", keyColumnHeader: "Key", itemNoun: "settings");
+            if (!await DialogHost.ShowProvisionResultAsync(previewVm).ConfigureAwait(true)) return;
+
             var entries = dict.Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value));
             var result = await _shell.BulkApplyServerSettingsAsync(entries).ConfigureAwait(true);
             _log.Success("Import", $"Applied {result.Applied.Count} keys, {result.Failed.Count} failed.");
             _log.Toast(LogLevel.Success, "Import complete", $"{result.Applied.Count} keys applied");
+            RememberWorkbook(_main.Settings, vm.WorkbookPath);
             await RefreshAsync().ConfigureAwait(true);
         }
         catch (Exception ex)

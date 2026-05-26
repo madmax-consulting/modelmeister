@@ -1,17 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        xmlns:svc="using:ModelMeister.Ui.Services"
         x:Class="ModelMeister.Ui.Views.ImportWorkbookDialog"
         x:DataType="vm:ImportWorkbookViewModel"
+        x:Name="Win"
         Title="Import from workbook"
-        Width="560" SizeToContent="Height"
+        Width="520" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        Background="{DynamicResource Surface0}"
+        Background="{DynamicResource AppBackground}"
         FontFamily="{StaticResource UiFont}">
 
   <Border Padding="0" Background="{DynamicResource AppBackground}">
-    <StackPanel Margin="28,26,28,24" Spacing="14">
+    <StackPanel Margin="26,24,26,22" Spacing="14">
 
       <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
         <Grid Width="44" Height="44">
@@ -19,37 +21,48 @@
                   Background="{DynamicResource AccentGlowFill}"
                   BorderBrush="{DynamicResource AccentDeep}"
                   BorderThickness="1" />
-          <Path Data="{DynamicResource IcoCopy}" Width="22" Height="22" Stretch="Uniform"
+          <Path Data="{DynamicResource IcoExcel}" Width="22" Height="22" Stretch="Uniform"
                 Stroke="{DynamicResource Accent}" StrokeThickness="1.5"
                 StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
                 HorizontalAlignment="Center" VerticalAlignment="Center" />
         </Grid>
-        <StackPanel Spacing="2">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Text="IMPORT FROM EXCEL" Classes="eyebrow" />
-          <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" />
+          <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" TextWrapping="Wrap" />
         </StackPanel>
       </StackPanel>
 
       <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap"
                  Foreground="{DynamicResource TextSec}" FontSize="13" LineHeight="20" />
 
+      <TextBlock Text="The import first verifies the workbook and shows a dry-run preview of what will happen. You then confirm to apply the changes."
+                 TextWrapping="Wrap" Foreground="{DynamicResource TextDim}" FontSize="12" LineHeight="18" />
+
       <StackPanel Spacing="6">
         <TextBlock Text="WORKBOOK" Classes="label" />
-        <Grid ColumnDefinitions="*,Auto">
+        <Grid ColumnDefinitions="*,Auto,Auto">
           <TextBox Grid.Column="0" Text="{Binding WorkbookPath, Mode=TwoWay}"
                    Classes="mono" Watermark="path\to\workbook.xlsx" />
           <Button Grid.Column="1" Content="Pick…" Command="{Binding PickCommand}"
                   Classes="ghost" Margin="8,0,0,0" />
+          <Button Grid.Column="2" Name="RecentsButton" Classes="ghost" Margin="6,0,0,0"
+                  Click="OnRecentsClick"
+                  IsVisible="{Binding HasRecents}" ToolTip.Tip="Recently imported workbooks">
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+              <Path Data="{DynamicResource IcoHistory}" Width="13" Height="13" Stretch="Uniform"
+                    Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                    StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+              <Path Data="{DynamicResource IcoChevDown}" Width="10" Height="10" Stretch="Uniform"
+                    Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                    StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+            </StackPanel>
+          </Button>
         </Grid>
       </StackPanel>
 
-      <CheckBox Content="Dry run (preview only — don't write)"
-                IsChecked="{Binding DryRun, Mode=TwoWay}"
-                IsVisible="{Binding SupportsDryRun}" />
-
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,8,0,0">
         <Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
-        <Button Content="Import" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+        <Button Content="Verify &amp; preview" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
       </StackPanel>
     </StackPanel>
   </Border>

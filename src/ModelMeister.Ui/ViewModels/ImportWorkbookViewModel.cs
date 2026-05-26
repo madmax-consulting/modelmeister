@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
@@ -11,9 +13,10 @@ using CommunityToolkit.Mvvm.Input;
 namespace ModelMeister.Ui.ViewModels;
 
 /// <summary>
-/// View-model behind the universal Import-from-workbook dialog. Captures a workbook path and a
-/// dry-run flag, then resolves to <c>true</c> when the user confirms. The caller is responsible
-/// for actually doing the import — this VM just collects the inputs in a consistent place.
+/// View-model behind the universal Import-from-workbook dialog. Captures a workbook path (with a
+/// Recents dropdown of previously-imported files), then resolves to <c>true</c> when the user
+/// confirms. The import itself always verifies + dry-runs first and asks for explicit approval before
+/// writing — so this dialog only collects the file; it no longer carries a dry-run toggle.
 /// </summary>
 public partial class ImportWorkbookViewModel : ViewModelBase
 {
@@ -26,26 +29,27 @@ public partial class ImportWorkbookViewModel : ViewModelBase
     /// <summary>File-picker label (e.g. "users.xlsx").</summary>
     public string SuggestedFileName { get; }
 
-    /// <summary>When false, the dry-run checkbox is hidden (the operation has no preview mode).</summary>
-    public bool SupportsDryRun { get; }
+    /// <summary>Recently-imported workbook paths (newest first) for the Recents dropdown.</summary>
+    public ObservableCollection<string> Recents { get; } = [];
+
+    /// <summary>True when there is at least one recent workbook to offer.</summary>
+    public bool HasRecents => Recents.Count > 0;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     private string? _workbookPath;
 
-    [ObservableProperty] private bool _dryRun = true;
-
     public bool? Result { get; private set; }
 
     public event Action? Closed;
 
-    public ImportWorkbookViewModel(string title, string subtitle, string suggestedFileName = "workbook.xlsx", bool supportsDryRun = true)
+    public ImportWorkbookViewModel(string title, string subtitle, string suggestedFileName = "workbook.xlsx", IReadOnlyList<string>? recents = null)
     {
         Title = title;
         Subtitle = subtitle;
         SuggestedFileName = suggestedFileName;
-        SupportsDryRun = supportsDryRun;
-        if (!supportsDryRun) _dryRun = false;
+        if (recents is not null)
+            foreach (var p in recents) Recents.Add(p);
     }
 
     private bool CanConfirm() =>

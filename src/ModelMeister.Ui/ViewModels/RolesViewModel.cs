@@ -64,12 +64,24 @@ public partial class RolesViewModel : FeaturePageViewModel
         var vm = await DialogHost.ImportWorkbookAsync(
             "Import roles from workbook",
             "Provision (create/update) roles in the connected environment from an edited roles.xlsx.",
-            "roles.xlsx").ConfigureAwait(true);
+            "roles.xlsx", _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
         if (vm is null) return;
         WorkbookPath = vm.WorkbookPath;
-        DryRun = vm.DryRun;
+
+        // Always verify + dry-run first; only run the real import if the user approves in the preview.
+        DryRun = true;
+        _proceedWithImport = false;
         await ProvisionAsync().ConfigureAwait(true);
+        if (!_proceedWithImport) return;
+
+        DryRun = false;
+        await ProvisionAsync().ConfigureAwait(true);
+        RememberWorkbook(_main.Settings, WorkbookPath);
     }
+
+    /// <summary>Set by <see cref="ProvisionAsync"/> when the dry-run preview's "Continue with import"
+    /// was clicked — tells <see cref="ImportExcelAsync"/> to run the real import.</summary>
+    private bool _proceedWithImport;
 
     public ObservableCollection<RoleListRow> Roles { get; } = [];
     public ObservableCollection<string> Permissions { get; } = [];
@@ -251,13 +263,14 @@ public partial class RolesViewModel : FeaturePageViewModel
         int deleted = 0, errors = 0;
         try
         {
-            foreach (var name in names)
-            {
-                Status = $"Deleting role '{name}'…";
-                var result = await _shell.DeleteRoleAsync(name).ConfigureAwait(true);
-                if (result.Errors.Count > 0) { errors++; _log.Warn("Roles", $"{name}: {string.Join("; ", result.Errors)}"); }
-                else { deleted++; _log.Success("Roles", $"Deleted role '{name}'."); }
-            }
+            await RunBulkAsync(names,
+                async name =>
+                {
+                    var result = await _shell.DeleteRoleAsync(name).ConfigureAwait(false);
+                    if (result.Errors.Count > 0) { errors++; _log.Warn("Roles", $"{name}: {string.Join("; ", result.Errors)}"); }
+                    else { deleted++; _log.Success("Roles", $"Deleted role '{name}'."); }
+                },
+                (i, total, name) => Status = $"Deleting role {i} / {total} ('{name}')…").ConfigureAwait(true);
             Status = errors == 0 ? $"Deleted {deleted} role(s)." : $"Deleted {deleted}, {errors} failed.";
             MarkDataDirty();
             await RefreshAsync().ConfigureAwait(true);
@@ -322,7 +335,7 @@ public partial class RolesViewModel : FeaturePageViewModel
         Busy = true;
         try
         {
-            var roleRows = RolesWorkbook.Load(WorkbookPath);
+            var roleRows = await Task.Run(() => RolesWorkbook.Load(WorkbookPath)).ConfigureAwait(true);
             int created = 0, updated = 0, errors = 0;
             var resultRows = new List<ProvisionResultRow>();
 
@@ -350,8 +363,11 @@ public partial class RolesViewModel : FeaturePageViewModel
                 errors: errors,
                 warnings: 0,
                 rows: resultRows,
-                importEyebrow: "ROLES IMPORT");
-            await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
+                importEyebrow: "ROLES IMPORT",
+                keyColumnHeader: "Role",
+                itemNoun: "roles");
+            var proceed = await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
+            _proceedWithImport = DryRun && proceed;
 
             Status = DryRun
                 ? $"Dry run complete · {roleRows.Count} roles would be processed."

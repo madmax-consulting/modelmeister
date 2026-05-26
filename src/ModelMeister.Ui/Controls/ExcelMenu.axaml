@@ -21,7 +21,7 @@
       </MenuFlyout>
     </Button.Flyout>
     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-      <Path Data="{DynamicResource IcoDownload}" Width="13" Height="13" Stretch="Uniform"
+      <Path Data="{DynamicResource IcoExcel}" Width="13" Height="13" Stretch="Uniform"
             Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
             StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
       <TextBlock Text="Excel" VerticalAlignment="Center" />

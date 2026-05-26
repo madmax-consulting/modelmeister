@@ -4,6 +4,7 @@
         xmlns:c="using:ModelMeister.Ui.Controls"
         x:Class="ModelMeister.Ui.Views.ProvisionResultDialog"
         x:DataType="vm:ProvisionResultViewModel"
+        x:Name="Win"
         Title="{Binding Title}"
         Width="720" Height="520"
         WindowStartupLocation="CenterOwner"
@@ -24,13 +25,13 @@
         <Border Grid.Column="0" Classes="cardSubtle" Margin="0,0,4,0">
           <StackPanel Spacing="2" Margin="10,8">
             <TextBlock Text="{Binding HeadlineCreated}" FontWeight="SemiBold" FontSize="14" />
-            <TextBlock Text="users" Classes="dim" FontSize="11" />
+            <TextBlock Text="{Binding ItemNoun}" Classes="dim" FontSize="11" />
           </StackPanel>
         </Border>
         <Border Grid.Column="1" Classes="cardSubtle" Margin="4,0,4,0">
           <StackPanel Spacing="2" Margin="10,8">
             <TextBlock Text="{Binding HeadlineUpdated}" FontWeight="SemiBold" FontSize="14" />
-            <TextBlock Text="users" Classes="dim" FontSize="11" />
+            <TextBlock Text="{Binding ItemNoun}" Classes="dim" FontSize="11" />
           </StackPanel>
         </Border>
         <Border Grid.Column="2" Classes="cardSubtle" Margin="4,0,4,0">
@@ -57,8 +58,12 @@
       <!-- Footer -->
       <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
                   HorizontalAlignment="Right" Spacing="10" Margin="0,12,0,0">
-        <Button Content="Close" Command="{Binding CloseCommand}" Classes="primary"
-                IsDefault="True" IsCancel="True" />
+        <!-- On a dry-run preview, Close becomes "Cancel" and a primary "Continue with import" appears,
+             so the real import is always an explicit second step the user approves. -->
+        <Button Content="{Binding CloseLabel}" Command="{Binding CloseCommand}"
+                Classes.primary="{Binding !CanProceed}" IsCancel="True" />
+        <Button Content="Continue with import" Command="{Binding ProceedWithImportCommand}"
+                Classes="primary" IsDefault="True" IsVisible="{Binding CanProceed}" />
       </StackPanel>
 
       <!-- Row-by-row table -->
@@ -69,7 +74,7 @@
                   BorderThickness="0">
           <DataGrid.Columns>
             <DataGridTextColumn Binding="{Binding Username}" Width="200" MinWidth="120">
-              <DataGridTextColumn.Header><c:FilterableHeader Title="Username" Path="Username" /></DataGridTextColumn.Header>
+              <DataGridTextColumn.Header><c:FilterableHeader Title="{Binding #Win.((vm:ProvisionResultViewModel)DataContext).KeyColumnHeader}" Path="Username" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
             <DataGridTextColumn Binding="{Binding Outcome}" Width="120" MinWidth="90">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Outcome" Path="Outcome" /></DataGridTextColumn.Header>
