@@ -8,10 +8,10 @@
              x:Name="PageRoot">
 
   <UserControl.KeyBindings>
-    <!-- Delete key targets the currently-selected backup row. -->
-    <KeyBinding Gesture="Delete"
-                Command="{Binding DeleteCommand}"
-                CommandParameter="{Binding #BackupsGrid.SelectedItem}" />
+    <!-- Delete acts on the checkbox selection (not just the focused row). -->
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
   </UserControl.KeyBindings>
 
   <!-- Single-row PageShell header: Eyebrow + Subtitle on the left; Capture + standard PageActions

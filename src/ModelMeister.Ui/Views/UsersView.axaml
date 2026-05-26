@@ -8,12 +8,28 @@
              x:DataType="vm:UsersViewModel"
              x:Name="PageRoot">
 
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
+    <KeyBinding Gesture="Ctrl+C" Command="{Binding CopySelectedCommand}" />
+  </UserControl.KeyBindings>
+
   <c:PageShell Eyebrow="USERS"
                Subtitle="Inspect the live environment's user list — export/import via the icons above"
                Status="{Binding Status}"
                IsBusy="{Binding Busy}">
     <c:PageShell.Actions>
       <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <!-- Copy selected: the one bulk action available on Users (the API can't delete/edit users). -->
+        <Button Classes="ghost icon" ToolTip.Tip="Copy selected users"
+                Command="{Binding CopySelectedCommand}"
+                IsVisible="{Binding Selection.HasSelection}">
+          <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}"
+                IsVisible="{Binding Selection.HasSelection}" />
         <!-- Download dropdown: list vs blank template — the previous Export icon offered only one
              option, which made the template (one example row, no real users) hard to discover. -->
         <Button Classes="ghost icon" ToolTip.Tip="Download…">

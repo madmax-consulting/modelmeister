@@ -134,6 +134,19 @@ public partial class UsersViewModel : FeaturePageViewModel
     [RelayCommand] private Task CopyEmail(UserListRow? u)    => ClipboardHelpers.CopyAsync(u?.Email);
     [RelayCommand] private Task CopyRoles(UserListRow? u)    => ClipboardHelpers.CopyAsync(u is null ? null : string.Join(", ", u.Roles));
 
+    /// <summary>Copy every checked user as tab-separated rows (username, email, roles) — the one bulk
+    /// action available on Users since the Remoting/REST surface can't delete or edit users here.</summary>
+    [RelayCommand]
+    private async Task CopySelectedAsync()
+    {
+        var rows = Selection.SelectedOf<UserListRow>();
+        if (rows.Count == 0) { Status = "Select at least one user."; return; }
+        var text = string.Join(Environment.NewLine,
+            rows.Select(u => string.Join('\t', u.Username, u.Email ?? "", string.Join(", ", u.Roles))));
+        await ClipboardHelpers.CopyAsync(text).ConfigureAwait(true);
+        Status = $"Copied {rows.Count} user(s) to the clipboard.";
+    }
+
     /// <summary>Download the current user list as an xlsx workbook.</summary>
     [RelayCommand(CanExecute = nameof(CanExportTemplate))]
     public async Task DownloadListAsync() => await ExportWorkbookAsync(seedSingleExample: false).ConfigureAwait(true);

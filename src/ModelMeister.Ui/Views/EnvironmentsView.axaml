@@ -14,7 +14,9 @@
   <UserControl.KeyBindings>
     <KeyBinding Gesture="Ctrl+N" Command="{Binding AddCommand}" />
     <KeyBinding Gesture="Ctrl+E" Command="{Binding EditCommand}" />
-    <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
   </UserControl.KeyBindings>
 
   <UserControl.Resources>

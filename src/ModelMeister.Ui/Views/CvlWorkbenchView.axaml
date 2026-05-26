@@ -8,9 +8,9 @@
              x:Name="PageRoot">
 
   <UserControl.KeyBindings>
-    <KeyBinding Gesture="Delete"
-                Command="{Binding DeleteCvlCommand}"
-                CommandParameter="{Binding #CvlGrid.SelectedItem}" />
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCvlsCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
   </UserControl.KeyBindings>
 
   <c:PageShell Eyebrow="CVL WORKBENCH"

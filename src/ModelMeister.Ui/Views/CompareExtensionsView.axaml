@@ -18,19 +18,13 @@
   <views:CompareLayoutView Eyebrow="EXTENSIONS · COMPARE"
                            Subtitle="Compare extensions and their settings across two environments">
     <views:CompareLayoutView.Body>
+      <!-- Single-select detail/push page: pick a row, push its settings left/right. No bulk
+           selection here, so there is no checkbox column. -->
       <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
                 SelectedItem="{Binding Selected, Mode=TwoWay}"
                 AutoGenerateColumns="False" SelectionMode="Single"
-                svc:GridSelectionBehavior.Selection="{Binding Selection}"
                 GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable fit">
         <DataGrid.Columns>
-          <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
-                                  CellTemplate="{StaticResource RowSelectCell}">
-            <DataGridTemplateColumn.Header>
-              <CheckBox IsChecked="{Binding #Root.((vm:CompareExtensionsViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
-                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
-            </DataGridTemplateColumn.Header>
-          </DataGridTemplateColumn>
           <DataGridTextColumn Binding="{Binding State}" Width="110">
             <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
           </DataGridTextColumn>

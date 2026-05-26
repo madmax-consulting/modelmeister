@@ -7,6 +7,12 @@
              x:DataType="vm:ExtensionsViewModel"
              x:Name="PageRoot">
 
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedExtensionsCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding ItemsSelection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding ItemsSelection.SelectAllVisibleCommand}" />
+  </UserControl.KeyBindings>
+
   <c:PageShell Eyebrow="EXTENSIONS"
                Subtitle="Extensions registered on the connected environment — settings, events, states"
                Status="{Binding StatusMessage}"

@@ -9,9 +9,9 @@
              x:Name="PageRoot">
 
   <UserControl.KeyBindings>
-    <KeyBinding Gesture="Delete"
-                Command="{Binding DeleteRoleCommand}"
-                CommandParameter="{Binding #RolesGrid.SelectedItem}" />
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedRolesCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
   </UserControl.KeyBindings>
 
   <c:PageShell Eyebrow="ROLES"

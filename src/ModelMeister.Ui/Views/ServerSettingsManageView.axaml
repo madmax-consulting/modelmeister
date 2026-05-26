@@ -8,9 +8,9 @@
              x:Name="PageRoot">
 
   <UserControl.KeyBindings>
-    <KeyBinding Gesture="Delete"
-                Command="{Binding ConfirmAndDeleteCommand}"
-                CommandParameter="{Binding #SettingsGrid.SelectedItem}" />
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding Selection.SelectAllVisibleCommand}" />
   </UserControl.KeyBindings>
 
   <c:PageShell Eyebrow="SERVER SETTINGS"
