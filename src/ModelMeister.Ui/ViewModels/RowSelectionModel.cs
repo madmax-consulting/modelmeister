@@ -57,7 +57,8 @@ public sealed partial class RowSelectionModel : ObservableObject
     /// collection when no view is bound — e.g. an un-filtered dialog sub-grid.</summary>
     private IReadOnlyList<SelectableRow> VisibleRows => _visible?.Invoke() ?? AllRows.ToList();
 
-    /// <summary>Tri-state header value: true = all visible checked, false = none, null = some (indeterminate).</summary>
+    /// <summary>Header select-all value: true = every visible row checked, false otherwise (including a
+    /// partial selection). Binary, not tri-state — see <see cref="RecomputeCore"/>.</summary>
     [ObservableProperty] private bool? _allSelected = false;
 
     /// <summary>Number of currently checked visible rows. Backs the "Delete selected (N)" / "Promote selected (N)" label.</summary>
@@ -150,10 +151,11 @@ public sealed partial class RowSelectionModel : ObservableObject
         SelectedCount = sel;
         FilteredView = _filtered?.Invoke() ?? false;
         _sync = true;
-        AllSelected = items.Count == 0 ? false
-                    : sel == 0          ? false
-                    : sel == items.Count ? true
-                    : null;
+        // Binary, not tri-state: the header check is on ONLY when every visible row is selected, and
+        // off otherwise (including a partial selection). A partial-selection "indeterminate" rendered
+        // as a filled box in the Fluent theme and read as "checked" — so checking one row looked like
+        // it ticked select-all. Off-until-all is what users expect from a select-all box.
+        AllSelected = items.Count > 0 && sel == items.Count;
         _sync = false;
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(SelectedRows));

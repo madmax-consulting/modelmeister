@@ -241,8 +241,10 @@
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource TextSec}" />
   </Style>
+  <!-- Amber-tinted hover lift (same token the nav/tabs use). Surface2 read as near-black in dark
+       mode against the surrounding chrome; the accent tint lifts legibly in both themes. -->
   <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource Surface2}" />
+    <Setter Property="Background" Value="{DynamicResource AccentHoverBg}" />
     <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPri}" />
   </Style>
 
@@ -266,7 +268,7 @@
     <Setter Property="Foreground" Value="{DynamicResource TextSec}" />
   </Style>
   <Style Selector="ToggleButton.icon:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource Surface2}" />
+    <Setter Property="Background" Value="{DynamicResource AccentHoverBg}" />
     <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPri}" />
   </Style>
   <Style Selector="ToggleButton.icon:checked /template/ ContentPresenter">
