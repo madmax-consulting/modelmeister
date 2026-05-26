@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        x:Class="ModelMeister.Ui.Views.RestrictedFieldEditorDialog"
+        x:DataType="vm:RestrictedFieldEditorViewModel"
+        Title="New restriction"
+        Width="520" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <StackPanel Margin="28,26,28,22" Spacing="12">
+
+      <StackPanel Spacing="2">
+        <TextBlock Text="RESTRICTED FIELD" Classes="eyebrow" />
+        <TextBlock Text="New restriction" FontSize="20" FontWeight="Bold" />
+        <TextBlock Foreground="{DynamicResource TextSec}" FontSize="13"
+                   Text="Pick a role and restriction type, then set at least one target (entity type, field type, or category)." />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,12,*">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Text="Role" Classes="label" />
+          <ComboBox ItemsSource="{Binding Roles}"
+                    SelectedItem="{Binding SelectedRole, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Spacing="4">
+          <TextBlock Text="Restriction type" Classes="label" />
+          <AutoCompleteBox Text="{Binding RestrictionType, Mode=TwoWay}"
+                           ItemsSource="{Binding RestrictionTypes}"
+                           FilterMode="StartsWith" Watermark="ReadOnly"
+                           HorizontalAlignment="Stretch" />
+        </StackPanel>
+      </Grid>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Field type id" Classes="label" />
+        <TextBox Text="{Binding FieldTypeId, Mode=TwoWay}" Watermark="e.g. ProductName (optional)" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,12,*">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Text="Entity type id" Classes="label" />
+          <TextBox Text="{Binding EntityTypeId, Mode=TwoWay}" Watermark="optional" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Spacing="4">
+          <TextBlock Text="Category id" Classes="label" />
+          <TextBox Text="{Binding CategoryId, Mode=TwoWay}" Watermark="optional" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="{Binding Validation}" Foreground="{DynamicResource Danger}"
+                 IsVisible="{Binding Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+        <Button Content="Abort" Command="{Binding AbortCommand}" IsCancel="True" />
+        <Button Content="Add" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

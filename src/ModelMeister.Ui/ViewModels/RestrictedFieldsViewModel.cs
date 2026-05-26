@@ -50,7 +50,13 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
     }
 
     /// <inheritdoc/>
+    public override bool HasExcelTemplate => true;
+
+    /// <inheritdoc/>
     public override Task ExportExcelAsync() => DownloadListAsync();
+
+    /// <inheritdoc/>
+    public override Task ExportTemplateAsync() => DownloadTemplateAsync();
 
     /// <inheritdoc/>
     public override async Task ImportExcelAsync()
@@ -75,6 +81,7 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
     [NotifyCanExecuteChangedFor(nameof(DownloadListCommand))]
     [NotifyCanExecuteChangedFor(nameof(DownloadTemplateCommand))]
     [NotifyCanExecuteChangedFor(nameof(ProvisionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddCommand))]
     private bool _busy;
     [ObservableProperty] private string _status = "";
     [ObservableProperty] private bool _dryRun = true;
@@ -97,6 +104,7 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
                 DownloadListCommand.NotifyCanExecuteChanged();
                 DownloadTemplateCommand.NotifyCanExecuteChanged();
                 ProvisionCommand.NotifyCanExecuteChanged();
+                AddCommand.NotifyCanExecuteChanged();
             }
         };
     }
@@ -127,6 +135,61 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
 
     [RelayCommand] private Task CopyRole(RestrictedFieldListRow? r) => ClipboardHelpers.CopyAsync(r?.RoleName);
     [RelayCommand] private Task CopyKey(RestrictedFieldListRow? r) => ClipboardHelpers.CopyAsync(r?.NaturalKey);
+
+    private bool CanMutate() => !Busy && _main.IsConnected;
+
+    /// <summary>Open the add-restriction editor; on Add provision a single restricted-field permission.
+    /// Restricted fields have no update op, so this is add-only and dedupes against the live set by
+    /// natural key (same identity the import path uses).</summary>
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task AddAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+
+        IReadOnlyList<string> roleNames;
+        Busy = true;
+        Status = "Loading roles…";
+        try { roleNames = (await _shell.ListRolesAsync().ConfigureAwait(true)).Select(r => r.Name).ToList(); }
+        catch (Exception ex) { Status = "Failed to load roles: " + ex.Message; _log.Error("RestrictedFields", ex.Message, ex); return; }
+        finally { Busy = false; }
+
+        var vm = await DialogHost.RestrictedFieldEditorAsync(roleNames).ConfigureAwait(true);
+        if (vm is null || string.IsNullOrWhiteSpace(vm.SelectedRole)) return;
+
+        var role = vm.SelectedRole!;
+        var entity = RestrictedFieldProvisioning.NullIfEmpty(vm.EntityTypeId);
+        var field = RestrictedFieldProvisioning.NullIfEmpty(vm.FieldTypeId);
+        var category = RestrictedFieldProvisioning.NullIfEmpty(vm.CategoryId);
+
+        var key = RestrictedFieldProvisioning.NaturalKey(role, vm.RestrictionType, entity, field, category);
+        if (Rows.Any(r => string.Equals(r.NaturalKey, key, StringComparison.OrdinalIgnoreCase)))
+        {
+            Status = "That restriction already exists.";
+            return;
+        }
+
+        Busy = true;
+        Status = $"Adding restriction for '{role}'…";
+        try
+        {
+            var result = await _shell.AddRestrictedFieldAsync(new RestrictedFieldProvisioning.RestrictedFieldSpec(
+                role, vm.RestrictionType, entity, field, category)).ConfigureAwait(true);
+            if (result.Errors.Count > 0)
+            {
+                Status = string.Join("; ", result.Errors);
+                _log.Warn("RestrictedFields", $"{key}: {Status}");
+            }
+            else
+            {
+                Status = $"Added restriction for '{role}'.";
+                _log.Success("RestrictedFields", Status);
+            }
+            MarkDataDirty();
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("RestrictedFields", ex.Message, ex); }
+        finally { Busy = false; }
+    }
 
     /// <summary>Delete a single restricted-field permission (after confirmation).</summary>
     [RelayCommand]

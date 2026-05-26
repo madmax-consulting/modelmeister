@@ -780,10 +780,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // Feature pages that read from the connected env (Extensions, Users, CvlWorkbench, …) only
     // ran their initial load when IsConnected transitioned to true — navigating to them later
-    // showed empty content. Trigger their RefreshAsync on page entry; base no-ops, overriders load.
+    // showed empty content. Trigger a load on page entry, but go through EnsureLoadedAsync so it
+    // respects the page's dirty flag: it loads on first open, re-fetches after a mutation or env
+    // switch (both MarkDataDirty), and no-ops on every other navigation. (F5 still force-refreshes.)
     partial void OnCurrentPageChanged(ViewModelBase value)
     {
-        if (value is FeaturePageViewModel page) _ = page.RefreshAsync();
+        if (value is FeaturePageViewModel page) _ = page.EnsureLoadedAsync();
     }
 
     /// <summary>Called by <see cref="ApplyViewModel"/> once a real (non-dry-run) apply succeeds.</summary>

@@ -36,12 +36,21 @@ public abstract partial class FeaturePageViewModel : ViewModelBase
     /// <summary>True when the Excel Import button should render.</summary>
     public bool HasExcelImport => Excel is ExcelCapability.ExportImport;
 
+    /// <summary>
+    /// True when the page offers a "Download template" action (a blank/one-row example workbook the
+    /// user can edit and re-import) in addition to the full list export. Pages with a meaningful
+    /// re-import flow override this; export-only pages (e.g. CVL) leave it <c>false</c>.
+    /// </summary>
+    public virtual bool HasExcelTemplate => false;
+
     /// <summary>Uniform toolbar command: refresh data for the current source set.</summary>
     public IAsyncRelayCommand RefreshCommand { get; }
     /// <summary>Uniform toolbar command: capture a scoped backup of slot A.</summary>
     public IAsyncRelayCommand BackupCommand { get; }
-    /// <summary>Uniform toolbar command: export to Excel workbook.</summary>
+    /// <summary>Uniform toolbar command: export to Excel workbook (the full current list).</summary>
     public IAsyncRelayCommand ExportExcelCommand { get; }
+    /// <summary>Uniform toolbar command: export a blank/example template workbook for re-import.</summary>
+    public IAsyncRelayCommand ExportTemplateCommand { get; }
     /// <summary>Uniform toolbar command: import an Excel workbook into slot A.</summary>
     public IAsyncRelayCommand ImportExcelCommand { get; }
 
@@ -73,9 +82,10 @@ public abstract partial class FeaturePageViewModel : ViewModelBase
             await RefreshAsync().ConfigureAwait(true);
             IsDataDirty = false;
         });
-        BackupCommand      = new AsyncRelayCommand(BackupAsync);
-        ExportExcelCommand = new AsyncRelayCommand(ExportExcelAsync);
-        ImportExcelCommand = new AsyncRelayCommand(ImportExcelAsync);
+        BackupCommand        = new AsyncRelayCommand(BackupAsync);
+        ExportExcelCommand   = new AsyncRelayCommand(ExportExcelAsync);
+        ExportTemplateCommand = new AsyncRelayCommand(ExportTemplateAsync);
+        ImportExcelCommand   = new AsyncRelayCommand(ImportExcelAsync);
     }
 
     /// <summary>Override to refresh data when the user clicks the uniform Refresh button or the source set changes.</summary>
@@ -86,6 +96,9 @@ public abstract partial class FeaturePageViewModel : ViewModelBase
 
     /// <summary>Override to write the page's data to an Excel workbook.</summary>
     public virtual Task ExportExcelAsync() => Task.CompletedTask;
+
+    /// <summary>Override to write a blank/example template workbook the user can edit and re-import.</summary>
+    public virtual Task ExportTemplateAsync() => Task.CompletedTask;
 
     /// <summary>Override to read a workbook and apply it to slot A.</summary>
     public virtual Task ImportExcelAsync() => Task.CompletedTask;

@@ -173,6 +173,9 @@
           <StreamGeometry x:Key="IcoTemplate">M6 3 H18 V21 H6 Z M9 8 H15 M9 12 H15 M9 16 H13</StreamGeometry>
           <StreamGeometry x:Key="IcoUserImport">M9 4 A3 3 0 1 1 9 10 A3 3 0 1 1 9 4 Z M3 21 V19 C3 16.5 5 14 9 14 H12 M16 14 L20 18 L16 22 M12 18 H20</StreamGeometry>
           <StreamGeometry x:Key="IcoFilter">M3 5 H21 L14 13 V20 L10 18 V13 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoFilterOff">M3 5 H21 L14 13 V20 L10 18 V13 Z M3 3 L21 21</StreamGeometry>
+          <StreamGeometry x:Key="IcoColumns">M4 5 H20 V19 H4 Z M10 5 V19 M16 5 V19</StreamGeometry>
+          <StreamGeometry x:Key="IcoDensity">M4 6 H20 M4 10 H20 M4 14 H20 M4 18 H20</StreamGeometry>
           <StreamGeometry x:Key="IcoChevDown">M6 9 L12 15 L18 9</StreamGeometry>
           <StreamGeometry x:Key="IcoChevRight">M9 6 L15 12 L9 18</StreamGeometry>
           <StreamGeometry x:Key="IcoChevUp">M6 15 L12 9 L18 15</StreamGeometry>
@@ -337,6 +340,9 @@
           <StreamGeometry x:Key="IcoTemplate">M6 3 H18 V21 H6 Z M9 8 H15 M9 12 H15 M9 16 H13</StreamGeometry>
           <StreamGeometry x:Key="IcoUserImport">M9 4 A3 3 0 1 1 9 10 A3 3 0 1 1 9 4 Z M3 21 V19 C3 16.5 5 14 9 14 H12 M16 14 L20 18 L16 22 M12 18 H20</StreamGeometry>
           <StreamGeometry x:Key="IcoFilter">M3 5 H21 L14 13 V20 L10 18 V13 Z</StreamGeometry>
+          <StreamGeometry x:Key="IcoFilterOff">M3 5 H21 L14 13 V20 L10 18 V13 Z M3 3 L21 21</StreamGeometry>
+          <StreamGeometry x:Key="IcoColumns">M4 5 H20 V19 H4 Z M10 5 V19 M16 5 V19</StreamGeometry>
+          <StreamGeometry x:Key="IcoDensity">M4 6 H20 M4 10 H20 M4 14 H20 M4 18 H20</StreamGeometry>
           <StreamGeometry x:Key="IcoChevDown">M6 9 L12 15 L18 9</StreamGeometry>
           <StreamGeometry x:Key="IcoChevRight">M9 6 L15 12 L9 18</StreamGeometry>
           <StreamGeometry x:Key="IcoChevUp">M6 15 L12 9 L18 15</StreamGeometry>

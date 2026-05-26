@@ -16,25 +16,8 @@
             StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
     </Button>
 
-    <!-- Export Excel -->
-    <Button Classes="ghost icon"
-            ToolTip.Tip="Export to Excel"
-            IsVisible="{Binding HasExcelExport}"
-            Command="{Binding ExportExcelCommand}">
-      <Path Data="{DynamicResource IcoDownload}" Width="14" Height="14" Stretch="Uniform"
-            Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
-            StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
-    </Button>
-
-    <!-- Import Excel -->
-    <Button Classes="ghost icon"
-            ToolTip.Tip="Import from Excel"
-            IsVisible="{Binding HasExcelImport}"
-            Command="{Binding ImportExcelCommand}">
-      <Path Data="{DynamicResource IcoCopy}" Width="14" Height="14" Stretch="Uniform"
-            Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
-            StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
-    </Button>
+    <!-- Excel export/import now lives in the labeled <c:ExcelMenu/> placed by each page; PageActions
+         keeps only the always-on actions so the two don't render duplicate download/import icons. -->
 
     <!-- Refresh -->
     <Button Classes="ghost icon"

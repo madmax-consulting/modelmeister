@@ -33,6 +33,7 @@
                 StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
         </Button>
         <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
+        <c:ExcelMenu DataContext="{Binding}" />
         <c:PageActions DataContext="{Binding}" />
       </StackPanel>
     </c:PageShell.Actions>

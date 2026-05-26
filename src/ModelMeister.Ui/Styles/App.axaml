@@ -254,6 +254,26 @@
     <Setter Property="CornerRadius" Value="6" />
   </Style>
 
+  <!-- Icon-only toggle button (e.g. grid density). Mirrors Button.icon + .ghost, with an accent
+       fill in the checked state so its on/off is legible. -->
+  <Style Selector="ToggleButton.icon">
+    <Setter Property="Padding" Value="6" />
+    <Setter Property="MinWidth" Value="28" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSec}" />
+  </Style>
+  <Style Selector="ToggleButton.icon:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Surface2}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPri}" />
+  </Style>
+  <Style Selector="ToggleButton.icon:checked /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource AccentBright}" />
+  </Style>
+
   <!-- ============== TextBox ============== -->
 
   <Style Selector="TextBox">
@@ -289,6 +309,17 @@
   <Style Selector="CheckBox">
     <Setter Property="Foreground" Value="{DynamicResource TextPri}" />
     <Setter Property="FontSize" Value="13" />
+  </Style>
+
+  <!-- Select-all checkbox living directly in a grid column header. The Fluent CheckBox default
+       MinWidth + content padding overflowed the 40px selection column (ClipToBounds then clipped it
+       to just the left half of the box); collapse it to its box so it centers. The checklist-filter
+       checkboxes live in a Flyout popup, not under the header, so they're unaffected. -->
+  <Style Selector="DataGridColumnHeader CheckBox">
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
   <Style Selector="RadioButton">

@@ -49,7 +49,13 @@ public partial class RolesViewModel : FeaturePageViewModel
     }
 
     /// <inheritdoc/>
+    public override bool HasExcelTemplate => true;
+
+    /// <inheritdoc/>
     public override Task ExportExcelAsync() => DownloadListAsync();
+
+    /// <inheritdoc/>
+    public override Task ExportTemplateAsync() => DownloadTemplateAsync();
 
     /// <inheritdoc/>
     public override async Task ImportExcelAsync()

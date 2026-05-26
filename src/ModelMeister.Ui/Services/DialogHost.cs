@@ -79,6 +79,36 @@ internal static class DialogHost
         return ok ? vm : null;
     }
 
+    /// <summary>Show the Create / Edit User dialog. Returns the populated VM on Save, else <c>null</c>.</summary>
+    public static async Task<UserEditorViewModel?> UserEditorAsync(
+        string? username, string? email, string? firstName, string? lastName, string? company, string? language,
+        System.Collections.Generic.IReadOnlyList<string> selectedRoles,
+        System.Collections.Generic.IReadOnlyList<string> availableRoles,
+        bool isEdit)
+    {
+        var vm = new UserEditorViewModel(username, email, firstName, lastName, company, language, selectedRoles, availableRoles, isEdit);
+        var ok = await ShowDialogAsync<UserEditorDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
+    /// <summary>Show the bulk user-role dialog (pick a role + Add/Remove). Returns the VM on Apply, else <c>null</c>.</summary>
+    public static async Task<BulkUserRoleViewModel?> BulkUserRoleAsync(
+        int userCount, System.Collections.Generic.IReadOnlyList<string> roles)
+    {
+        var vm = new BulkUserRoleViewModel(userCount, roles);
+        var ok = await ShowDialogAsync<BulkUserRoleDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
+    /// <summary>Show the Add Restricted-field dialog. Returns the populated VM on Add, else <c>null</c>.</summary>
+    public static async Task<RestrictedFieldEditorViewModel?> RestrictedFieldEditorAsync(
+        System.Collections.Generic.IReadOnlyList<string> roleNames)
+    {
+        var vm = new RestrictedFieldEditorViewModel(roleNames);
+        var ok = await ShowDialogAsync<RestrictedFieldEditorDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
     /// <summary>Show the per-row promote confirmation. Returns <c>true</c> when the user clicks Continue.</summary>
     public static Task<bool> ConfirmPromoteAsync(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string targetStage)
     {

@@ -1,22 +1,35 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ModelMeister.Ui.Controls.GridToolbar">
-  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-    <TextBox Name="SearchBox" Width="240" MinHeight="28"
-             Watermark="Search all columns…" />
-    <Button Name="ColumnsButton" Content="Columns" Classes="ghost"
-            ToolTip.Tip="Show or hide columns">
-      <Button.Flyout>
-        <Flyout Placement="Bottom">
-          <ScrollViewer MaxHeight="320">
-            <StackPanel Name="ColumnsPanel" Width="220" Spacing="2" Margin="4" />
-          </ScrollViewer>
-        </Flyout>
-      </Button.Flyout>
-    </Button>
-    <ToggleButton Name="DensityToggle" Content="Compact" Classes="ghost"
-                  ToolTip.Tip="Tighter rows to fit more on screen" />
-    <Button Name="ClearButton" Content="Clear filters" Classes="ghost"
-            ToolTip.Tip="Clear the global search and every column filter" />
-  </StackPanel>
+  <!-- Search stays on the left; the three grid controls sit as icons in the top-right corner. -->
+  <DockPanel LastChildFill="False">
+    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+      <Button Name="ColumnsButton" Classes="ghost icon" ToolTip.Tip="Show or hide columns">
+        <Button.Flyout>
+          <Flyout Placement="Bottom">
+            <ScrollViewer MaxHeight="320">
+              <StackPanel Name="ColumnsPanel" Width="220" Spacing="2" Margin="4" />
+            </ScrollViewer>
+          </Flyout>
+        </Button.Flyout>
+        <Path Data="{DynamicResource IcoColumns}" Width="14" Height="14" Stretch="Uniform"
+              Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+              StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+      </Button>
+      <ToggleButton Name="DensityToggle" Classes="icon"
+                    ToolTip.Tip="Tighter rows to fit more on screen">
+        <Path Data="{DynamicResource IcoDensity}" Width="14" Height="14" Stretch="Uniform"
+              Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+              StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+      </ToggleButton>
+      <Button Name="ClearButton" Classes="ghost icon"
+              ToolTip.Tip="Clear the global search and every column filter">
+        <Path Data="{DynamicResource IcoFilterOff}" Width="14" Height="14" Stretch="Uniform"
+              Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+              StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+      </Button>
+    </StackPanel>
+    <TextBox Name="SearchBox" DockPanel.Dock="Left" Width="240" MinHeight="28"
+             VerticalAlignment="Center" Watermark="Search all columns…" />
+  </DockPanel>
 </UserControl>

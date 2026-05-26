@@ -51,7 +51,13 @@ public partial class UsersViewModel : FeaturePageViewModel
     }
 
     /// <inheritdoc/>
-    public override Task ExportExcelAsync() => ExportTemplateAsync();
+    public override bool HasExcelTemplate => true;
+
+    /// <inheritdoc/>
+    public override Task ExportExcelAsync() => DownloadListAsync();
+
+    /// <inheritdoc/>
+    public override Task ExportTemplateAsync() => DownloadTemplateAsync();
 
     /// <inheritdoc/>
     public override async Task ImportExcelAsync()
@@ -74,8 +80,10 @@ public partial class UsersViewModel : FeaturePageViewModel
     public RowSelectionModel Selection { get; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExportTemplateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DownloadListCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DownloadTemplateCommand))]
     [NotifyCanExecuteChangedFor(nameof(ProvisionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddUserCommand))]
     private bool _busy;
     [ObservableProperty] private string _status = "";
     [ObservableProperty] private bool _dryRun = true;
@@ -96,8 +104,10 @@ public partial class UsersViewModel : FeaturePageViewModel
                 // Switching envs invalidates the user list — flag it so next visit re-fetches.
                 MarkDataDirty();
                 if (_main.IsConnected) _ = EnsureLoadedAsync();
-                ExportTemplateCommand.NotifyCanExecuteChanged();
+                DownloadListCommand.NotifyCanExecuteChanged();
+                DownloadTemplateCommand.NotifyCanExecuteChanged();
                 ProvisionCommand.NotifyCanExecuteChanged();
+                AddUserCommand.NotifyCanExecuteChanged();
             }
         };
     }
@@ -147,6 +157,140 @@ public partial class UsersViewModel : FeaturePageViewModel
         Status = $"Copied {rows.Count} user(s) to the clipboard.";
     }
 
+    // ----- CRUD: create / edit / bulk-role. All go through ProvisionUserAsync (REST upsert), which
+    // needs the env's REST base URL + API key — same requirement as Excel import. -----
+
+    private bool CanMutate() => !Busy && _main.IsConnected;
+
+    /// <summary>Open the user editor blank; on Save provision the new user (create).</summary>
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task AddUserAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+        var vm = await DialogHost.UserEditorAsync(null, null, null, null, null, null, [], Roles.ToList(), isEdit: false).ConfigureAwait(true);
+        if (vm is null) return;
+        var spec = new UserProvisioning.UserSpec(
+            vm.Username.Trim(), NullIfEmpty(vm.Email), NullIfEmpty(vm.FirstName), NullIfEmpty(vm.LastName),
+            NullIfEmpty(vm.Company), vm.SelectedRoles, NormalizeLanguage(vm.Language), vm.GenerateApiKey);
+        await ProvisionUserSpecAsync(spec, "Created").ConfigureAwait(true);
+    }
+
+    /// <summary>Open the user editor pre-filled; on Save re-provision the user (upsert by username).</summary>
+    [RelayCommand]
+    private async Task EditUserAsync(UserListRow? row)
+    {
+        if (row is null || !_main.IsConnected) return;
+        var vm = await DialogHost.UserEditorAsync(
+            row.Username, row.Email, row.FirstName, row.LastName, row.Company, null, row.Roles, Roles.ToList(), isEdit: true).ConfigureAwait(true);
+        if (vm is null) return;
+        var spec = new UserProvisioning.UserSpec(
+            row.Username, NullIfEmpty(vm.Email), NullIfEmpty(vm.FirstName), NullIfEmpty(vm.LastName),
+            NullIfEmpty(vm.Company), vm.SelectedRoles, NormalizeLanguage(vm.Language), GenerateApiKey: false);
+        await ProvisionUserSpecAsync(spec, "Updated").ConfigureAwait(true);
+    }
+
+    private async Task ProvisionUserSpecAsync(UserProvisioning.UserSpec spec, string verb)
+    {
+        if (!TryGetRestContext(out var env, out var secret)) return;
+        Busy = true;
+        Status = $"Saving user '{spec.Username}'…";
+        try
+        {
+            var result = await _shell.ProvisionUserAsync(spec, secret, env).ConfigureAwait(true);
+            if (result.Errors.Count > 0)
+            {
+                Status = $"'{spec.Username}': {string.Join("; ", result.Errors)}";
+                _log.Warn("Users", Status);
+            }
+            else
+            {
+                _log.Success("Users", $"{verb} user '{spec.Username}'.");
+                Status = $"{verb} user '{spec.Username}'.";
+            }
+            MarkDataDirty();
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Users", ex.Message, ex); }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Grant or revoke a single role across every checked user (one dialog, one batch).</summary>
+    [RelayCommand]
+    private async Task BulkSetRoleAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+        var rows = Selection.SelectedOf<UserListRow>();
+        if (rows.Count == 0) { Status = "Select at least one user."; return; }
+
+        var vm = await DialogHost.BulkUserRoleAsync(rows.Count, Roles.ToList()).ConfigureAwait(true);
+        if (vm is null || string.IsNullOrWhiteSpace(vm.SelectedRole)) return;
+        if (!TryGetRestContext(out var env, out var secret)) return;
+
+        var role = vm.SelectedRole!;
+        Busy = true;
+        var verb = vm.Add ? "Granted" : "Revoked";
+        int ok = 0, failed = 0;
+        try
+        {
+            foreach (var row in rows)
+            {
+                var roles = new List<string>(row.Roles);
+                if (vm.Add)
+                {
+                    if (!roles.Contains(role, StringComparer.OrdinalIgnoreCase)) roles.Add(role);
+                }
+                else
+                {
+                    roles.RemoveAll(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase));
+                }
+                var spec = new UserProvisioning.UserSpec(
+                    row.Username, NullIfEmpty(row.Email), NullIfEmpty(row.FirstName), NullIfEmpty(row.LastName),
+                    NullIfEmpty(row.Company), roles, "en", GenerateApiKey: false);
+                Status = $"{(vm.Add ? "Granting" : "Revoking")} '{role}' on '{row.Username}'…";
+                try
+                {
+                    var result = await _shell.ProvisionUserAsync(spec, secret, env).ConfigureAwait(true);
+                    if (result.Errors.Count > 0) { failed++; foreach (var e in result.Errors) _log.Warn("Users", $"{row.Username}: {e}"); }
+                    else ok++;
+                }
+                catch (Exception ex) { failed++; _log.Warn("Users", $"{row.Username}: {ex.Message}"); }
+            }
+            Status = failed == 0
+                ? $"{verb} '{role}' on {ok} user(s)."
+                : $"{verb} on {ok}, {failed} failed.";
+            _log.Success("Users", Status);
+            MarkDataDirty();
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Resolve the connected env + its REST secret, setting a clear status when either is missing
+    /// (single + bulk user writes both need a REST endpoint and key — the Remoting surface can't create users).</summary>
+    private bool TryGetRestContext(
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Models.EnvironmentEntry? env,
+        out Models.EnvironmentSecret? secret)
+    {
+        env = _main.ConnectedEnv;
+        secret = env is null ? null : _main.Vault.GetSecret(env.Id);
+        if (env is null || string.IsNullOrWhiteSpace(env.RestBaseUrl))
+        {
+            Status = "Creating or editing users requires a REST base URL on the connected environment.";
+            _log.Warn("Users", Status);
+            return false;
+        }
+        if (secret is null || string.IsNullOrWhiteSpace(secret.RestApiKey))
+        {
+            Status = "Creating or editing users requires a REST API key on the connected environment.";
+            _log.Warn("Users", Status);
+            return false;
+        }
+        return true;
+    }
+
+    private static string NormalizeLanguage(string? language) => string.IsNullOrWhiteSpace(language) ? "en" : language.Trim();
+    private static string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
     /// <summary>Download the current user list as an xlsx workbook.</summary>
     [RelayCommand(CanExecute = nameof(CanExportTemplate))]
     public async Task DownloadListAsync() => await ExportWorkbookAsync(seedSingleExample: false).ConfigureAwait(true);
@@ -154,10 +298,6 @@ public partial class UsersViewModel : FeaturePageViewModel
     /// <summary>Download a minimal example workbook (one row) callers can edit + re-import.</summary>
     [RelayCommand(CanExecute = nameof(CanExportTemplate))]
     public async Task DownloadTemplateAsync() => await ExportWorkbookAsync(seedSingleExample: true).ConfigureAwait(true);
-
-    /// <summary>Back-compat alias retained for the toolbar Export button; behaves as Download list.</summary>
-    [RelayCommand(CanExecute = nameof(CanExportTemplate))]
-    public Task ExportTemplateAsync() => DownloadListAsync();
 
     private async Task ExportWorkbookAsync(bool seedSingleExample)
     {

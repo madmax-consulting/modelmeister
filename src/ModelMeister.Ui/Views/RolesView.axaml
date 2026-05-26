@@ -41,17 +41,7 @@
                 StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
         </Button>
         <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
-        <Button Classes="ghost icon" ToolTip.Tip="Download…">
-          <Button.Flyout>
-            <MenuFlyout Placement="Bottom">
-              <MenuItem Header="Download list"     Command="{Binding DownloadListCommand}" />
-              <MenuItem Header="Download template" Command="{Binding DownloadTemplateCommand}" />
-            </MenuFlyout>
-          </Button.Flyout>
-          <Path Data="{DynamicResource IcoDownload}" Width="14" Height="14" Stretch="Uniform"
-                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
-                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
-        </Button>
+        <c:ExcelMenu DataContext="{Binding}" />
         <c:PageActions DataContext="{Binding}" />
       </StackPanel>
     </c:PageShell.Actions>

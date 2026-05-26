@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             x:Class="ModelMeister.Ui.Controls.ExcelMenu"
+             x:DataType="vm:FeaturePageViewModel">
+
+  <!-- One labeled menu that owns every Excel action for the page, so import is discoverable by name
+       instead of hiding behind a copy-looking icon. Items gate on the page's capability flags. -->
+  <Button Classes="ghost" Padding="8,4" ToolTip.Tip="Export to / import from Excel">
+    <Button.Flyout>
+      <MenuFlyout Placement="Bottom">
+        <MenuItem Header="Download list"
+                  Command="{Binding ExportExcelCommand}"
+                  IsVisible="{Binding HasExcelExport}" />
+        <MenuItem Header="Download template"
+                  Command="{Binding ExportTemplateCommand}"
+                  IsVisible="{Binding HasExcelTemplate}" />
+        <MenuItem Header="Import…"
+                  Command="{Binding ImportExcelCommand}"
+                  IsVisible="{Binding HasExcelImport}" />
+      </MenuFlyout>
+    </Button.Flyout>
+    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+      <Path Data="{DynamicResource IcoDownload}" Width="13" Height="13" Stretch="Uniform"
+            Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+            StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+      <TextBlock Text="Excel" VerticalAlignment="Center" />
+      <Path Data="{DynamicResource IcoChevDown}" Width="11" Height="11" Stretch="Uniform"
+            Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+            StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+    </StackPanel>
+  </Button>
+
+</UserControl>
