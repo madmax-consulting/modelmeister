@@ -50,7 +50,7 @@
                 AutoGenerateColumns="False" SelectionMode="Single"
                 GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                 Margin="0" BorderThickness="0" CornerRadius="0"
-                svc:GridSelectionBehavior.Enable="True">
+                svc:GridSelectionBehavior.Selection="{Binding Selection}">
         <DataGrid.ContextMenu>
           <ContextMenu>
             <MenuItem Header="Edit"

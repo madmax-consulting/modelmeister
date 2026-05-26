@@ -21,6 +21,9 @@
       <FontFamily x:Key="UiFont">resm:Avalonia.Fonts.Inter#Inter, $Default</FontFamily>
       <FontFamily x:Key="MonoFont">Cascadia Mono, JetBrains Mono, Consolas, Menlo, monospace</FontFamily>
 
+      <!-- Uniform width for every grid's left-hand row-selection checkbox column. -->
+      <x:Double x:Key="RowSelectColWidth">40</x:Double>
+
       <!-- Shared left-hand row-selection checkbox cell. Every feature grid's selection column reuses
            this; the bound row is a SelectableRow, and the Tag lets GridSelectionBehavior recognise
            it for shift-click range selection. The header (select-all) checkbox stays per-grid since

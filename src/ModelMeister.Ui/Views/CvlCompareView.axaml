@@ -22,7 +22,7 @@
         <c:GridToolbar DockPanel.Dock="Top" Margin="2,0,0,8" TargetGrid="{Binding #MainGrid}" />
       <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                SelectionMode="Extended" svc:GridSelectionBehavior.Enable="True"
+                SelectionMode="Extended" svc:GridSelectionBehavior.Selection="{Binding Selection}"
                 Classes="filterable fit">
         <DataGrid.Columns>
           <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"

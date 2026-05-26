@@ -65,7 +65,7 @@
                   GridLinesVisibility="Horizontal"
                   HeadersVisibility="Column"
                   Margin="0" BorderThickness="0" CornerRadius="0"
-                  svc:GridSelectionBehavior.Enable="True"
+                  svc:GridSelectionBehavior.Selection="{Binding Selection}"
                   DoubleTapped="OnRowDoubleTapped">
           <DataGrid.ContextMenu>
             <ContextMenu>

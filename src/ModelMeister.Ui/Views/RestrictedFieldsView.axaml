@@ -57,7 +57,7 @@
                     ItemsSource="{Binding Rows}" IsReadOnly="True"
                     AutoGenerateColumns="False"
                     GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                    BorderThickness="0" svc:GridSelectionBehavior.Enable="True">
+                    BorderThickness="0" svc:GridSelectionBehavior.Selection="{Binding Selection}">
             <DataGrid.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="Copy role"

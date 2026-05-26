@@ -83,7 +83,7 @@
                   IsReadOnly="True"
                   BorderThickness="0"
                   Classes="fit"
-                  svc:GridSelectionBehavior.Enable="True"
+                  svc:GridSelectionBehavior.Selection="{Binding Selection}"
                   LoadingRow="OnLoadingRow">
           <DataGrid.Styles>
             <Style Selector="DataGridRow.connected /template/ Rectangle#BackgroundRectangle">

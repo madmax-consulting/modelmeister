@@ -25,7 +25,7 @@
                   Content="Allow deletes when promoting (push removal of concepts that exist only on the target)" />
       <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                SelectionMode="Extended" svc:GridSelectionBehavior.Enable="True"
+                SelectionMode="Extended" svc:GridSelectionBehavior.Selection="{Binding Selection}"
                 Classes="filterable fit">
         <DataGrid.Columns>
           <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"

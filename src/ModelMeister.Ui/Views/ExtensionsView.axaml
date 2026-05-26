@@ -40,7 +40,7 @@
                   AutoGenerateColumns="False"
                   SelectionMode="Single"
                   Margin="0" BorderThickness="0" CornerRadius="0"
-                  svc:GridSelectionBehavior.Enable="True">
+                  svc:GridSelectionBehavior.Selection="{Binding ItemsSelection}">
           <DataGrid.ContextMenu>
             <ContextMenu>
               <MenuItem Header="Start"
@@ -76,7 +76,7 @@
             </ContextMenu>
           </DataGrid.ContextMenu>
           <DataGrid.Columns>
-            <DataGridTemplateColumn Width="36" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+            <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
                                     CellTemplate="{StaticResource RowSelectCell}">
               <DataGridTemplateColumn.Header>
                 <CheckBox IsChecked="{Binding #PageRoot.((vm:ExtensionsViewModel)DataContext).ItemsSelection.AllSelected, Mode=TwoWay}"
@@ -143,9 +143,9 @@
               </Grid>
               <DataGrid Grid.Row="1" Name="SettingsGrid" ItemsSource="{Binding Settings}" IsReadOnly="True"
                         AutoGenerateColumns="False" SelectionMode="Single" BorderThickness="1"
-                        svc:GridSelectionBehavior.Enable="True">
+                        svc:GridSelectionBehavior.Selection="{Binding SettingsSelection}">
                 <DataGrid.Columns>
-                  <DataGridTemplateColumn Width="36" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                  <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
                                           CellTemplate="{StaticResource RowSelectCell}">
                     <DataGridTemplateColumn.Header>
                       <CheckBox IsChecked="{Binding #PageRoot.((vm:ExtensionsViewModel)DataContext).SettingsSelection.AllSelected, Mode=TwoWay}"
@@ -219,9 +219,9 @@
               </Grid>
               <DataGrid Grid.Row="1" Name="StatesGrid" ItemsSource="{Binding States}" IsReadOnly="True"
                         AutoGenerateColumns="False" BorderThickness="1"
-                        svc:GridSelectionBehavior.Enable="True">
+                        svc:GridSelectionBehavior.Selection="{Binding StatesSelection}">
                 <DataGrid.Columns>
-                  <DataGridTemplateColumn Width="36" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                  <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
                                           CellTemplate="{StaticResource RowSelectCell}">
                     <DataGridTemplateColumn.Header>
                       <CheckBox IsChecked="{Binding #PageRoot.((vm:ExtensionsViewModel)DataContext).StatesSelection.AllSelected, Mode=TwoWay}"

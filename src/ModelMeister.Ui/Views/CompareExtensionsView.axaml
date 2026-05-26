@@ -21,7 +21,7 @@
       <DataGrid ItemsSource="{Binding Rows}" IsReadOnly="True"
                 SelectedItem="{Binding Selected, Mode=TwoWay}"
                 AutoGenerateColumns="False" SelectionMode="Single"
-                svc:GridSelectionBehavior.Enable="True"
+                svc:GridSelectionBehavior.Selection="{Binding Selection}"
                 GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable fit">
         <DataGrid.Columns>
           <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"

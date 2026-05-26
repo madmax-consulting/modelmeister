@@ -73,7 +73,7 @@
       <Border Classes="cardSubtle" Padding="0">
         <DataGrid Name="ValuesGrid" ItemsSource="{Binding Values}" IsReadOnly="False"
                   AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                  BorderThickness="0" svc:GridSelectionBehavior.Enable="True">
+                  BorderThickness="0" svc:GridSelectionBehavior.Selection="{Binding Selection}">
           <DataGrid.Columns>
             <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
                                     CellTemplate="{StaticResource RowSelectCell}">
