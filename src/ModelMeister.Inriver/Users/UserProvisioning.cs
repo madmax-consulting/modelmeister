@@ -104,6 +104,9 @@ public sealed class UserProvisioning
             {
                 try
                 {
+                    // Roles are intentionally not sent here: the create endpoint takes segmentRoles
+                    // (which must be present, hence the always-empty default on UserCreate), and plain
+                    // role membership is assigned below via Remoting once the user exists.
                     var created2 = await _rest.CreateUserAsync(new UserCreate
                     {
                         Username = spec.Username,
@@ -112,7 +115,6 @@ public sealed class UserProvisioning
                         LastName = spec.LastName,
                         Company = spec.Company,
                         Language = spec.Language,
-                        Roles = spec.Roles.ToList(),
                     }, ct).ConfigureAwait(false);
                     created = true;
                     if (created2 is not null && !string.IsNullOrEmpty(created2.ApiKey)) apiKey = created2.ApiKey;

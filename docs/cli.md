@@ -181,9 +181,13 @@ modelmeister users provision --url <U> [auth] --excel <users.xlsx>
                              [--dry-run]
 ```
 
+The workbook is keyed on **Email**, which doubles as the inriver username — there is no separate
+Username column.
+
 Listing and role assignment work over Remoting. **User creation** requires a REST API key with
 the `APIManageUsers` permission — pass `--rest-base-url` + `--rest-api-key`. Without REST
-credentials, `provision` updates roles on users that already exist and skips creates.
+credentials, `provision` updates roles on users that already exist and skips creates. (A `403`
+from the create call means the key lacks `APIManageUsers`.)
 
 ## `extensions`
 

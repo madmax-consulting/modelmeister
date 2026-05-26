@@ -5,9 +5,11 @@ namespace ModelMeister.Excel;
 /// <summary>
 /// Excel workbook for bulk user provisioning. Two sheets:
 /// <list type="bullet">
-///   <item><c>Users</c> — one row per user, with a semicolon-separated <c>Roles</c> column.</item>
+///   <item><c>Users</c> — one row per user, keyed by <c>Email</c>, with a semicolon-separated <c>Roles</c> column.</item>
 ///   <item><c>Roles</c> — reference list of roles available in the target env.</item>
 /// </list>
+/// inriver usernames are always the email address, so the sheet has no separate Username column:
+/// <see cref="UserRow.Username"/> is derived from <see cref="UserRow.Email"/> on load.
 /// </summary>
 public static class UsersWorkbook
 {
@@ -18,6 +20,10 @@ public static class UsersWorkbook
     /// <summary>A single row on the <see cref="SheetUsers"/> sheet.</summary>
     public sealed class UserRow
     {
+        /// <summary>
+        /// The inriver username. Always equal to <see cref="Email"/> — the sheet has no Username
+        /// column; <see cref="Parse"/> stamps this from the Email cell.
+        /// </summary>
         public string Username { get; set; } = "";
         public string Email { get; set; } = "";
         public string FirstName { get; set; } = "";
@@ -49,14 +55,15 @@ public static class UsersWorkbook
         readme.Cell(1, 1).Value = "User provisioning workbook";
         readme.Cell(1, 1).Style.Font.Bold = true;
         readme.Cell(1, 1).Style.Font.FontSize = 14;
-        readme.Cell(3, 1).Value = "Roles column accepts a semicolon-separated list. Roles must already exist in the target environment.";
-        readme.Cell(4, 1).Value = "Set GenerateApiKey=true to mint a REST API key for the user after creation.";
-        readme.Cell(5, 1).Value = "Run with:  modelmeister users provision --excel <path>";
+        readme.Cell(3, 1).Value = "Email is the identity — it is also used as the inriver username (there is no separate Username column).";
+        readme.Cell(4, 1).Value = "Roles column accepts a semicolon-separated list. Roles must already exist in the target environment.";
+        readme.Cell(5, 1).Value = "Set GenerateApiKey=true to mint a REST API key for the user after creation.";
+        readme.Cell(6, 1).Value = "Run with:  modelmeister users provision --excel <path>";
 
         var ws = wb.AddWorksheet(SheetUsers);
         var headers = new[]
         {
-            "Username", "Email", "FirstName", "LastName", "Company",
+            "Email", "FirstName", "LastName", "Company",
             "Roles", "Language", "GenerateApiKey", "Notes",
         };
         for (var i = 0; i < headers.Length; i++) ws.Cell(1, i + 1).Value = headers[i];
@@ -67,7 +74,6 @@ public static class UsersWorkbook
         foreach (var u in users)
         {
             var c = 1;
-            ws.Cell(r, c++).Value = u.Username;
             ws.Cell(r, c++).Value = u.Email;
             ws.Cell(r, c++).Value = u.FirstName;
             ws.Cell(r, c++).Value = u.LastName;
@@ -99,13 +105,13 @@ public static class UsersWorkbook
         for (var r = 2; r <= last; r++)
         {
             var row = ws.Row(r);
-            var username = XlIo.ReadString(row, hdr, "Username");
-            if (string.IsNullOrEmpty(username)) continue;
+            var email = XlIo.ReadString(row, hdr, "Email");
+            if (string.IsNullOrEmpty(email)) continue;
             var language = XlIo.ReadString(row, hdr, "Language");
             result.Add(new UserRow
             {
-                Username = username,
-                Email = XlIo.ReadString(row, hdr, "Email"),
+                Username = email, // username is always the email
+                Email = email,
                 FirstName = XlIo.ReadString(row, hdr, "FirstName"),
                 LastName = XlIo.ReadString(row, hdr, "LastName"),
                 Company = XlIo.ReadString(row, hdr, "Company"),

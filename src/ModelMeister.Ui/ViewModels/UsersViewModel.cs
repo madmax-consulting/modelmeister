@@ -324,14 +324,13 @@ public partial class UsersViewModel : FeaturePageViewModel
             List<UsersWorkbook.UserRow> rows;
             if (seedSingleExample)
             {
-                // Template: one example row so the workbook columns are obvious. Username
-                // intentionally a placeholder so accidental re-import without edits creates
-                // exactly one harmless user (or fails validation), never overwrites a real one.
+                // Template: one example row so the workbook columns are obvious. Email is a
+                // placeholder (and doubles as the username) so accidental re-import without edits
+                // creates exactly one harmless user (or fails validation), never overwrites a real one.
                 rows = new List<UsersWorkbook.UserRow>
                 {
                     new()
                     {
-                        Username = "example.user",
                         Email = "example.user@example.com",
                         FirstName = "Example",
                         LastName = "User",

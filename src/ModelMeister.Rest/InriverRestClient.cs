@@ -153,7 +153,13 @@ public sealed class UserCreate
     public string? LastName { get; set; }
     public string? Company { get; set; }
     public string? Language { get; set; }
-    public List<string>? Roles { get; set; }
+
+    /// <summary>
+    /// Segment-role memberships. The create endpoint rejects the request when this is absent, so it
+    /// is always serialized — even as an empty array. Plain role membership is assigned afterwards
+    /// via Remoting (see <c>UserProvisioning.AssignRolesAsync</c>), so this stays empty here.
+    /// </summary>
+    public List<string> SegmentRoles { get; set; } = [];
 }
 
 /// <summary>Response body returned after a successful user creation; carries the newly-issued API key.</summary>
