@@ -43,6 +43,7 @@ root.AddCommand(BuildCvl());
 root.AddCommand(BuildJson());
 root.AddCommand(BuildUsers());
 root.AddCommand(BuildExtensions());
+root.AddCommand(BuildWorkAreas());
 root.AddCommand(BuildWorkflows());
 root.AddCommand(BuildInteractive());
 
@@ -639,6 +640,79 @@ static Command BuildExtensions()
         "modelmeister extensions set --url $URL --id MyConnector --key BatchSize --value 100"));
     cmd.AddCommand(setCmd);
 
+    return cmd;
+}
+
+static Command BuildWorkAreas()
+{
+    var cmd = new Command("workareas", "List, export/import, and promote shared work-area folders + saved queries.");
+
+    var listCmd = new Command("list", "List shared work-area folders.");
+    var connL = new ConnectionOptions();
+    connL.AddTo(listCmd);
+    listCmd.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await WorkAreasCommand.ListAsync(
+            ctx.ParseResult.GetValueForOption(connL.Url)!, connL.ToAuth(ctx), ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    listCmd.WithExamples(("List shared folders", "modelmeister workareas list --url $URL"));
+
+    var exportCmd = new Command("export", "Export shared work-area folders + queries to an Excel workbook.");
+    var connE = new ConnectionOptions();
+    var eOut = new Option<string>("--out", "Output .xlsx path") { IsRequired = true };
+    connE.AddTo(exportCmd);
+    exportCmd.AddOption(eOut);
+    exportCmd.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await WorkAreasCommand.ExportAsync(
+            ctx.ParseResult.GetValueForOption(connE.Url)!, connE.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(eOut)!, ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    exportCmd.WithExamples(("Pull folders to edit/review offline", "modelmeister workareas export --url $URL --out workareas.xlsx"));
+
+    var importCmd = new Command("import", "Apply shared work-area folders from an Excel workbook (matched by path).");
+    var connI = new ConnectionOptions();
+    var iExcel = new Option<string>("--excel", "Excel workbook path") { IsRequired = true };
+    iExcel.AddAlias("--xlsx");
+    var iDelete = new Option<bool>("--allow-deletes", () => false, "Delete target folders not present in the workbook");
+    var iDry = new Option<bool>("--dry-run", () => false);
+    connI.AddTo(importCmd);
+    foreach (var o in new Option[] { iExcel, iDelete, iDry }) importCmd.AddOption(o);
+    importCmd.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await WorkAreasCommand.ImportAsync(
+            ctx.ParseResult.GetValueForOption(connI.Url)!, connI.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(iExcel)!,
+            ctx.ParseResult.GetValueForOption(iDelete),
+            ctx.ParseResult.GetValueForOption(iDry),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    importCmd.WithExamples(("Apply a reviewed workbook", "modelmeister workareas import --url $URL --excel workareas.xlsx"));
+
+    var promoteCmd = new Command("promote", "Copy shared work-area folders (with queries) from one env to another.");
+    var connT = new ConnectionOptions(); // target = standard --url/--api-key
+    var fromUrl = new Option<string>("--from-url", "Source inriver URL") { IsRequired = true };
+    var fromKey = new Option<string?>("--from-api-key", "Source API key (falls back to INRIVER_API_KEY)");
+    var pDelete = new Option<bool>("--allow-deletes", () => false, "Delete target folders not present on the source");
+    connT.AddTo(promoteCmd);
+    foreach (var o in new Option[] { fromUrl, fromKey, pDelete }) promoteCmd.AddOption(o);
+    promoteCmd.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await WorkAreasCommand.PromoteAsync(
+            ctx.ParseResult.GetValueForOption(fromUrl)!,
+            new InriverAuth(ctx.ParseResult.GetValueForOption(fromKey), null, null, null),
+            ctx.ParseResult.GetValueForOption(connT.Url)!,
+            connT.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(pDelete),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    promoteCmd.WithExamples(
+        ("Promote folders test → prod", "modelmeister workareas promote --from-url $TEST --url $PROD --from-api-key $TEST_KEY --api-key $PROD_KEY"));
+
+    cmd.AddCommand(listCmd);
+    cmd.AddCommand(exportCmd);
+    cmd.AddCommand(importCmd);
+    cmd.AddCommand(promoteCmd);
     return cmd;
 }
 
