@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -59,8 +58,8 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
     /// <summary>When true, promoting may also delete concepts that exist only on the target. Off by default.</summary>
     [ObservableProperty] private bool _allowDeletesOnPromote;
 
-    /// <summary>Current multi-selection, fed by the grid via <see cref="MultiSelectBehavior"/> for bulk promote.</summary>
-    public IList SelectedRows { get; } = new List<object>();
+    /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
+    public RowSelectionModel Selection { get; }
 
     private LiveModel? _leftSnapshot;
     private LiveModel? _rightSnapshot;
@@ -75,6 +74,7 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
         _log = log;
         _vault = main.Vault;
         _vault.Changed += RefreshEnvList;
+        Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -267,7 +267,7 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
     /// <summary>Promote every selected row left→right in a single diff/apply pass.</summary>
     [RelayCommand]
     public Task PromoteSelectedAsync() =>
-        PromoteAsync(SelectedRows.OfType<DiffLineRow>().ToList());
+        PromoteAsync(Selection.SelectedOf<DiffLineRow>().ToList());
 
     /// <summary>Map a diff row to the concept it promotes. Returns null for non-promotable rows (Languages, Roles).</summary>
     private static PromoteScope? ScopeFor(DiffLineRow row) => row.Concept switch
@@ -401,4 +401,22 @@ public partial class CompareEnvsViewModel : ViewModelBase, ICompareViewModel
 /// <summary>One row in the compare-envs grid. <see cref="Cvl"/> is the owning CVL id for CVL-value
 /// rows (and the CVL itself for CVL-definition rows), empty for non-CVL concepts. <see cref="Id"/> is
 /// the bare key (no <c>Cvl/key</c> concatenation), so its filter only matches the value key.</summary>
-public sealed record DiffLineRow(string Concept, string Cvl, string Id, string Property, string LeftValue, string RightValue);
+public sealed partial class DiffLineRow : SelectableRow
+{
+    public DiffLineRow(string concept, string cvl, string id, string property, string leftValue, string rightValue)
+    {
+        Concept = concept;
+        Cvl = cvl;
+        Id = id;
+        Property = property;
+        LeftValue = leftValue;
+        RightValue = rightValue;
+    }
+
+    public string Concept { get; }
+    public string Cvl { get; }
+    public string Id { get; }
+    public string Property { get; }
+    public string LeftValue { get; }
+    public string RightValue { get; }
+}

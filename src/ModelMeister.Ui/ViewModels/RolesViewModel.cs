@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ModelMeister.Excel;
 using ModelMeister.Inriver.Users;
+using ModelMeister.Ui.Models;
 using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
@@ -64,8 +65,11 @@ public partial class RolesViewModel : FeaturePageViewModel
         await ProvisionAsync().ConfigureAwait(true);
     }
 
-    public ObservableCollection<RoleSummary> Roles { get; } = [];
+    public ObservableCollection<RoleListRow> Roles { get; } = [];
     public ObservableCollection<string> Permissions { get; } = [];
+
+    /// <summary>Checkbox multi-selection over <see cref="Roles"/> (header select-all + bulk delete).</summary>
+    public RowSelectionModel Selection { get; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadListCommand))]
@@ -83,6 +87,7 @@ public partial class RolesViewModel : FeaturePageViewModel
         _main = main;
         _shell = shell;
         _log = log;
+        Selection = new RowSelectionModel(Roles);
         _main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
@@ -92,6 +97,7 @@ public partial class RolesViewModel : FeaturePageViewModel
                 DownloadListCommand.NotifyCanExecuteChanged();
                 DownloadTemplateCommand.NotifyCanExecuteChanged();
                 ProvisionCommand.NotifyCanExecuteChanged();
+                AddRoleCommand.NotifyCanExecuteChanged();
             }
         };
     }
@@ -110,7 +116,7 @@ public partial class RolesViewModel : FeaturePageViewModel
             var roles = await _shell.ListRolesAsync().ConfigureAwait(true);
             var perms = await _shell.ListPermissionNamesAsync().ConfigureAwait(true);
             Roles.Clear();
-            foreach (var r in roles) Roles.Add(r);
+            foreach (var r in roles) Roles.Add(new RoleListRow(r));
             Permissions.Clear();
             foreach (var p in perms) Permissions.Add(p);
             Status = $"{Roles.Count} roles · {Permissions.Count} permissions";
@@ -123,9 +129,102 @@ public partial class RolesViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
-    [RelayCommand] private Task CopyName(RoleSummary? r) => ClipboardHelpers.CopyAsync(r?.Name);
-    [RelayCommand] private Task CopyDescription(RoleSummary? r) => ClipboardHelpers.CopyAsync(r?.Description);
-    [RelayCommand] private Task CopyPermissions(RoleSummary? r) => ClipboardHelpers.CopyAsync(r is null ? null : string.Join(", ", r.Permissions));
+    [RelayCommand] private Task CopyName(RoleListRow? r) => ClipboardHelpers.CopyAsync(r?.Name);
+    [RelayCommand] private Task CopyDescription(RoleListRow? r) => ClipboardHelpers.CopyAsync(r?.Description);
+    [RelayCommand] private Task CopyPermissions(RoleListRow? r) => ClipboardHelpers.CopyAsync(r is null ? null : string.Join(", ", r.Permissions));
+
+    // ----- CRUD: create / edit / delete (Remoting supports full role CRUD) -----
+
+    private bool CanMutate() => !Busy && _main.IsConnected;
+
+    /// <summary>Open the role editor blank; on Save provision the new role.</summary>
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task AddRoleAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+        var vm = await DialogHost.RoleEditorAsync(null, null, [], Permissions.ToList(), isEdit: false).ConfigureAwait(true);
+        if (vm is null) return;
+        await ProvisionRoleSpecAsync(vm.Name.Trim(), vm.Description, vm.SelectedPermissions, "Created").ConfigureAwait(true);
+    }
+
+    /// <summary>Open the role editor pre-filled; on Save provision the changes (upsert by name).</summary>
+    [RelayCommand]
+    private async Task EditRoleAsync(RoleListRow? row)
+    {
+        if (row is null || !_main.IsConnected) return;
+        var vm = await DialogHost.RoleEditorAsync(row.Name, row.Description, row.Permissions, Permissions.ToList(), isEdit: true).ConfigureAwait(true);
+        if (vm is null) return;
+        await ProvisionRoleSpecAsync(row.Name, vm.Description, vm.SelectedPermissions, "Updated").ConfigureAwait(true);
+    }
+
+    private async Task ProvisionRoleSpecAsync(string name, string? description, IReadOnlyList<string> permissions, string verb)
+    {
+        Busy = true;
+        Status = $"Saving role '{name}'…";
+        try
+        {
+            var result = await _shell.ProvisionRoleAsync(new RoleProvisioning.RoleSpec(name, description, permissions)).ConfigureAwait(true);
+            if (result.Errors.Count > 0)
+            {
+                Status = $"'{name}': {string.Join("; ", result.Errors)}";
+                _log.Warn("Roles", Status);
+            }
+            else
+            {
+                _log.Success("Roles", $"{verb} role '{name}'.");
+                Status = $"{verb} role '{name}'.";
+            }
+            MarkDataDirty();
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Roles", ex.Message, ex); }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Delete a single role after a confirmation prompt.</summary>
+    [RelayCommand]
+    private async Task DeleteRoleAsync(RoleListRow? row)
+    {
+        if (row is null || !_main.IsConnected) return;
+        var ok = await DialogHost.ConfirmAsync("Delete role",
+            $"Delete the role '{row.Name}'? This cannot be undone.", "Delete", "Abort").ConfigureAwait(true);
+        if (!ok) return;
+        await DeleteRolesAsync(new[] { row.Name }).ConfigureAwait(true);
+    }
+
+    /// <summary>Delete every checked role after a single confirmation prompt.</summary>
+    [RelayCommand]
+    private async Task DeleteSelectedRolesAsync()
+    {
+        var names = Selection.SelectedOf<RoleListRow>().Select(r => r.Name).ToList();
+        if (names.Count == 0) { Status = "Select at least one role."; return; }
+        var ok = await DialogHost.ConfirmAsync("Delete roles",
+            $"Delete {names.Count} role(s)? This cannot be undone.", "Delete", "Abort").ConfigureAwait(true);
+        if (!ok) return;
+        await DeleteRolesAsync(names).ConfigureAwait(true);
+    }
+
+    private async Task DeleteRolesAsync(IReadOnlyList<string> names)
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+        Busy = true;
+        int deleted = 0, errors = 0;
+        try
+        {
+            foreach (var name in names)
+            {
+                Status = $"Deleting role '{name}'…";
+                var result = await _shell.DeleteRoleAsync(name).ConfigureAwait(true);
+                if (result.Errors.Count > 0) { errors++; _log.Warn("Roles", $"{name}: {string.Join("; ", result.Errors)}"); }
+                else { deleted++; _log.Success("Roles", $"Deleted role '{name}'."); }
+            }
+            Status = errors == 0 ? $"Deleted {deleted} role(s)." : $"Deleted {deleted}, {errors} failed.";
+            MarkDataDirty();
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Roles", ex.Message, ex); }
+        finally { Busy = false; }
+    }
 
     /// <summary>Download the current role list as an xlsx workbook.</summary>
     [RelayCommand(CanExecute = nameof(CanExport))]
@@ -223,4 +322,14 @@ public partial class RolesViewModel : FeaturePageViewModel
         catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Roles", ex.Message, ex); }
         finally { Busy = false; }
     }
+}
+
+/// <summary>Selectable grid row wrapping a <see cref="RoleSummary"/> for the Roles page.</summary>
+public sealed partial class RoleListRow : SelectableRow
+{
+    public RoleListRow(RoleSummary source) => Source = source;
+    public RoleSummary Source { get; }
+    public string Name => Source.Name;
+    public string Description => Source.Description;
+    public IReadOnlyList<string> Permissions => Source.Permissions;
 }

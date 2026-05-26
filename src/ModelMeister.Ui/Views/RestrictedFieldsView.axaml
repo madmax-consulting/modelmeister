@@ -3,9 +3,9 @@
              xmlns:vm="using:ModelMeister.Ui.ViewModels"
              xmlns:svc="using:ModelMeister.Ui.Services"
              xmlns:c="using:ModelMeister.Ui.Controls"
-             xmlns:users="using:ModelMeister.Inriver.Users"
              x:Class="ModelMeister.Ui.Views.RestrictedFieldsView"
-             x:DataType="vm:RestrictedFieldsViewModel">
+             x:DataType="vm:RestrictedFieldsViewModel"
+             x:Name="PageRoot">
 
   <UserControl.KeyBindings>
     <KeyBinding Gesture="Delete"
@@ -19,6 +19,14 @@
                IsBusy="{Binding Busy}">
     <c:PageShell.Actions>
       <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Button Classes="ghost icon danger" ToolTip.Tip="Delete selected restrictions"
+                Command="{Binding DeleteSelectedCommand}"
+                IsVisible="{Binding Selection.HasSelection}">
+          <Path Data="{DynamicResource IcoTrash}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
         <Button Classes="ghost icon" ToolTip.Tip="Download…">
           <Button.Flyout>
             <MenuFlyout Placement="Bottom">
@@ -47,9 +55,9 @@
           </StackPanel>
           <DataGrid Name="RestrictedFieldsGrid"
                     ItemsSource="{Binding Rows}" IsReadOnly="True"
-                    AutoGenerateColumns="False" SelectionMode="Single"
+                    AutoGenerateColumns="False"
                     GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                    BorderThickness="0">
+                    BorderThickness="0" svc:GridSelectionBehavior.Enable="True">
             <DataGrid.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="Copy role"
@@ -62,9 +70,19 @@
                 <MenuItem Header="Delete"
                           Command="{Binding DeleteCommand}"
                           CommandParameter="{Binding #RestrictedFieldsGrid.SelectedItem}" />
+                <MenuItem Header="Delete selected"
+                          Command="{Binding DeleteSelectedCommand}"
+                          IsEnabled="{Binding Selection.HasSelection}" />
               </ContextMenu>
             </DataGrid.ContextMenu>
             <DataGrid.Columns>
+              <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                      CellTemplate="{StaticResource RowSelectCell}">
+                <DataGridTemplateColumn.Header>
+                  <CheckBox IsChecked="{Binding #PageRoot.((vm:RestrictedFieldsViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                </DataGridTemplateColumn.Header>
+              </DataGridTemplateColumn>
               <DataGridTextColumn Binding="{Binding RoleName}" Width="200" MinWidth="120">
                 <DataGridTextColumn.Header><c:FilterableHeader Title="Role" Path="RoleName" /></DataGridTextColumn.Header>
               </DataGridTextColumn>
@@ -83,7 +101,7 @@
 
               <DataGridTemplateColumn Header="" Width="60">
                 <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate x:DataType="users:RestrictedFieldSummary">
+                  <DataTemplate x:DataType="vm:RestrictedFieldListRow">
                     <Button Classes="ghost icon danger" Padding="6" Margin="4,0" ToolTip.Tip="Delete"
                             Command="{Binding $parent[DataGrid].((vm:RestrictedFieldsViewModel)DataContext).DeleteCommand}"
                             CommandParameter="{Binding}">

@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -47,7 +46,8 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
     public IReadOnlyList<CompareAction> ExtraActions { get; }
-    public System.Collections.IList SelectedRows { get; } = new List<object>();
+    /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
+    public RowSelectionModel Selection { get; }
 
     private IReadOnlyList<RestrictedFieldSummary>? _leftCapture;
     private IReadOnlyList<RestrictedFieldSummary>? _rightCapture;
@@ -60,6 +60,7 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
         _vault = main.Vault;
         _vault.Changed += RefreshEnvList;
         Buckets.Changed += _ => RebuildVisibleRows();
+        Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -226,8 +227,8 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
                 src.FieldTypeId ?? "",
                 src.CategoryId ?? "",
                 detail,
-                CanPromoteLeftToRight: canL2R,
-                CanPromoteRightToLeft: canR2L));
+                canPromoteLeftToRight: canL2R,
+                canPromoteRightToLeft: canR2L));
         }
 
         RebuildVisibleRows();
@@ -241,7 +242,7 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
     {
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
         var targetEnv = RightEnv;
-        var rows = SelectedRows.OfType<RestrictedFieldCompareRow>().Where(r => r.CanPromoteLeftToRight).ToList();
+        var rows = Selection.SelectedOf<RestrictedFieldCompareRow>().Where(r => r.CanPromoteLeftToRight).ToList();
         if (rows.Count == 0) { Status = "Select at least one promotable restricted-field permission."; return; }
 
         var confirmed = await DialogHost.ConfirmPromoteAsync(
@@ -334,13 +335,37 @@ public partial class RestrictedFieldsCompareViewModel : ViewModelBase, ICompareV
     }
 }
 
-public sealed record RestrictedFieldCompareRow(
-    string State,
-    string RoleName,
-    string RestrictionType,
-    string EntityTypeId,
-    string FieldTypeId,
-    string CategoryId,
-    string Detail,
-    bool CanPromoteLeftToRight,
-    bool CanPromoteRightToLeft);
+public sealed partial class RestrictedFieldCompareRow : SelectableRow
+{
+    public RestrictedFieldCompareRow(
+        string state,
+        string roleName,
+        string restrictionType,
+        string entityTypeId,
+        string fieldTypeId,
+        string categoryId,
+        string detail,
+        bool canPromoteLeftToRight,
+        bool canPromoteRightToLeft)
+    {
+        State = state;
+        RoleName = roleName;
+        RestrictionType = restrictionType;
+        EntityTypeId = entityTypeId;
+        FieldTypeId = fieldTypeId;
+        CategoryId = categoryId;
+        Detail = detail;
+        CanPromoteLeftToRight = canPromoteLeftToRight;
+        CanPromoteRightToLeft = canPromoteRightToLeft;
+    }
+
+    public string State { get; }
+    public string RoleName { get; }
+    public string RestrictionType { get; }
+    public string EntityTypeId { get; }
+    public string FieldTypeId { get; }
+    public string CategoryId { get; }
+    public string Detail { get; }
+    public bool CanPromoteLeftToRight { get; }
+    public bool CanPromoteRightToLeft { get; }
+}

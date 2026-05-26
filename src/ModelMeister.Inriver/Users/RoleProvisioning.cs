@@ -119,6 +119,36 @@ public sealed class RoleProvisioning
         return new ProvisionResult(spec.Name, created, permsSynced, errors);
     }
 
+    /// <summary>
+    /// Delete a role by name. Resolves the live id first (ids differ per env), then calls
+    /// <c>DeleteRole</c>. Returns an empty error list on success; a not-found role is reported as an
+    /// error rather than thrown so bulk callers can continue.
+    /// </summary>
+    public async Task<ProvisionResult> DeleteAsync(string roleName, CancellationToken ct = default)
+    {
+        var errors = new List<string>();
+        var existing = _remoting.Read(m =>
+        {
+            try { return m.UserService.GetRoleByName(roleName); }
+            catch { return null; }
+        });
+        if (existing is null || existing.Id == 0)
+        {
+            errors.Add($"Role '{roleName}' not found.");
+            return new ProvisionResult(roleName, false, false, errors);
+        }
+        try
+        {
+            await _remoting.WriteAsync(m => m.UserService.DeleteRole(existing.Id), ct).ConfigureAwait(false);
+            _log.LogInformation("Role {Name} (id {Id}) deleted.", roleName, existing.Id);
+        }
+        catch (Exception ex)
+        {
+            errors.Add("Delete role failed: " + ex.Message);
+        }
+        return new ProvisionResult(roleName, false, false, errors);
+    }
+
     private async Task<bool> SyncPermissionsAsync(int roleId, Role? existing, IReadOnlyList<string> desiredNames, List<string> errors, CancellationToken ct)
     {
         var allPerms = _remoting.Read(m => m.UserService.GetAllPermissions() ?? [])

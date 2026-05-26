@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -47,7 +46,8 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
     public IReadOnlyList<CompareAction> ExtraActions { get; }
-    public System.Collections.IList SelectedRows { get; } = new List<object>();
+    /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
+    public RowSelectionModel Selection { get; }
 
     private IReadOnlyList<RoleSummary>? _leftCapture;
     private IReadOnlyList<RoleSummary>? _rightCapture;
@@ -60,6 +60,7 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
         _vault = main.Vault;
         _vault.Changed += RefreshEnvList;
         Buckets.Changed += _ => RebuildVisibleRows();
+        Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -213,16 +214,16 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
                 // only-target: promoting source→target would mean delete-on-target, unsupported. Hide it.
                 _allRows.Add(new RoleCompareRow(name, "only-right", r?.Description ?? "", string.Join(", ", r?.Permissions ?? []),
                     $"only in {rightName}",
-                    CanPromoteLeftToRight: false,
-                    CanPromoteRightToLeft: true));
+                    canPromoteLeftToRight: false,
+                    canPromoteRightToLeft: true));
                 continue;
             }
             if (r is null)
             {
                 _allRows.Add(new RoleCompareRow(name, "only-left", l.Description, string.Join(", ", l.Permissions),
                     $"only in {leftName}",
-                    CanPromoteLeftToRight: true,
-                    CanPromoteRightToLeft: false));
+                    canPromoteLeftToRight: true,
+                    canPromoteRightToLeft: false));
                 continue;
             }
 
@@ -241,8 +242,8 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
                 l.Description ?? "",
                 leftPerms,
                 diffs.Count == 0 ? "" : string.Join(" · ", diffs),
-                CanPromoteLeftToRight: state == "changed",
-                CanPromoteRightToLeft: state == "changed"));
+                canPromoteLeftToRight: state == "changed",
+                canPromoteRightToLeft: state == "changed"));
         }
 
         RebuildVisibleRows();
@@ -259,7 +260,7 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
     {
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
         var targetEnv = RightEnv;
-        var rows = SelectedRows.OfType<RoleCompareRow>().Where(r => r.CanPromoteLeftToRight).ToList();
+        var rows = Selection.SelectedOf<RoleCompareRow>().Where(r => r.CanPromoteLeftToRight).ToList();
         if (rows.Count == 0) { Status = "Select at least one promotable role."; return; }
 
         var confirmed = await DialogHost.ConfirmPromoteAsync(
@@ -350,11 +351,31 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
     }
 }
 
-public sealed record RoleCompareRow(
-    string RoleName,
-    string State,
-    string Description,
-    string Permissions,
-    string Detail,
-    bool CanPromoteLeftToRight,
-    bool CanPromoteRightToLeft);
+public sealed partial class RoleCompareRow : SelectableRow
+{
+    public RoleCompareRow(
+        string roleName,
+        string state,
+        string description,
+        string permissions,
+        string detail,
+        bool canPromoteLeftToRight,
+        bool canPromoteRightToLeft)
+    {
+        RoleName = roleName;
+        State = state;
+        Description = description;
+        Permissions = permissions;
+        Detail = detail;
+        CanPromoteLeftToRight = canPromoteLeftToRight;
+        CanPromoteRightToLeft = canPromoteRightToLeft;
+    }
+
+    public string RoleName { get; }
+    public string State { get; }
+    public string Description { get; }
+    public string Permissions { get; }
+    public string Detail { get; }
+    public bool CanPromoteLeftToRight { get; }
+    public bool CanPromoteRightToLeft { get; }
+}

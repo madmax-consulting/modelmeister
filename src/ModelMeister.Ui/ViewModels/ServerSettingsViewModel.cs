@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -118,8 +117,8 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
     public IReadOnlyList<CompareAction> ExtraActions { get; }
-    /// <summary>Current multi-selection, fed by the grid via <see cref="MultiSelectBehavior"/> for bulk promote.</summary>
-    public System.Collections.IList SelectedRows { get; } = new List<object>();
+    /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
+    public RowSelectionModel Selection { get; }
 
     private IReadOnlyDictionary<string, string>? _leftCapture;
     private IReadOnlyDictionary<string, string>? _rightCapture;
@@ -133,6 +132,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         _log = log;
         _vault.Changed += RefreshEnvList;
         Buckets.Changed += _ => RebuildVisibleRows();
+        Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -343,7 +343,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
     {
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
         var targetEnv = RightEnv;
-        var rows = SelectedRows.OfType<ServerSettingRow>().ToList();
+        var rows = Selection.SelectedOf<ServerSettingRow>().ToList();
         if (rows.Count == 0) { Status = "Select at least one setting to promote."; return; }
 
         var confirmed = await DialogHost.ConfirmPromoteAsync(
@@ -420,7 +420,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
 }
 
 /// <summary>One row in the server-settings comparison grid.</summary>
-public sealed class ServerSettingRow
+public sealed partial class ServerSettingRow : SelectableRow
 {
     public string Key { get; }
     public string? LeftValue { get; }

@@ -25,6 +25,9 @@ public partial class EnvironmentsViewModel : ViewModelBase
     /// <summary>One row per <see cref="EnvironmentEntry"/> in the vault, sorted alphabetically by name.</summary>
     public ObservableCollection<EnvironmentRow> Rows { get; } = [];
 
+    /// <summary>Checkbox multi-selection over <see cref="Rows"/> (header select-all + bulk delete).</summary>
+    public RowSelectionModel Selection { get; }
+
     /// <summary>Row the user has clicked on (drives Connect/Edit/Delete enabling).</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(EditCommand))]
@@ -59,6 +62,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
         _settings = settings;
         _connection = connection;
         _log = log;
+        Selection = new RowSelectionModel(Rows);
         _isConnected = connection.State == ConnectionState.Connected;
         connection.Changed += () =>
         {
@@ -163,8 +167,53 @@ public partial class EnvironmentsViewModel : ViewModelBase
     private void Delete()
     {
         if (SelectedRow is null) return;
-        var id = SelectedRow.Entry.Id;
-        var name = SelectedRow.Entry.Name;
+        if (DeleteEntry(SelectedRow.Entry))
+        {
+            Refresh();
+            StatusMessage = "Environment deleted.";
+        }
+        else
+        {
+            StatusMessage = "Disconnect before deleting the connected environment.";
+        }
+    }
+
+    /// <summary>Delete every checked environment after a single confirmation prompt; skips the connected env.</summary>
+    [RelayCommand]
+    private async Task DeleteSelectedAsync()
+    {
+        var rows = Selection.SelectedOf<EnvironmentRow>();
+        if (rows.Count == 0) { StatusMessage = "Select at least one environment."; return; }
+        var ok = await DialogHost.ConfirmAsync(
+            "Delete environments",
+            $"Delete {rows.Count} environment(s) from the vault? This cannot be undone.",
+            "Delete",
+            "Abort").ConfigureAwait(true);
+        if (!ok) return;
+
+        int deleted = 0, skipped = 0;
+        foreach (var row in rows)
+        {
+            if (DeleteEntry(row.Entry)) deleted++;
+            else skipped++;
+        }
+        Refresh();
+        StatusMessage = skipped == 0
+            ? $"Deleted {deleted} environment(s)."
+            : $"Deleted {deleted}; skipped {skipped} (connected env can't be deleted).";
+        _log.Info("Environments", StatusMessage);
+    }
+
+    /// <summary>
+    /// Remove one env from the vault and clear any setting pointers to it. Returns <c>false</c>
+    /// (without deleting) when the env is the one currently connected — the caller surfaces a hint.
+    /// </summary>
+    private bool DeleteEntry(EnvironmentEntry entry)
+    {
+        var id = entry.Id;
+        if (_connection.Connected?.Id == id) return false;
+
+        var name = entry.Name;
         _vault.Delete(id);
 
         // Clear any setting pointers to the just-removed env.
@@ -173,9 +222,8 @@ public partial class EnvironmentsViewModel : ViewModelBase
         if (_settings.Current.DefaultEnvId == id)  { _settings.Current.DefaultEnvId = null;  settingsDirty = true; }
         if (settingsDirty) _settings.Save();
 
-        Refresh();
-        StatusMessage = "Environment deleted.";
         _log.Info("Environments", $"Deleted environment '{name}'.");
+        return true;
     }
 
     /// <summary>
@@ -290,7 +338,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
 /// Display projection of an <see cref="EnvironmentEntry"/>. Names of the public properties are
 /// load-bearing — they are referenced from <c>EnvironmentsView.axaml</c> column bindings.
 /// </summary>
-public sealed partial class EnvironmentRow : ObservableObject
+public sealed partial class EnvironmentRow : SelectableRow
 {
     public EnvironmentRow(EnvironmentEntry entry, bool secretMissing, bool isDefault)
     {

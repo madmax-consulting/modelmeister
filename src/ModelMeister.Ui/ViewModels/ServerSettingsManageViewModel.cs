@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ModelMeister.Ui.Models;
 using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
@@ -29,6 +30,9 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
 
     public ObservableCollection<ServerSettingEditRow> Rows { get; } = [];
 
+    /// <summary>Checkbox multi-selection over <see cref="Rows"/> (header select-all + bulk delete).</summary>
+    public RowSelectionModel Selection { get; }
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
@@ -47,6 +51,7 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
         _main = main;
         _shell = shell;
         _log = log;
+        Selection = new RowSelectionModel(Rows);
         _main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
@@ -190,6 +195,44 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
         await DeleteAsync(row).ConfigureAwait(true);
     }
 
+    /// <summary>Delete every checked setting after a single confirmation prompt.</summary>
+    [RelayCommand]
+    public async Task DeleteSelectedAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+        var rows = Selection.SelectedOf<ServerSettingEditRow>();
+        if (rows.Count == 0) { Status = "Select at least one setting."; return; }
+        var ok = await DialogHost.ConfirmAsync(
+            "Delete settings",
+            $"Delete {rows.Count} server setting(s)? This cannot be undone.",
+            "Delete",
+            "Abort").ConfigureAwait(true);
+        if (!ok) return;
+
+        Busy = true;
+        int deleted = 0, errors = 0;
+        try
+        {
+            foreach (var row in rows)
+            {
+                Status = $"Deleting '{row.Key}'…";
+                try
+                {
+                    var success = await _shell.DeleteServerSettingAsync(row.Key).ConfigureAwait(true);
+                    if (!success) { errors++; _log.Warn("ServerSettings", $"Delete '{row.Key}' failed."); continue; }
+                    _allRows.Remove(row);
+                    Rows.Remove(row);
+                    deleted++;
+                    _log.Success("ServerSettings", $"Deleted '{row.Key}'.");
+                }
+                catch (Exception ex) { errors++; _log.Error("ServerSettings", $"Delete '{row.Key}' failed: {ex.Message}", ex); }
+            }
+            MarkDataDirty();
+            Status = errors == 0 ? $"Deleted {deleted} setting(s)." : $"Deleted {deleted}, {errors} failed.";
+        }
+        finally { Busy = false; }
+    }
+
     [RelayCommand(CanExecute = nameof(CanSave))]
     public async Task SaveAsync(ServerSettingEditRow? row)
     {
@@ -311,7 +354,7 @@ public partial class ServerSettingsManageViewModel : FeaturePageViewModel
 }
 
 /// <summary>One row in the server-settings CRUD grid. Tracks the on-server value vs the in-flight edit.</summary>
-public partial class ServerSettingEditRow : ObservableObject
+public partial class ServerSettingEditRow : SelectableRow
 {
     public string Key { get; }
 

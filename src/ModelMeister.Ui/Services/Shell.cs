@@ -274,6 +274,43 @@ public sealed class Shell
         return Task.Run(() => CvlSync.TargetHasCvl(client, cvlId), ct);
     }
 
+    // ---------------- CVL admin (workbench CRUD) ----------------
+
+    /// <summary>Create a new CVL definition on the connected env.</summary>
+    public Task AddCvlAsync(string id, ModelMeister.Model.Primitives.CvlDataType dataType, string? parentId, bool customValueList, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new CvlAdmin(client).AddCvlAsync(id, dataType, parentId, customValueList, ct);
+    }
+
+    /// <summary>Update an existing CVL definition (datatype / parent / custom flag) on the connected env.</summary>
+    public Task UpdateCvlAsync(string id, ModelMeister.Model.Primitives.CvlDataType dataType, string? parentId, bool customValueList, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new CvlAdmin(client).UpdateCvlAsync(id, dataType, parentId, customValueList, ct);
+    }
+
+    /// <summary>Delete a CVL definition (and its values) from the connected env.</summary>
+    public Task DeleteCvlAsync(string id, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new CvlAdmin(client).DeleteCvlAsync(id, ct);
+    }
+
+    /// <summary>List a CVL's values (index order) for the in-place value editor.</summary>
+    public Task<IReadOnlyList<LiveCvlValue>> ListCvlValuesAsync(string cvlId, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new CvlAdmin(client).ListValues(cvlId), ct);
+    }
+
+    /// <summary>Add or update a single CVL value (matched by key) on the connected env.</summary>
+    public Task UpsertCvlValueAsync(string cvlId, LiveCvlValue value, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new CvlAdmin(client).UpsertValueAsync(cvlId, value, ct);
+    }
+
     // ---------------- Users ----------------
 
     public Task<IReadOnlyList<ModelMeister.Inriver.Users.UserSummary>> ListUsersAsync(CancellationToken ct = default)
@@ -318,6 +355,13 @@ public sealed class Shell
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
         return new RoleProvisioning(client).ProvisionAsync(spec, ct);
+    }
+
+    /// <summary>Delete a role by name from the connected env (resolves the live id internally).</summary>
+    public Task<RoleProvisioning.ProvisionResult> DeleteRoleAsync(string roleName, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new RoleProvisioning(client).DeleteAsync(roleName, ct);
     }
 
     // ---------------- Restricted fields ----------------

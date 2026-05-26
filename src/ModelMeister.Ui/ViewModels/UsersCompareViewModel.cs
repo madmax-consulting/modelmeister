@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -49,8 +48,8 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
     public IReadOnlyList<CompareAction> ExtraActions { get; }
-    /// <summary>Current multi-selection, fed by the grid via <see cref="MultiSelectBehavior"/> for bulk promote.</summary>
-    public System.Collections.IList SelectedRows { get; } = new List<object>();
+    /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
+    public RowSelectionModel Selection { get; }
 
     // Cached captures so per-row promote can look up the source UserSummary without re-querying.
     private IReadOnlyList<UserSummary>? _leftCapture;
@@ -64,6 +63,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         _vault = main.Vault;
         _vault.Changed += RefreshEnvList;
         Buckets.Changed += _ => RebuildVisibleRows();
+        Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -228,8 +228,8 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
                 // only-right: L→R would mean "delete on right", which Remoting cannot do. Hide it.
                 _allRows.Add(new UserCompareRow(name, "only-right", r?.Email ?? "", string.Join(", ", r?.Roles ?? []),
                     $"only in {rightName}",
-                    CanPromoteLeftToRight: false,
-                    CanPromoteRightToLeft: true));
+                    canPromoteLeftToRight: false,
+                    canPromoteRightToLeft: true));
                 continue;
             }
             if (r is null)
@@ -237,8 +237,8 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
                 // only-left: R→L would mean "delete on left" — same Remoting limitation, hide it.
                 _allRows.Add(new UserCompareRow(name, "only-left", l.Email ?? "", string.Join(", ", l.Roles),
                     $"only in {leftName}",
-                    CanPromoteLeftToRight: true,
-                    CanPromoteRightToLeft: false));
+                    canPromoteLeftToRight: true,
+                    canPromoteRightToLeft: false));
                 continue;
             }
 
@@ -259,8 +259,8 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
                 l.Email ?? "",
                 leftRoles,
                 diffs.Count == 0 ? "" : string.Join(" · ", diffs),
-                CanPromoteLeftToRight: state == "changed",
-                CanPromoteRightToLeft: state == "changed"));
+                canPromoteLeftToRight: state == "changed",
+                canPromoteRightToLeft: state == "changed"));
         }
 
         RebuildVisibleRows();
@@ -277,7 +277,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
     {
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
         var targetEnv = RightEnv;
-        var rows = SelectedRows.OfType<UserCompareRow>()
+        var rows = Selection.SelectedOf<UserCompareRow>()
             .Where(r => r.CanPromoteLeftToRight)
             .ToList();
         if (rows.Count == 0) { Status = "Select at least one promotable user."; return; }
@@ -386,11 +386,31 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
     }
 }
 
-public sealed record UserCompareRow(
-    string Username,
-    string State,
-    string Email,
-    string Roles,
-    string Detail,
-    bool CanPromoteLeftToRight,
-    bool CanPromoteRightToLeft);
+public sealed partial class UserCompareRow : SelectableRow
+{
+    public UserCompareRow(
+        string username,
+        string state,
+        string email,
+        string roles,
+        string detail,
+        bool canPromoteLeftToRight,
+        bool canPromoteRightToLeft)
+    {
+        Username = username;
+        State = state;
+        Email = email;
+        Roles = roles;
+        Detail = detail;
+        CanPromoteLeftToRight = canPromoteLeftToRight;
+        CanPromoteRightToLeft = canPromoteRightToLeft;
+    }
+
+    public string Username { get; }
+    public string State { get; }
+    public string Email { get; }
+    public string Roles { get; }
+    public string Detail { get; }
+    public bool CanPromoteLeftToRight { get; }
+    public bool CanPromoteRightToLeft { get; }
+}

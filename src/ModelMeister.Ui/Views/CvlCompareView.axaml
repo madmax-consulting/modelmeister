@@ -22,22 +22,29 @@
         <c:GridToolbar DockPanel.Dock="Top" Margin="2,0,0,8" TargetGrid="{Binding #MainGrid}" />
       <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                SelectionMode="Extended" svc:MultiSelectBehavior.Selection="{Binding SelectedRows}"
+                SelectionMode="Extended" svc:GridSelectionBehavior.Enable="True"
                 Classes="filterable fit">
         <DataGrid.Columns>
-          <DataGridTextColumn Binding="{Binding Bucket}" Width="90">
+          <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                  CellTemplate="{StaticResource RowSelectCell}">
+            <DataGridTemplateColumn.Header>
+              <CheckBox IsChecked="{Binding #Root.((vm:CvlCompareViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+            </DataGridTemplateColumn.Header>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Binding="{Binding Bucket}" Width="110" MinWidth="100">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Scope" Path="Bucket" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding CvlId}" Width="1.4*" MinWidth="80">
+          <DataGridTextColumn Binding="{Binding CvlId}" Width="1.4*" MinWidth="110">
             <DataGridTextColumn.Header><c:FilterableHeader Title="CVL" Path="CvlId" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTextColumn Binding="{Binding Key}" Width="1*" MinWidth="70">
+          <DataGridTextColumn Binding="{Binding Key}" Width="1*" MinWidth="100">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
           <DataGridTextColumn Binding="{Binding Property}" Width="130">
             <DataGridTextColumn.Header><c:FilterableHeader Title="Property" Path="Property" /></DataGridTextColumn.Header>
           </DataGridTextColumn>
-          <DataGridTemplateColumn Width="1.3*" MinWidth="70" CanUserSort="True" SortMemberPath="LeftValue">
+          <DataGridTemplateColumn Width="1.3*" MinWidth="100" CanUserSort="True" SortMemberPath="LeftValue">
             <DataGridTemplateColumn.Header>
               <c:FilterableHeader Path="LeftValue">
                 <c:FilterableHeader.Title>
@@ -61,7 +68,7 @@
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTemplateColumn Width="1.3*" MinWidth="70" CanUserSort="True" SortMemberPath="RightValue">
+          <DataGridTemplateColumn Width="1.3*" MinWidth="100" CanUserSort="True" SortMemberPath="RightValue">
             <DataGridTemplateColumn.Header>
               <c:FilterableHeader Path="RightValue">
                 <c:FilterableHeader.Title>

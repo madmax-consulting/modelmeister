@@ -1,6 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:ModelMeister.Ui"
+             xmlns:m="using:ModelMeister.Ui.Models"
              x:Class="ModelMeister.Ui.App">
 
   <Application.DataTemplates>
@@ -19,6 +20,17 @@
     <ResourceDictionary>
       <FontFamily x:Key="UiFont">resm:Avalonia.Fonts.Inter#Inter, $Default</FontFamily>
       <FontFamily x:Key="MonoFont">Cascadia Mono, JetBrains Mono, Consolas, Menlo, monospace</FontFamily>
+
+      <!-- Shared left-hand row-selection checkbox cell. Every feature grid's selection column reuses
+           this; the bound row is a SelectableRow, and the Tag lets GridSelectionBehavior recognise
+           it for shift-click range selection. The header (select-all) checkbox stays per-grid since
+           it binds to that page's RowSelectionModel. -->
+      <DataTemplate x:Key="RowSelectCell" x:DataType="m:SelectableRow">
+        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Tag="__rowselect"
+                  MinWidth="0" Padding="0"
+                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                  ToolTip.Tip="Select row (Shift+click to select a range)" />
+      </DataTemplate>
 
       <ResourceDictionary.ThemeDictionaries>
 

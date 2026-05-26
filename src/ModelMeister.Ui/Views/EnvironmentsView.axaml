@@ -8,7 +8,8 @@
              xmlns:c="using:ModelMeister.Ui.Controls"
              mc:Ignorable="d"
              x:Class="ModelMeister.Ui.Views.EnvironmentsView"
-             x:DataType="vm:EnvironmentsViewModel">
+             x:DataType="vm:EnvironmentsViewModel"
+             x:Name="PageRoot">
 
   <UserControl.KeyBindings>
     <KeyBinding Gesture="Ctrl+N" Command="{Binding AddCommand}" />
@@ -40,8 +41,12 @@
           </Button>
           <Button Grid.Column="1" Content="Edit"   Command="{Binding EditCommand}" Margin="8,0,0,0"
                   IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
-          <Button Grid.Column="2" Content="Delete" Command="{Binding DeleteCommand}" Classes="danger" Margin="8,0,0,0"
-                  IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+            <Button Content="Delete" Command="{Binding DeleteCommand}" Classes="danger" Margin="8,0,0,0"
+                    IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <Button Content="Delete selected" Command="{Binding DeleteSelectedCommand}" Classes="danger"
+                    IsVisible="{Binding Selection.HasSelection}" />
+          </StackPanel>
 
           <!-- Single Connect/Disconnect toggle on the right, label tracks IConnectionLifecycle.State. -->
           <Button Grid.Column="4" Command="{Binding ConnectOrDisconnectCommand}"
@@ -78,6 +83,7 @@
                   IsReadOnly="True"
                   BorderThickness="0"
                   Classes="fit"
+                  svc:GridSelectionBehavior.Enable="True"
                   LoadingRow="OnLoadingRow">
           <DataGrid.Styles>
             <Style Selector="DataGridRow.connected /template/ Rectangle#BackgroundRectangle">
@@ -110,9 +116,20 @@
                         Command="{Binding SetDefaultCommand}"
                         ToolTip.Tip="Auto-connect to this environment on startup"
                         IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              <Separator />
+              <MenuItem Header="Delete selected"
+                        Command="{Binding DeleteSelectedCommand}"
+                        IsEnabled="{Binding Selection.HasSelection}" />
             </ContextMenu>
           </DataGrid.ContextMenu>
           <DataGrid.Columns>
+            <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                    CellTemplate="{StaticResource RowSelectCell}">
+              <DataGridTemplateColumn.Header>
+                <CheckBox IsChecked="{Binding #PageRoot.((vm:EnvironmentsViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+              </DataGridTemplateColumn.Header>
+            </DataGridTemplateColumn>
             <DataGridTemplateColumn Header="" Width="40">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="vm:EnvironmentRow">

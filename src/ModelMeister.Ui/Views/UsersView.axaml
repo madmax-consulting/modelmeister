@@ -5,7 +5,8 @@
              xmlns:c="using:ModelMeister.Ui.Controls"
              xmlns:conv="using:ModelMeister.Ui.Converters"
              x:Class="ModelMeister.Ui.Views.UsersView"
-             x:DataType="vm:UsersViewModel">
+             x:DataType="vm:UsersViewModel"
+             x:Name="PageRoot">
 
   <c:PageShell Eyebrow="USERS"
                Subtitle="Inspect the live environment's user list — export/import via the icons above"
@@ -44,7 +45,7 @@
       <DataGrid Name="UsersGrid"
                 ItemsSource="{Binding Users}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                BorderThickness="0">
+                BorderThickness="0" svc:GridSelectionBehavior.Enable="True">
         <DataGrid.ContextMenu>
           <ContextMenu>
             <MenuItem Header="Copy username"
@@ -59,6 +60,13 @@
           </ContextMenu>
         </DataGrid.ContextMenu>
         <DataGrid.Columns>
+          <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                  CellTemplate="{StaticResource RowSelectCell}">
+            <DataGridTemplateColumn.Header>
+              <CheckBox IsChecked="{Binding #PageRoot.((vm:UsersViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+            </DataGridTemplateColumn.Header>
+          </DataGridTemplateColumn>
           <!-- Username + Email are identical in inriver for most orgs; only Username is shown.
                If you need to see Email separately, right-click → Copy email or re-add the column. -->
           <DataGridTextColumn Binding="{Binding Username}" Width="200" MinWidth="120">

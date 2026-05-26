@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ModelMeister.Ui.Models;
 using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
@@ -24,6 +25,9 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
     /// <summary>All backup files in the library, filtered + sorted by capture time.</summary>
     public ObservableCollection<BackupRow> Rows { get; } = [];
 
+    /// <summary>Checkbox multi-selection over <see cref="Rows"/> (header select-all + bulk delete).</summary>
+    public RowSelectionModel Selection { get; }
+
     [ObservableProperty] private string _scopeFilter = "All";
     [ObservableProperty] private string _summary = "";
     /// <summary>True while a backup capture or delete is in flight. Disables both buttons.</summary>
@@ -37,6 +41,7 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
         _main = main;
         _fileOpener = fileOpener;
         _log = log;
+        Selection = new RowSelectionModel(Rows);
         _main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
@@ -110,11 +115,7 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
         Busy = true;
         try
         {
-            if (row.Info.Kind == BackupKind.Folder)
-                Directory.Delete(row.Info.Path, recursive: true);
-            else
-                File.Delete(row.Info.Path);
-            _log.Info("Backup", $"Deleted {row.Info.Path}");
+            DeleteFile(row);
             _main.Backups.RaiseChanged();
         }
         catch (Exception ex)
@@ -125,11 +126,48 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
+    /// <summary>Delete every checked backup after a single confirmation prompt.</summary>
+    [RelayCommand]
+    private async Task DeleteSelectedAsync()
+    {
+        var rows = Selection.SelectedOf<BackupRow>();
+        if (rows.Count == 0) { Summary = "Select at least one backup."; return; }
+        var ok = await DialogHost.ConfirmAsync(
+            "Delete backups",
+            $"Delete {rows.Count} backup(s) from disk? This cannot be undone.",
+            "Delete",
+            "Abort").ConfigureAwait(true);
+        if (!ok) return;
+
+        Busy = true;
+        int deleted = 0, errors = 0;
+        try
+        {
+            foreach (var row in rows)
+            {
+                try { DeleteFile(row); deleted++; }
+                catch (Exception ex) { errors++; _log.Error("Backup", $"Delete failed: {ex.Message}", ex); }
+            }
+            Summary = errors == 0 ? $"Deleted {deleted} backup(s)." : $"Deleted {deleted}, {errors} failed.";
+            _main.Backups.RaiseChanged();
+        }
+        finally { Busy = false; }
+    }
+
+    private void DeleteFile(BackupRow row)
+    {
+        if (row.Info.Kind == BackupKind.Folder)
+            Directory.Delete(row.Info.Path, recursive: true);
+        else
+            File.Delete(row.Info.Path);
+        _log.Info("Backup", $"Deleted {row.Info.Path}");
+    }
+
     partial void OnScopeFilterChanged(string value) => _ = RefreshAsync();
 }
 
 /// <summary>One row in the Snapshots data grid. Wraps a <see cref="BackupFileInfo"/> for display.</summary>
-public sealed class BackupRow
+public sealed partial class BackupRow : SelectableRow
 {
     public BackupFileInfo Info { get; }
     public BackupRow(BackupFileInfo info) => Info = info;

@@ -44,6 +44,9 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
     public IReadOnlyList<CompareAction> ExtraActions { get; }
+    /// <summary>Checkbox-selection model over <see cref="Rows"/> — present for uniform grid chrome.
+    /// This page's bulk "Push settings →" acts on the single <see cref="Selected"/> row, not this set.</summary>
+    public RowSelectionModel Selection { get; }
 
     private IReadOnlyList<ExtensionsService.ExtensionInfo>? _leftCapture;
     private IReadOnlyList<ExtensionsService.ExtensionInfo>? _rightCapture;
@@ -56,6 +59,7 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
         _vault = vault;
         _log = log;
         _vault.Changed += RefreshEnvList;
+        Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -286,7 +290,7 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
     }
 }
 
-public sealed class ExtensionDiffRow
+public sealed partial class ExtensionDiffRow : SelectableRow
 {
     public string Id { get; }
     public string State { get; }

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
              xmlns:c="using:ModelMeister.Ui.Controls"
              xmlns:conv="using:ModelMeister.Ui.Converters"
              xmlns:svc="using:ModelMeister.Ui.Services"
@@ -23,9 +24,16 @@
         <c:GridToolbar DockPanel.Dock="Top" Margin="2,0,0,8" TargetGrid="{Binding #MainGrid}" />
         <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
                   AutoGenerateColumns="False" SelectionMode="Extended"
-                  svc:MultiSelectBehavior.Selection="{Binding SelectedRows}"
+                  svc:GridSelectionBehavior.Enable="True"
                   GridLinesVisibility="Horizontal" HeadersVisibility="Column" Classes="filterable fit">
           <DataGrid.Columns>
+            <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                    CellTemplate="{StaticResource RowSelectCell}">
+              <DataGridTemplateColumn.Header>
+                <CheckBox IsChecked="{Binding #Root.((vm:ServerSettingsViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+              </DataGridTemplateColumn.Header>
+            </DataGridTemplateColumn>
             <DataGridTextColumn Binding="{Binding State}" Width="100">
               <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
             </DataGridTextColumn>

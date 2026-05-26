@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ModelMeister.Excel;
 using ModelMeister.Inriver.Users;
+using ModelMeister.Ui.Models;
 using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
@@ -65,7 +66,10 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         await ProvisionAsync().ConfigureAwait(true);
     }
 
-    public ObservableCollection<RestrictedFieldSummary> Rows { get; } = [];
+    public ObservableCollection<RestrictedFieldListRow> Rows { get; } = [];
+
+    /// <summary>Checkbox multi-selection over <see cref="Rows"/> (header select-all + shift-click + bulk delete).</summary>
+    public RowSelectionModel Selection { get; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadListCommand))]
@@ -83,6 +87,7 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         _main = main;
         _shell = shell;
         _log = log;
+        Selection = new RowSelectionModel(Rows);
         _main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.IsConnected))
@@ -109,7 +114,7 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         {
             var rows = await _shell.ListRestrictedFieldsAsync().ConfigureAwait(true);
             Rows.Clear();
-            foreach (var r in rows) Rows.Add(r);
+            foreach (var r in rows) Rows.Add(new RestrictedFieldListRow(r));
             Status = $"{Rows.Count} restricted-field permissions";
         }
         catch (Exception ex)
@@ -120,12 +125,12 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
-    [RelayCommand] private Task CopyRole(RestrictedFieldSummary? r) => ClipboardHelpers.CopyAsync(r?.RoleName);
-    [RelayCommand] private Task CopyKey(RestrictedFieldSummary? r) => ClipboardHelpers.CopyAsync(r?.NaturalKey);
+    [RelayCommand] private Task CopyRole(RestrictedFieldListRow? r) => ClipboardHelpers.CopyAsync(r?.RoleName);
+    [RelayCommand] private Task CopyKey(RestrictedFieldListRow? r) => ClipboardHelpers.CopyAsync(r?.NaturalKey);
 
     /// <summary>Delete a single restricted-field permission (after confirmation).</summary>
     [RelayCommand]
-    public async Task DeleteAsync(RestrictedFieldSummary? row)
+    public async Task DeleteAsync(RestrictedFieldListRow? row)
     {
         if (row is null) return;
         if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
@@ -134,21 +139,48 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
             $"Delete the restriction for role '{row.RoleName}' ({row.RestrictionType})?",
             "Delete", "Cancel").ConfigureAwait(true);
         if (!confirmed) return;
+        await DeleteRowsAsync(new[] { row }).ConfigureAwait(true);
+    }
 
+    /// <summary>Delete every checked restricted-field permission after a single confirmation prompt.</summary>
+    [RelayCommand]
+    public async Task DeleteSelectedAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
+        var rows = Selection.SelectedOf<RestrictedFieldListRow>();
+        if (rows.Count == 0) { Status = "Select at least one restriction."; return; }
+        var confirmed = await DialogHost.ConfirmAsync(
+            "Delete restricted-field permissions",
+            $"Delete {rows.Count} restriction(s)? This cannot be undone.",
+            "Delete", "Cancel").ConfigureAwait(true);
+        if (!confirmed) return;
+        await DeleteRowsAsync(rows).ConfigureAwait(true);
+    }
+
+    private async Task DeleteRowsAsync(IReadOnlyList<RestrictedFieldListRow> rows)
+    {
+        if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
         Busy = true;
+        int deleted = 0, errors = 0;
         try
         {
-            var result = await _shell.DeleteRestrictedFieldAsync(row.Id).ConfigureAwait(true);
-            if (result.Errors.Count == 0)
+            foreach (var row in rows)
             {
-                Status = $"Deleted restriction for '{row.RoleName}'.";
-                _log.Success("RestrictedFields", $"Deleted #{row.Id} ({row.RoleName}).");
+                var result = await _shell.DeleteRestrictedFieldAsync(row.Id).ConfigureAwait(true);
+                if (result.Errors.Count == 0)
+                {
+                    deleted++;
+                    _log.Success("RestrictedFields", $"Deleted #{row.Id} ({row.RoleName}).");
+                }
+                else
+                {
+                    errors++;
+                    _log.Error("RestrictedFields", $"#{row.Id} ({row.RoleName}): {string.Join("; ", result.Errors)}");
+                }
             }
-            else
-            {
-                Status = string.Join("; ", result.Errors);
-                _log.Error("RestrictedFields", Status);
-            }
+            Status = errors == 0
+                ? (deleted == 1 ? $"Deleted restriction for '{rows[0].RoleName}'." : $"Deleted {deleted} restriction(s).")
+                : $"Deleted {deleted}, {errors} failed.";
             MarkDataDirty();
             await RefreshAsync().ConfigureAwait(true);
         }
@@ -284,4 +316,20 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
+}
+
+/// <summary>Selectable grid row wrapping a <see cref="RestrictedFieldSummary"/> for the Restricted Fields page.</summary>
+public sealed partial class RestrictedFieldListRow : SelectableRow
+{
+    public RestrictedFieldListRow(RestrictedFieldSummary source) => Source = source;
+    public RestrictedFieldSummary Source { get; }
+
+    /// <summary>Env-specific live id consumed by <see cref="RestrictedFieldsViewModel.DeleteAsync"/>.</summary>
+    public int Id => Source.Id;
+    public string RoleName => Source.RoleName;
+    public string RestrictionType => Source.RestrictionType;
+    public string? EntityTypeId => Source.EntityTypeId;
+    public string? FieldTypeId => Source.FieldTypeId;
+    public string? CategoryId => Source.CategoryId;
+    public string NaturalKey => Source.NaturalKey;
 }

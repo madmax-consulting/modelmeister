@@ -25,9 +25,16 @@
                   Content="Allow deletes when promoting (push removal of concepts that exist only on the target)" />
       <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                SelectionMode="Extended" svc:MultiSelectBehavior.Selection="{Binding SelectedRows}"
+                SelectionMode="Extended" svc:GridSelectionBehavior.Enable="True"
                 Classes="filterable fit">
         <DataGrid.Columns>
+          <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                  CellTemplate="{StaticResource RowSelectCell}">
+            <DataGridTemplateColumn.Header>
+              <CheckBox IsChecked="{Binding #Root.((vm:CompareEnvsViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+            </DataGridTemplateColumn.Header>
+          </DataGridTemplateColumn>
           <DataGridTextColumn Binding="{Binding Concept}" Width="110">
             <DataGridTextColumn.Header>
               <c:ChecklistFilterHeader Title="Concept" Path="Concept" />

@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -49,8 +48,8 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
     public IReadOnlyList<CompareAction> ExtraActions { get; }
-    /// <summary>Current multi-selection, fed by the grid via <see cref="MultiSelectBehavior"/> for bulk promote.</summary>
-    public IList SelectedRows { get; } = new List<object>();
+    /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
+    public RowSelectionModel Selection { get; }
     /// <summary>Bucket-bar toggle state: clicking a bar in the bottom chart hides that Bucket's rows.</summary>
     public BucketToggleState Buckets { get; } = new();
     public string BucketPath => nameof(CvlCompareRow.Bucket);
@@ -67,6 +66,7 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
         _log = log;
         _vault = main.Vault;
         _vault.Changed += RefreshEnvList;
+        Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -233,7 +233,7 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
     [RelayCommand]
     public async Task PromoteSelectedLeftToRightAsync()
     {
-        var rows = SelectedRows.OfType<CvlCompareRow>().ToList();
+        var rows = Selection.SelectedOf<CvlCompareRow>().ToList();
         if (rows.Count == 0) { Status = "Select at least one row to promote."; return; }
         foreach (var row in rows)
             await ApplyRowAsync(row, sourceFromLeft: true, refresh: false).ConfigureAwait(true);
@@ -346,4 +346,22 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
 
 /// <summary>One row in the CVL-compare grid. <see cref="Bucket"/> is "CVL" for CVL-level diffs
 /// (existence or definition) and "Value" for per-key value diffs.</summary>
-public sealed record CvlCompareRow(string Bucket, string CvlId, string Key, string Property, string LeftValue, string RightValue);
+public sealed partial class CvlCompareRow : SelectableRow
+{
+    public CvlCompareRow(string bucket, string cvlId, string key, string property, string leftValue, string rightValue)
+    {
+        Bucket = bucket;
+        CvlId = cvlId;
+        Key = key;
+        Property = property;
+        LeftValue = leftValue;
+        RightValue = rightValue;
+    }
+
+    public string Bucket { get; }
+    public string CvlId { get; }
+    public string Key { get; }
+    public string Property { get; }
+    public string LeftValue { get; }
+    public string RightValue { get; }
+}
