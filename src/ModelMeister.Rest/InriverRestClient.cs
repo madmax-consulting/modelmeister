@@ -62,13 +62,33 @@ public sealed class InriverRestClient : IDisposable
     // ----------- USERS
 
     /// <summary>
-    /// Create a user via the REST admin API. Returns the API's response on success. Throws
-    /// <see cref="InriverRestException"/> on failure with full status + body for diagnostics.
+    /// Provision (create/upsert) a user via the REST admin action endpoint
+    /// <c>POST /api/v1.0.0/system/users:provision</c> — <c>/users</c> itself is GET-only and 404s on POST.
+    /// Throws <see cref="InriverRestException"/> on failure with full status + body for diagnostics.
+    /// The endpoint may answer with a JSON body or a bare text/plain scalar; both are tolerated.
     /// </summary>
     public async Task<UserCreated> CreateUserAsync(UserCreate request, CancellationToken ct = default)
     {
-        using var resp = await _http.PostAsJsonAsync(BaseUrl + "/api/v1.0.0/users", request, JsonOptions, ct).ConfigureAwait(false);
-        return await ReadOrThrowAsync<UserCreated>(resp, ct).ConfigureAwait(false);
+        using var resp = await _http.PostAsJsonAsync(BaseUrl + "/api/v1.0.0/system/users:provision", request, JsonOptions, ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var error = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            throw new InriverRestException(resp.StatusCode, error);
+        }
+        var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        return ParseUserCreated(body);
+    }
+
+    /// <summary>
+    /// Parse the provision response. The endpoint returns either a JSON <see cref="UserCreated"/>
+    /// object or a non-JSON body (empty / a bare scalar). Only a JSON object is interpreted; any
+    /// other shape is treated as a bare success — the API key, if needed, is minted over Remoting.
+    /// </summary>
+    private static UserCreated ParseUserCreated(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body) || body.TrimStart()[0] is not '{') return new UserCreated();
+        try { return JsonSerializer.Deserialize<UserCreated>(body, JsonOptions) ?? new UserCreated(); }
+        catch (JsonException) { return new UserCreated(); }
     }
 
     /// <summary>List all users.</summary>
@@ -113,17 +133,6 @@ public sealed class InriverRestClient : IDisposable
 
     // ----------- helpers
 
-    private static async Task<T> ReadOrThrowAsync<T>(HttpResponseMessage resp, CancellationToken ct)
-    {
-        if (!resp.IsSuccessStatusCode)
-        {
-            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            throw new InriverRestException(resp.StatusCode, body);
-        }
-        var data = await resp.Content.ReadFromJsonAsync<T>(JsonOptions, ct).ConfigureAwait(false);
-        return data ?? throw new InriverRestException(resp.StatusCode, "Empty response body where one was expected.");
-    }
-
     public static JsonSerializerOptions JsonOptions { get; } = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -144,7 +153,7 @@ public sealed class InriverRestException : Exception
 
 // ---------- DTOs (only the fields we use; other properties are tolerated by PropertyNameCaseInsensitive)
 
-/// <summary>Request body for POST /api/v1.0.0/users.</summary>
+/// <summary>Request body for POST /api/v1.0.0/system/users:provision.</summary>
 public sealed class UserCreate
 {
     public string Username { get; set; } = "";

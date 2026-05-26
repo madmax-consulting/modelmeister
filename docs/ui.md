@@ -56,7 +56,7 @@ plus a per-row secret stored separately. Both files live under
 | Delete          | Removes the entry + its secret.                                                    |
 
 The REST API base URL + key are **optional** and only needed for features Remoting can't do:
-user creation (REST `POST /api/v1.0.0/users` requires `APIManageUsers`), and the modern
+user creation (REST `POST /api/v1.0.0/system/users:provision` requires `APIManageUsers`), and the modern
 Extensions endpoints. Leave them blank if you only need model diff/apply.
 
 Vault paths:
