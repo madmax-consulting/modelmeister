@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -102,4 +104,38 @@ public abstract partial class FeaturePageViewModel : ViewModelBase
 
     /// <summary>Override to read a workbook and apply it to slot A.</summary>
     public virtual Task ImportExcelAsync() => Task.CompletedTask;
+
+    /// <summary>
+    /// Run a per-item async operation over <paramref name="items"/> sequentially, surfacing uniform
+    /// "n / total" progress. <paramref name="onItem"/> runs on the UI thread before each item (1-based
+    /// index + total) so callers can update their Status; the loop awaits each item before the next
+    /// (Remoting serialises writes anyway). The actual off-UI-thread execution comes from <c>Shell</c>,
+    /// whose write methods wrap the synchronous Remoting calls in <see cref="Task.Run(Func{Task})"/> —
+    /// so the dispatcher stays free between items and the busy progress bar animates.
+    /// </summary>
+    protected static async Task RunBulkAsync<T>(
+        IReadOnlyList<T> items,
+        Func<T, Task> processAsync,
+        Action<int, int, T>? onItem = null)
+    {
+        var total = items.Count;
+        for (var i = 0; i < total; i++)
+        {
+            var item = items[i];
+            onItem?.Invoke(i + 1, total, item);
+            await processAsync(item).ConfigureAwait(true);
+        }
+    }
+
+    /// <summary>Push a just-imported workbook path onto the shared MRU recents list (newest first,
+    /// capped at 10) and persist. Backs the Recents dropdown on the import dialog.</summary>
+    protected static void RememberWorkbook(ISettingsStore settings, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        var list = settings.Current.RecentWorkbookPaths;
+        list.RemoveAll(p => string.Equals(p, path, System.StringComparison.OrdinalIgnoreCase));
+        list.Insert(0, path);
+        while (list.Count > 10) list.RemoveAt(list.Count - 1);
+        settings.Save();
+    }
 }

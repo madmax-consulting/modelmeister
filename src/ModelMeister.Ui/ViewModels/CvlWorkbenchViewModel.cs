@@ -208,12 +208,13 @@ public partial class CvlWorkbenchViewModel : FeaturePageViewModel
         int deleted = 0, errors = 0;
         try
         {
-            foreach (var id in ids)
-            {
-                Status = $"Deleting CVL '{id}'…";
-                try { await _shell.DeleteCvlAsync(id).ConfigureAwait(true); deleted++; _log.Success("Cvl", $"Deleted CVL '{id}'."); }
-                catch (Exception ex) { errors++; _log.Warn("Cvl", $"Delete '{id}' failed: {ex.Message}"); }
-            }
+            await RunBulkAsync(ids,
+                async id =>
+                {
+                    try { await _shell.DeleteCvlAsync(id).ConfigureAwait(false); deleted++; _log.Success("Cvl", $"Deleted CVL '{id}'."); }
+                    catch (Exception ex) { errors++; _log.Warn("Cvl", $"Delete '{id}' failed: {ex.Message}"); }
+                },
+                (i, total, id) => Status = $"Deleting CVL {i} / {total} ('{id}')…").ConfigureAwait(true);
             Status = errors == 0 ? $"Deleted {deleted} CVL(s)." : $"Deleted {deleted}, {errors} failed.";
             MarkDataDirty();
             await RefreshAsync().ConfigureAwait(true);
