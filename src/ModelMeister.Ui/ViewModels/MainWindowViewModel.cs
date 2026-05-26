@@ -895,8 +895,35 @@ public partial class MainWindowViewModel : ViewModelBase
         return WorkflowStep.Apply;
     }
 
+    /// <summary>Shared persisted settings — exposed so feature pages (e.g. Excel import recents) can
+    /// read/write the same store the main window uses.</summary>
+    public ISettingsStore Settings => _settings;
+
+    private bool _suspendConnectionIndicator;
+
+    /// <summary>
+    /// While true, transient connection switches don't repaint the connection indicator (top-right
+    /// chip + bottom-left status). A Compare refresh swaps the single Remoting connection to each
+    /// environment in turn to read both sides; without this the indicator flashed through every env
+    /// mid-refresh. Compare VMs set this around their switch sequence; setting it back to false
+    /// settles the indicator to the now-current connection exactly once.
+    /// </summary>
+    public bool SuspendConnectionIndicator
+    {
+        get => _suspendConnectionIndicator;
+        set
+        {
+            if (_suspendConnectionIndicator == value) return;
+            _suspendConnectionIndicator = value;
+            if (!value) OnConnectionChanged(); // settle to the final connection once, no flashing
+        }
+    }
+
     private void OnConnectionChanged()
     {
+        // A compare is mid-refresh, cycling the connection through each env — don't flash the indicator.
+        if (_suspendConnectionIndicator) return;
+
         IsConnected = _connection.State == ConnectionState.Connected;
         ConnectionStatus = _connection.State.ToString();
 

@@ -51,6 +51,8 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
 
     private IReadOnlyList<RoleSummary>? _leftCapture;
     private IReadOnlyList<RoleSummary>? _rightCapture;
+    /// <summary>Total roles compared (union of both envs), including identical ones we don't show.</summary>
+    private int _comparedCount;
 
     public RolesCompareViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
     {
@@ -141,6 +143,7 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
         { Status = $"No API key on file for '{RightEnv.Name}'."; return; }
 
         Busy = true;
+        _main.SuspendConnectionIndicator = true; // don't flash the env indicator while we read both sides
         _allRows.Clear();
         Rows.Clear();
         Counts.Clear();
@@ -163,12 +166,12 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
             _rightCapture = rightRoles;
             PopulateRows(leftRoles, rightRoles);
 
-            var diffCount = Rows.Count(r => r.State != "identical");
+            var diffCount = _allRows.Count;
             HasRows = diffCount > 0;
             RebuildCounts();
             Summary = diffCount == 0
-                ? $"No differences. ({Rows.Count} roles compared.)"
-                : $"{diffCount} differences across {Rows.Count} roles.";
+                ? $"No differences. ({_comparedCount} roles compared.)"
+                : $"{diffCount} differences across {_comparedCount} roles.";
             Status = "Comparison complete.";
             _log.Success("RolesCompare", $"Compared '{LeftEnv.Name}' ({leftRoles.Count}) vs '{RightEnv.Name}' ({rightRoles.Count}): {diffCount} differences.");
         }
@@ -177,7 +180,7 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
             Status = "Compare failed: " + ex.Message;
             _log.Error("RolesCompare", ex.Message, ex);
         }
-        finally { Busy = false; }
+        finally { Busy = false; _main.SuspendConnectionIndicator = false; }
     }
 
     private void RebuildVisibleRows()
@@ -185,11 +188,20 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
         Rows.Clear();
         foreach (var r in _allRows)
         {
-            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Title, r.State, StringComparison.OrdinalIgnoreCase));
+            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Key, r.State, StringComparison.OrdinalIgnoreCase));
             if (bucketRow is { IsHidden: true }) continue;
             Rows.Add(r);
         }
     }
+
+    /// <summary>Friendly, env-named bucket label — we never surface the internal "only-left" wording.</summary>
+    private string BucketLabel(string state) => state switch
+    {
+        "only-left"  => $"Only in {LeftEnv?.Name ?? "left"}",
+        "only-right" => $"Only in {RightEnv?.Name ?? "right"}",
+        "changed"    => "Changed",
+        _            => state,
+    };
 
     private void PopulateRows(IReadOnlyList<RoleSummary> leftRoles, IReadOnlyList<RoleSummary> rightRoles)
     {
@@ -203,6 +215,7 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
         var allNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         allNames.UnionWith(leftMap.Keys);
         allNames.UnionWith(rightMap.Keys);
+        _comparedCount = allNames.Count;
 
         foreach (var name in allNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
         {
@@ -235,15 +248,15 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
             if (!string.Equals(leftPerms, rightPerms, StringComparison.Ordinal))
                 diffs.Add($"permissions: [{leftPerms}] → [{rightPerms}]");
 
-            var state = diffs.Count == 0 ? "identical" : "changed";
+            if (diffs.Count == 0) continue; // identical — not a difference, never shown in compare
             _allRows.Add(new RoleCompareRow(
                 name,
-                state,
+                "changed",
                 l.Description ?? "",
                 leftPerms,
-                diffs.Count == 0 ? "" : string.Join(" · ", diffs),
-                canPromoteLeftToRight: state == "changed",
-                canPromoteRightToLeft: state == "changed"));
+                string.Join(" · ", diffs),
+                canPromoteLeftToRight: true,
+                canPromoteRightToLeft: true));
         }
 
         RebuildVisibleRows();
@@ -340,14 +353,13 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
     private void RebuildCounts()
     {
         var max = 0;
-        var groups = Rows.Where(r => r.State != "identical")
-                         .GroupBy(r => r.State)
-                         .Select(g => (Title: g.Key, Count: g.Count()))
+        var groups = _allRows.GroupBy(r => r.State)
+                         .Select(g => (State: g.Key, Count: g.Count()))
                          .OrderByDescending(t => t.Count)
                          .ToList();
         foreach (var g in groups) if (g.Count > max) max = g.Count;
         foreach (var g in groups)
-            Counts.Add(new ConceptDiffCount(g.Title, g.Count, max == 0 ? 0 : (double)g.Count / max));
+            Counts.Add(new ConceptDiffCount(BucketLabel(g.State), g.Count, max == 0 ? 0 : (double)g.Count / max, key: g.State));
     }
 }
 
@@ -376,6 +388,9 @@ public sealed partial class RoleCompareRow : SelectableRow
     public string Description { get; }
     public string Permissions { get; }
     public string Detail { get; }
+    /// <summary>Present in the left / right environment — drives the "Environment" pill column.</summary>
+    public bool InLeft => State is "only-left" or "changed";
+    public bool InRight => State is "only-right" or "changed";
     public bool CanPromoteLeftToRight { get; }
     public bool CanPromoteRightToLeft { get; }
 }

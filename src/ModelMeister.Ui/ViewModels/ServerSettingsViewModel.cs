@@ -226,6 +226,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         { Status = $"No API key on file for '{RightEnv.Name}'."; return; }
 
         Busy = true;
+        _main.SuspendConnectionIndicator = true; // don't flash the env indicator while we read both sides
         _allRows.Clear();
         Rows.Clear();
         Counts.Clear();
@@ -248,7 +249,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
             Status = "Compare failed: " + ex.Message;
             _log.Error("ServerSettings", ex.Message, ex);
         }
-        finally { Busy = false; }
+        finally { Busy = false; _main.SuspendConnectionIndicator = false; }
     }
 
     private void RecomputeDelta()
@@ -272,7 +273,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         RebuildCounts();
         Summary = _delta.TotalDifferences == 0
             ? $"No differences. ({_delta.UnchangedCount} keys identical.)"
-            : $"{_delta.TotalDifferences} differences  ·  only-left {_delta.OnlyInLeft.Count}  ·  only-right {_delta.OnlyInRight.Count}  ·  changed {_delta.Changed.Count}  ·  identical {_delta.UnchangedCount}";
+            : $"{_delta.TotalDifferences} differences  ·  only in {LeftColumnHeader} {_delta.OnlyInLeft.Count}  ·  only in {RightColumnHeader} {_delta.OnlyInRight.Count}  ·  changed {_delta.Changed.Count}  ·  identical {_delta.UnchangedCount}";
         Status = "Comparison complete.";
     }
 
@@ -311,22 +312,31 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel, ICompareVie
         Rows.Clear();
         foreach (var r in _allRows)
         {
-            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Title, r.State, StringComparison.OrdinalIgnoreCase));
+            var bucketRow = Counts.FirstOrDefault(c => string.Equals(c.Key, r.State, StringComparison.OrdinalIgnoreCase));
             if (bucketRow is { IsHidden: true }) continue;
             Rows.Add(r);
         }
     }
 
+    /// <summary>Friendly, env-named bucket label — we never surface the internal "only-left" wording.</summary>
+    private string BucketLabel(string state) => state switch
+    {
+        "only-left"  => $"Only in {LeftEnv?.Name ?? "left"}",
+        "only-right" => $"Only in {RightEnv?.Name ?? "right"}",
+        "changed"    => "Changed",
+        _            => state,
+    };
+
     private void RebuildCounts()
     {
         var max = 0;
-        var groups = Rows.GroupBy(r => r.State)
-                         .Select(g => (Title: g.Key, Count: g.Count()))
+        var groups = _allRows.GroupBy(r => r.State)
+                         .Select(g => (State: g.Key, Count: g.Count()))
                          .OrderByDescending(t => t.Count)
                          .ToList();
         foreach (var g in groups) if (g.Count > max) max = g.Count;
         foreach (var g in groups)
-            Counts.Add(new ConceptDiffCount(g.Title, g.Count, max == 0 ? 0 : (double)g.Count / max));
+            Counts.Add(new ConceptDiffCount(BucketLabel(g.State), g.Count, max == 0 ? 0 : (double)g.Count / max, key: g.State));
     }
 
     /// <summary>Write <paramref name="row"/>'s left value into the right env (one-way; swap to reverse).</summary>
@@ -438,4 +448,8 @@ public sealed partial class ServerSettingRow : SelectableRow
 
     public string LeftDisplay => LeftValue ?? "(missing)";
     public string RightDisplay => RightValue ?? "(missing)";
+
+    /// <summary>Present in the left / right environment — drives the "Environment" pill column.</summary>
+    public bool InLeft => State is "only-left" or "changed";
+    public bool InRight => State is "only-right" or "changed";
 }

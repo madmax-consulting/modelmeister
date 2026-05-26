@@ -34,9 +34,31 @@
                           HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
               </DataGridTemplateColumn.Header>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Binding="{Binding State}" Width="100">
-              <DataGridTextColumn.Header><c:FilterableHeader Title="State" Path="State" /></DataGridTextColumn.Header>
-            </DataGridTextColumn>
+            <!-- Which environment(s) the key exists in, as named stage pills — replaces only-left/only-right text. -->
+            <DataGridTemplateColumn Header="Environment" Width="150" MinWidth="120">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:ServerSettingRow">
+                  <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <Border Classes="pill" IsVisible="{Binding InLeft}"
+                            Background="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="7,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnHeader}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="10" FontWeight="SemiBold" />
+                    </Border>
+                    <Border Classes="pill" IsVisible="{Binding InRight}"
+                            Background="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="7,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnHeader}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:ServerSettingsViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="10" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
             <DataGridTextColumn Binding="{Binding Key}" Width="1.2*" MinWidth="120">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Key" Path="Key" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
@@ -93,7 +115,7 @@
 
             <!-- Per-row apply (one-way: source → target). Direction is shown as source→target stage
                  pills (e.g. [DEV]→[PROD]). Swap the environments to apply the other direction. -->
-            <DataGridTemplateColumn Header="" Width="100">
+            <DataGridTemplateColumn Header="Promote" Width="150" MinWidth="140">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="vm:ServerSettingRow">
                   <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0">
