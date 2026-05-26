@@ -415,7 +415,8 @@ public partial class DiffViewModel : ViewModelBase
         AddRole or UpdateRole or DeleteRole
             or AddPermissionToRole or RemovePermissionFromRole                       => "Roles & permissions",
         AddRestrictedFieldPermission or RemoveRestrictedFieldPermission              => "Restricted permissions",
-        AddCompletenessGroup or UpdateCompletenessGroup                              => "Completeness",
+        AddCompletenessDefinition or UpdateCompletenessDefinition
+            or DeleteCompletenessDefinition                                         => "Completeness",
         _                                                                            => "Other",
     };
 

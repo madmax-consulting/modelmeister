@@ -305,7 +305,8 @@ public static class EntityTypeEmitter
         DetectedBaseClass? baseClass,
         Dictionary<string, List<JsonCvlValue>> _,
         ISet<string>? entityTypeNames = null,
-        ExpressionContext? exprContext = null)
+        ExpressionContext? exprContext = null,
+        CompletenessAttributeIndex? completeness = null)
     {
         LastEmissionWarnings.Clear();
 
@@ -331,6 +332,17 @@ public static class EntityTypeEmitter
             .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        // Completeness attributes pull in extra usings — only when a field on this type carries one.
+        var usedCompleteness = false;
+        var usedLinkTypes = false;
+        if (completeness is not null)
+            foreach (var x in visibleFields)
+            {
+                var fa = completeness.For(e.Id, x.Field.Id);
+                if (fa.Attributes.Count > 0) usedCompleteness = true;
+                if (fa.UsesLinkType) usedLinkTypes = true;
+            }
+
         var sb = new StringBuilder();
         var first = true;
         foreach (var group in groups)
@@ -343,17 +355,30 @@ public static class EntityTypeEmitter
                 sb.AppendLine("    //");
             }
             foreach (var x in group)
-                sb.Append(EmitField(e, x.Field, x.PropName, ns, entityTypeNames, ctx));
+                sb.Append(EmitField(e, x.Field, x.PropName, ns, entityTypeNames, ctx, completeness));
             first = false;
         }
         var fieldsBlock = sb.ToString();
 
+        var usings = new List<string>
+        {
+            "using ModelMeister.Model;",
+            "using ModelMeister.Model.Expressions;",
+            "using ModelMeister.Model.Primitives;",
+            $"using {ns}.Categories;",
+            $"using {ns}.Cvls;",
+        };
+        if (usedCompleteness)
+        {
+            usings.Add("using ModelMeister.Model.Completeness;");
+            usings.Add($"using {ns}.CompletenessGroups;");
+        }
+        if (usedLinkTypes)
+            usings.Add($"using {ns}.LinkTypes;");
+        var usingsBlock = string.Join("\n", usings);
+
         return $$"""
-            using ModelMeister.Model;
-            using ModelMeister.Model.Expressions;
-            using ModelMeister.Model.Primitives;
-            using {{ns}}.Categories;
-            using {{ns}}.Cvls;
+            {{usingsBlock}}
 
             namespace {{ns}}.EntityTypes;
 
@@ -390,7 +415,8 @@ public static class EntityTypeEmitter
         string propName,
         string ns,
         ISet<string>? entityTypeNames,
-        ExpressionContext ctx)
+        ExpressionContext ctx,
+        CompletenessAttributeIndex? completeness = null)
     {
         var sanePropName = ProjectScaffolder.Sanitize(propName);
         if (sanePropName.Length == 0) sanePropName = "Field" + f.Id;
@@ -405,6 +431,8 @@ public static class EntityTypeEmitter
         // visual importance: data-shape flags first, behavior next, scalars last, display markers
         // dead last (they're meta-information, not data).
         var attrs = BuildFieldFlagAttributes(f).ToList();
+        if (completeness is not null)
+            attrs.AddRange(completeness.For(e.Id, f.Id).Attributes);
         if (f.IsDisplayName) attrs.Add("DisplayName");
         if (f.IsDisplayDescription) attrs.Add("DisplayDescription");
         var attrText = attrs.Count == 0 ? string.Empty : $"    [{string.Join(", ", attrs)}]\n";
@@ -698,6 +726,37 @@ public static class RoleEmitter
 }
 
 /// <summary>Emits a static <c>Languages</c> class listing the configured languages in order.</summary>
+public static class CompletenessGroupEmitter
+{
+    public static string Emit(CompletenessAttributeIndex.GroupDecl g, string ns)
+    {
+        var ctorLines = new List<string>();
+        if (g.Name is not null && !g.Name.IsEmpty()
+            && !EmitHelpers.IsRedundantNameOf(g.Name, g.ClassName, NameHumanizer.Humanize(g.ClassName)))
+            ctorLines.Add($"Name = {EmitHelpers.LocaleString(g.Name)};");
+
+        var usings = "using ModelMeister.Model.Completeness;\n";
+        if (ctorLines.Count > 0) usings += "using ModelMeister.Model.Primitives;\n";
+
+        var ctor = ctorLines.Count == 0
+            ? string.Empty
+            : $"    public {g.ClassName}()\n    {{\n{EmitHelpers.IndentBody(ctorLines)}\n    }}\n";
+        var weightLine = g.Weight == 0 ? string.Empty : $"    public override int Weight => {g.Weight};\n";
+        var sortLine = g.SortOrder == 0 ? string.Empty : $"    public override int SortOrder => {g.SortOrder};\n";
+        var body = ctor + weightLine + sortLine;
+
+        return $$"""
+            {{usings}}
+            namespace {{ns}}.CompletenessGroups;
+
+            public sealed class {{g.ClassName}} : CompletenessGroup
+            {
+            {{body}}}
+
+            """;
+    }
+}
+
 public static class LanguagesEmitter
 {
     public static string Emit(List<JsonLanguage> langs, string ns)

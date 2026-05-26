@@ -177,11 +177,19 @@ public sealed record RemoveRestrictedFieldPermission(int LiveId) : ModelChange
 }
 
 // ---- Completeness ----
-public sealed record AddCompletenessGroup(LoadedCompletenessGroup Group) : ModelChange
+// Completeness is applied at the definition (per-entity-type) grain: inriver assigns numeric ids to
+// definitions/groups/rules on create, so the applier orchestrates the whole tree in one pass rather than
+// emitting a change per group/rule. The differ compares canonical projections (see CompletenessProjection).
+public sealed record AddCompletenessDefinition(LoadedCompletenessDefinition Definition) : ModelChange
 {
-    public override string Describe() => $"+ CompletenessGroup {Group.Name.DefaultValue}";
+    public override string Describe() =>
+        $"+ Completeness {Definition.EntityTypeId} ({Definition.Groups.Count} group(s), {Definition.Groups.Sum(g => g.Rules.Count)} rule(s))";
 }
-public sealed record UpdateCompletenessGroup(LoadedCompletenessGroup Group) : ModelChange
+public sealed record UpdateCompletenessDefinition(LoadedCompletenessDefinition Definition, int LiveDefinitionId) : ModelChange
 {
-    public override string Describe() => $"~ CompletenessGroup {Group.Name.DefaultValue}";
+    public override string Describe() => $"~ Completeness {Definition.EntityTypeId}";
+}
+public sealed record DeleteCompletenessDefinition(string EntityTypeId, int LiveId) : ModelChange
+{
+    public override string Describe() => $"- Completeness {EntityTypeId}";
 }

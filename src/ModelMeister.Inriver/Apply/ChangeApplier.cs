@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using inRiver.Remoting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ModelMeister.Inriver.Diff;
@@ -47,9 +48,12 @@ public sealed class ChangeApplier
         typeof(RemovePermissionFromRole),
         typeof(AddRestrictedFieldPermission),
         typeof(RemoveRestrictedFieldPermission),
-        typeof(AddCompletenessGroup),
-        typeof(UpdateCompletenessGroup),
+        // Completeness rides at the tail of the adds — it references entity types and fields, which must
+        // already exist. Each change orchestrates the whole Definition->Group->Rule tree internally.
+        typeof(AddCompletenessDefinition),
+        typeof(UpdateCompletenessDefinition),
         // Deletes — reverse dependency order.
+        typeof(DeleteCompletenessDefinition),
         typeof(DeactivateCvlValue),
         typeof(DeleteFieldType),
         typeof(DeleteFieldset),
@@ -188,6 +192,26 @@ public sealed class ChangeApplier
     }
 
     private static string FieldKey(string entityTypeId, string fieldId) => $"{entityTypeId}::{fieldId}";
+
+    /// <summary>
+    /// Create every group + business rule (and its settings) for a definition, propagating the
+    /// inriver-assigned ids between the create calls. Runs inside a single write lambda so the whole tree
+    /// lands under one lock.
+    /// </summary>
+    private static void CreateCompletenessGroupsAndRules(RemoteManager m, int definitionId, LoadedCompletenessDefinition def)
+    {
+        foreach (var g in def.Groups)
+        {
+            var group = m.ModelService.AddCompletenessGroup(CompletenessMapper.ToInriverGroup(g, definitionId));
+            foreach (var r in g.Rules)
+            {
+                var rule = m.ModelService.AddCompletenessBusinessRule(CompletenessMapper.ToInriverRule(r, group.Id));
+                var settings = CompletenessMapper.ToInriverSettings(r, rule.Id);
+                if (settings.Count > 0)
+                    m.ModelService.SetCompletenessBusinessRuleSettings(rule.Id, settings);
+            }
+        }
+    }
 
     private async Task ApplyOne(ModelChange change, ApplyContext ctx, CancellationToken ct)
     {
@@ -357,12 +381,26 @@ public sealed class ChangeApplier
                 await _client.WriteAsync(m => m.UserService.DeleteRestrictedFieldPermission(rrfp.LiveId), ct).ConfigureAwait(false);
                 break;
 
-            // Completeness add/update intentionally not auto-applied: the 3-tier shape
-            // (Definition/Group/Rule) requires up-front mapping config the v1 model layer
-            // does not yet expose. Surfaced as a warning by the differ instead.
-            case AddCompletenessGroup:
-            case UpdateCompletenessGroup:
-                _log.LogWarning("Completeness apply not yet implemented for {Kind}", change.GetType().Name);
+            // Completeness — orchestrate the whole tree per definition (inriver assigns ids on create).
+            case AddCompletenessDefinition acd:
+                await _client.WriteAsync(m =>
+                {
+                    var def = m.ModelService.AddCompletenessDefinition(CompletenessMapper.ToInriverDefinition(acd.Definition));
+                    CreateCompletenessGroupsAndRules(m, def.Id, acd.Definition);
+                    return def.Id;
+                }, ct).ConfigureAwait(false);
+                break;
+            case UpdateCompletenessDefinition ucd:
+                await _client.WriteAsync(m =>
+                {
+                    // The code model is authoritative; regenerate the group/rule tree under the live definition.
+                    m.ModelService.DeleteAllCompletenessGroupsForDefinition(ucd.LiveDefinitionId);
+                    CreateCompletenessGroupsAndRules(m, ucd.LiveDefinitionId, ucd.Definition);
+                    return ucd.LiveDefinitionId;
+                }, ct).ConfigureAwait(false);
+                break;
+            case DeleteCompletenessDefinition dcd:
+                await _client.WriteAsync(m => m.ModelService.DeleteCompletenessDefinition(dcd.LiveId), ct).ConfigureAwait(false);
                 break;
 
             default:

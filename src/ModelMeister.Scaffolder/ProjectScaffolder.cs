@@ -86,12 +86,22 @@ public sealed class ProjectScaffolder
         // magic strings inside scaffolded DefaultExpression bodies.
         var exprContext = ExpressionContext.Build(model);
 
+        // Completeness: invert the JSON completeness section into the C# DSL — the group classes to emit
+        // and the per-field rule attributes to stamp onto generated fields.
+        var completeness = CompletenessAttributeIndex.Build(model);
+        if (completeness.Groups.Count > 0)
+        {
+            Directory.CreateDirectory(Path.Combine(projectDir, "CompletenessGroups"));
+            foreach (var g in completeness.Groups)
+                Write(Path.Combine("CompletenessGroups", g.ClassName + ".cs"), CompletenessGroupEmitter.Emit(g, rootNamespace));
+        }
+
         // Entity types — pick the base class whose member set is entirely covered by this entity.
         foreach (var e in model.EntityTypes)
         {
             var bc = baseClasses.FirstOrDefault(b =>
                 b.Members.All(m => e.FieldTypes?.Any(f => MatchesMember(f, m, e.Id)) == true));
-            var src = EntityTypeEmitter.Emit(e, rootNamespace, bc, valuesByCvl, entityTypeNames, exprContext);
+            var src = EntityTypeEmitter.Emit(e, rootNamespace, bc, valuesByCvl, entityTypeNames, exprContext, completeness);
             Write(Path.Combine("EntityTypes", Sanitize(e.Id) + ".cs"), src);
             result.WarningsFromExpressions.AddRange(EntityTypeEmitter.LastEmissionWarnings);
         }

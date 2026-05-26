@@ -1,3 +1,4 @@
+using ModelMeister.Model.Completeness;
 using ModelMeister.Model.Primitives;
 
 namespace ModelMeister.Model.Loading;
@@ -16,6 +17,15 @@ public sealed class LoadedModel
     public IReadOnlyList<LoadedRole> Roles { get; init; } = [];
     public IReadOnlyList<LoadedPermission> Permissions { get; init; } = [];
     public IReadOnlyList<LoadedCompletenessGroup> CompletenessGroups { get; init; } = [];
+
+    /// <summary>
+    /// The completeness model assembled from per-field <c>CompletenessRuleAttribute</c>s: one definition
+    /// per entity type that has any rule, each holding the groups (resolved from
+    /// <see cref="CompletenessGroups"/>) those rules contribute to. Mirrors inriver's
+    /// Definition → Group → BusinessRule shape so the differ/applier can map it directly.
+    /// </summary>
+    public IReadOnlyList<LoadedCompletenessDefinition> CompletenessDefinitions { get; init; } = [];
+
     public IReadOnlyList<LoadedSpecificationTemplate> SpecificationTemplates { get; init; } = [];
     public IReadOnlyList<Language> Languages { get; init; } = [];
 }
@@ -124,6 +134,50 @@ public sealed class LoadedCompletenessGroup
     public required LocaleString Name { get; init; }
     public int Weight { get; init; }
     public int SortOrder { get; init; }
+}
+
+/// <summary>A completeness definition (one per entity type that declares any completeness rule).</summary>
+public sealed class LoadedCompletenessDefinition
+{
+    public required string EntityTypeId { get; init; }
+    public IReadOnlyList<LoadedCompletenessGroupInstance> Groups { get; init; } = [];
+}
+
+/// <summary>
+/// One completeness group as used within a definition — the group identity (name/weight/sort) comes
+/// from the <see cref="LoadedCompletenessGroup"/> class; the rules are the field attributes that target
+/// this (entity type, group) pair.
+/// </summary>
+public sealed class LoadedCompletenessGroupInstance
+{
+    public required Type GroupClrType { get; init; }
+    public required LocaleString Name { get; init; }
+    public int Weight { get; init; }
+    public int SortOrder { get; init; }
+    public IReadOnlyList<LoadedCompletenessRule> Rules { get; init; } = [];
+}
+
+/// <summary>A single completeness business rule, derived from one <c>CompletenessRuleAttribute</c> on a field.</summary>
+public sealed class LoadedCompletenessRule
+{
+    public required string EntityTypeId { get; init; }
+    public required string FieldId { get; init; }
+    public required CompletenessRuleKind Kind { get; init; }
+    public int Weight { get; init; }
+    public int Index { get; init; }
+    public LocaleString? Name { get; init; }
+
+    /// <summary>Comparison value for <see cref="CompletenessRuleKind.ContainsValue"/> / <see cref="CompletenessRuleKind.ExactMatch"/>.</summary>
+    public string? Value { get; init; }
+
+    /// <summary>Resolved link-type id for <see cref="CompletenessRuleKind.LinkTypeExists"/>.</summary>
+    public string? LinkTypeId { get; init; }
+
+    /// <summary>Operator for <see cref="CompletenessRuleKind.NumberEvaluation"/>.</summary>
+    public NumberEvaluationOperator? Operator { get; init; }
+
+    /// <summary>Numeric operand for <see cref="CompletenessRuleKind.NumberEvaluation"/>.</summary>
+    public double? Number { get; init; }
 }
 
 public sealed class LoadedSpecificationTemplate

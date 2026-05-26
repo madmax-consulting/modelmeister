@@ -21,16 +21,21 @@ public static class ModelLoader
     {
         var types = assembly.GetTypes();
 
+        var entityTypes = LoadEntityTypes(types);
+        var linkTypes = LoadLinkTypes(types);
+        var completenessGroups = LoadCompletenessGroups(types);
+
         return new LoadedModel
         {
-            EntityTypes = LoadEntityTypes(types),
+            EntityTypes = entityTypes,
             Cvls = LoadCvls(types),
             Categories = LoadCategories(types),
             Fieldsets = LoadFieldsets(types),
-            LinkTypes = LoadLinkTypes(types),
+            LinkTypes = linkTypes,
             Roles = LoadRoles(types),
             Permissions = LoadPermissions(types),
-            CompletenessGroups = LoadCompletenessGroups(types),
+            CompletenessGroups = completenessGroups,
+            CompletenessDefinitions = BuildCompletenessDefinitions(entityTypes, completenessGroups, linkTypes),
             SpecificationTemplates = LoadSpecificationTemplates(types),
             Languages = LoadLanguages(assembly),
         };
@@ -361,6 +366,92 @@ public static class ModelLoader
                 };
             })
             .ToList();
+
+    /// <summary>
+    /// Assembles the completeness model from the per-field <c>CompletenessRuleAttribute</c>s already
+    /// captured on the loaded entity types: one <see cref="LoadedCompletenessDefinition"/> per entity
+    /// type that declares any rule, with rules bucketed into their target group (identity resolved from
+    /// the <see cref="LoadedCompletenessGroup"/> classes).
+    /// </summary>
+    private static List<LoadedCompletenessDefinition> BuildCompletenessDefinitions(
+        List<LoadedEntityType> entityTypes,
+        List<LoadedCompletenessGroup> groups,
+        List<LoadedLinkType> linkTypes)
+    {
+        var groupByClr = groups.ToDictionary(g => g.ClrType);
+        var linkIdByClr = linkTypes
+            .GroupBy(l => l.ClrType)
+            .ToDictionary(g => g.Key, g => g.First().LinkTypeId);
+
+        var definitions = new List<LoadedCompletenessDefinition>();
+
+        foreach (var et in entityTypes.OrderBy(e => e.EntityTypeId, StringComparer.Ordinal))
+        {
+            var byGroup = new Dictionary<Type, List<LoadedCompletenessRule>>();
+            foreach (var field in et.Fields)
+                foreach (var attr in field.Attributes.OfType<CompletenessRuleAttribute>())
+                {
+                    var rule = BuildCompletenessRule(et.EntityTypeId, field.Id, attr, linkIdByClr);
+                    if (!byGroup.TryGetValue(attr.Group, out var list))
+                        byGroup[attr.Group] = list = [];
+                    list.Add(rule);
+                }
+
+            if (byGroup.Count == 0) continue;
+
+            var groupInstances = byGroup
+                .Select(kv =>
+                {
+                    groupByClr.TryGetValue(kv.Key, out var meta);
+                    return new LoadedCompletenessGroupInstance
+                    {
+                        GroupClrType = kv.Key,
+                        Name = meta?.Name ?? new LocaleString(NameHumanizer.Humanize(kv.Key.Name)),
+                        Weight = meta?.Weight ?? 0,
+                        SortOrder = meta?.SortOrder ?? 0,
+                        Rules = kv.Value
+                            .OrderBy(r => r.Index)
+                            .ThenBy(r => r.FieldId, StringComparer.Ordinal)
+                            .ThenBy(r => r.Kind)
+                            .ToList(),
+                    };
+                })
+                .OrderBy(g => g.SortOrder)
+                .ThenBy(g => g.GroupClrType.Name, StringComparer.Ordinal)
+                .ToList();
+
+            definitions.Add(new LoadedCompletenessDefinition
+            {
+                EntityTypeId = et.EntityTypeId,
+                Groups = groupInstances,
+            });
+        }
+
+        return definitions;
+    }
+
+    private static LoadedCompletenessRule BuildCompletenessRule(
+        string entityTypeId, string fieldId, CompletenessRuleAttribute attr,
+        IReadOnlyDictionary<Type, string> linkIdByClr) => new()
+        {
+            EntityTypeId = entityTypeId,
+            FieldId = fieldId,
+            Kind = attr.Kind,
+            Weight = attr.Weight,
+            Index = attr.Index,
+            Name = attr.Name is null ? null : new LocaleString(attr.Name),
+            Value = attr switch
+            {
+                ContainsValueAttribute c => c.Value,
+                ExactMatchAttribute e => e.Expected,
+                _ => null,
+            },
+            LinkTypeId = attr is LinkTypeExistsAttribute l
+                ? linkIdByClr.GetValueOrDefault(l.LinkType, l.LinkType.Name)
+                : null,
+            Operator = attr is NumberEvaluationAttribute n ? n.Operator : null,
+            Number = (attr as NumberEvaluationAttribute)?.Value,
+        };
 
     private static List<LoadedSpecificationTemplate> LoadSpecificationTemplates(Type[] types) =>
         ConcreteSubclassesOf<SpecificationTemplate>(types)

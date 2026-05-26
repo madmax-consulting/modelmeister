@@ -32,15 +32,16 @@ public class RemotingSurfaceCoverageTests
         "GetFieldTypesForFieldSet","GetFieldSetsForFieldType","GetFieldTypesForEntityTypeAndCategory",
         "GetCVLCount","GetCVLValue","GetCVLValueByKey","GetCVLValueForLanguage","DeleteAllCVLValuesForCVL",
         "GetEnvironmentLatestChanges","GetAllSegments",
-        // CompletenessAction/Rule-Setting writes — v1 leaves completeness apply as warning-only.
-        "AddCompletenessDefinition","UpdateCompletenessDefinition","GetCompletenessDefinition",
-        "DeleteCompletenessDefinition","ReCalculateCompletenessForDefinition","AddCompletenessGroup",
+        // Completeness apply uses Add/Delete Definition, Add Group, Add BusinessRule,
+        // SetCompletenessBusinessRuleSettings and DeleteAllCompletenessGroupsForDefinition (see
+        // ChangeApplier). The remaining completeness methods — granular updates, actions, criteria
+        // introspection — are not used; the applier regenerates the group/rule tree on update instead.
+        "UpdateCompletenessDefinition","GetCompletenessDefinition","ReCalculateCompletenessForDefinition",
         "UpdateCompletenessGroup","GetCompletenessGroup","DeleteCompletenessGroup",
-        "DeleteAllCompletenessGroupsForDefinition","GetCompletenessBusinessRulesByGroupAndRule",
-        "AddCompletenessBusinessRule","ConnectExistingCompletenessBusinessRuleToNewGroup",
+        "GetCompletenessBusinessRulesByGroupAndRule","ConnectExistingCompletenessBusinessRuleToNewGroup",
         "UpdateCompletenessBusinessRuleForGroup","GetAllCompletenessBusinessRules",
         "DeleteCompletenessBusinessRuleForGroup","GetAllCompletenessCriteras","GetCompletenessCriteraByType",
-        "SetCompletenessBusinessRuleSettings","UpdatedCompletenessRuleSetting","UpdateCompletenessActions",
+        "UpdatedCompletenessRuleSetting","UpdateCompletenessActions",
         "GetCompletenessActionsByDefinitionIdRuleIdAndTrigger","GetCompletenessActionsByDefinitionIdGroupIdAndTrigger",
         "DeleteCompletenessAction","GetCompletenessAction","AddCompletenessAction","UpdateCompletenessAction",
         // IUtilityService: server settings, files, connectors, notifications, etc.
@@ -128,6 +129,8 @@ public class RemotingSurfaceCoverageTests
                 "AddPermissionToRole","RemovePermissionFromRole",
                 "AddRestrictedFieldPermission","DeleteRestrictedFieldPermission","DeleteRestrictedFieldPermissionByFieldTypeId","GetAllRestrictedFieldPermissions",
                 "GetAllCompletenessDefinitions","GetCompletenessGroupForDefinition","GetCompletenessBusinessRulesForGroup","GetAllCompletenessRuleSettingsForBusinessRule",
+                "AddCompletenessDefinition","DeleteCompletenessDefinition","DeleteAllCompletenessGroupsForDefinition",
+                "AddCompletenessGroup","AddCompletenessBusinessRule","SetCompletenessBusinessRuleSettings",
             })
             {
                 if (text.Contains("." + name + "(", StringComparison.Ordinal)) result.Add(name);

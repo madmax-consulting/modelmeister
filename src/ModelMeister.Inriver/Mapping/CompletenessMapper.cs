@@ -1,22 +1,25 @@
+using System.Globalization;
 using IriverCompletenessDefinition = inRiver.Remoting.Objects.CompletenessDefinition;
 using IriverCompletenessGroup = inRiver.Remoting.Objects.CompletenessGroup;
 using IriverCompletenessBusinessRule = inRiver.Remoting.Objects.CompletenessBusinessRule;
 using IriverCompletenessRuleSetting = inRiver.Remoting.Objects.CompletenessRuleSetting;
 using ModelMeister.Inriver.Snapshot;
+using ModelMeister.Model.Completeness;
+using ModelMeister.Model.Loading;
+using TpLocaleString = ModelMeister.Model.Primitives.LocaleString;
 
 namespace ModelMeister.Inriver.Mapping;
 
 /// <summary>
-/// Inriver -> snapshot mapping for the completeness object tree
-/// (Definition -> Groups -> BusinessRules -> RuleSettings).
+/// Mapping for the completeness object tree (Definition -> Groups -> BusinessRules -> RuleSettings),
+/// both inriver -> snapshot (<see cref="ToLive"/>) and code -> inriver (the <c>ToInriver*</c> builders
+/// used by the applier). The inriver rule <c>Type</c> strings + setting keys come from
+/// <see cref="CompletenessRuleVocabulary"/> — the single place to reconcile with a real environment.
 /// </summary>
-/// <remarks>
-/// Apply-side completeness mapping is intentionally absent: the inriver completeness model
-/// requires up-front mapping config the v1 code DSL does not yet expose. The differ
-/// surfaces completeness changes as warnings.
-/// </remarks>
 public static class CompletenessMapper
 {
+    // ---------------------------------------------------------------- inriver -> snapshot
+
     /// <summary>Map a single completeness definition together with its nested groups, rules and settings.</summary>
     public static LiveCompletenessDefinition ToLive(
         IriverCompletenessDefinition def,
@@ -66,4 +69,66 @@ public static class CompletenessMapper
         Key = s.Key,
         Value = s.Value ?? string.Empty,
     };
+
+    // ---------------------------------------------------------------- code -> inriver (apply)
+
+    /// <summary>Build the inriver definition DTO. inriver names a definition; we default it to the entity type id.</summary>
+    public static IriverCompletenessDefinition ToInriverDefinition(LoadedCompletenessDefinition def, int id = 0) => new()
+    {
+        Id = id,
+        EntityTypeId = def.EntityTypeId,
+        Name = LocaleStringMapper.ToInriver(new TpLocaleString(def.EntityTypeId)),
+    };
+
+    /// <summary>Build the inriver group DTO under <paramref name="definitionId"/>.</summary>
+    public static IriverCompletenessGroup ToInriverGroup(LoadedCompletenessGroupInstance g, int definitionId, int id = 0) => new()
+    {
+        Id = id,
+        CompletenessDefinitionId = definitionId,
+        Name = LocaleStringMapper.ToInriver(g.Name),
+        Weight = g.Weight,
+        SortOrder = g.SortOrder,
+    };
+
+    /// <summary>Build the inriver business-rule DTO under <paramref name="groupId"/> (settings set separately).</summary>
+    public static IriverCompletenessBusinessRule ToInriverRule(LoadedCompletenessRule r, int groupId, int id = 0) => new()
+    {
+        Id = id,
+        GroupIds = [groupId],
+        Name = LocaleStringMapper.ToInriver(r.Name ?? new TpLocaleString()),
+        Type = CompletenessRuleVocabulary.InriverType(r.Kind),
+        Weight = r.Weight,
+        SortOrder = r.Index,
+    };
+
+    /// <summary>Build the inriver rule settings for <paramref name="r"/>, stamped with <paramref name="businessRuleId"/>.</summary>
+    public static List<IriverCompletenessRuleSetting> ToInriverSettings(LoadedCompletenessRule r, int businessRuleId)
+    {
+        var list = new List<IriverCompletenessRuleSetting>();
+        void Add(string key, string? value) => list.Add(new IriverCompletenessRuleSetting
+        {
+            BusinessRuleId = businessRuleId,
+            Type = CompletenessRuleVocabulary.SettingType,
+            Key = key,
+            Value = value ?? string.Empty,
+        });
+
+        // Every rule records the field it is attached to.
+        Add(CompletenessRuleVocabulary.FieldTypeIdKey, r.FieldId);
+        switch (r.Kind)
+        {
+            case CompletenessRuleKind.ContainsValue:
+            case CompletenessRuleKind.ExactMatch:
+                Add(CompletenessRuleVocabulary.ValueKey, r.Value);
+                break;
+            case CompletenessRuleKind.LinkTypeExists:
+                Add(CompletenessRuleVocabulary.LinkTypeIdKey, r.LinkTypeId);
+                break;
+            case CompletenessRuleKind.NumberEvaluation:
+                Add(CompletenessRuleVocabulary.OperatorKey, r.Operator?.ToString());
+                Add(CompletenessRuleVocabulary.ValueKey, r.Number?.ToString(CultureInfo.InvariantCulture));
+                break;
+        }
+        return list;
+    }
 }

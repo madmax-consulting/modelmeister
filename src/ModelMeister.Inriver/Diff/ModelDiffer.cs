@@ -46,6 +46,7 @@ public static class ModelDiffer
         DiffFieldsets(code, live, changes, policy);
         DiffLinkTypes(code, live, changes, policy);
         DiffRoles(code, live, changes, policy);
+        DiffCompleteness(code, live, changes, policy);
 
         return new ModelChangeSet { Changes = changes, Warnings = warnings };
     }
@@ -373,6 +374,33 @@ public static class ModelDiffer
             && (!LsEquals(f.Name, l.Name) || !LsEquals(f.Description, l.Description)))
             return true;
         return f.EntityTypeId != l.EntityTypeId;
+    }
+
+    // ---------- Completeness ----------
+    // Compared at the definition (per entity type) grain via canonical projections so inriver's numeric
+    // ids never enter the comparison. A structural difference becomes one Update carrying the live def id.
+    private static void DiffCompleteness(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy)
+    {
+        var liveByEntity = live.CompletenessDefinitions
+            .GroupBy(d => d.EntityTypeId, IdComparer)
+            .ToDictionary(g => g.Key, g => g.First(), IdComparer);
+
+        var codeEntities = new HashSet<string>(IdComparer);
+        foreach (var def in code.CompletenessDefinitions)
+        {
+            codeEntities.Add(def.EntityTypeId);
+            if (!liveByEntity.TryGetValue(def.EntityTypeId, out var liveDef))
+                changes.Add(new AddCompletenessDefinition(def));
+            else if (CompletenessProjection.FromLoaded(def) != CompletenessProjection.FromLive(liveDef))
+                changes.Add(new UpdateCompletenessDefinition(def, liveDef.Id));
+        }
+
+        if (policy.AllowDeletes)
+        {
+            changes.AddRange(live.CompletenessDefinitions
+                .Where(d => !codeEntities.Contains(d.EntityTypeId))
+                .Select(d => new DeleteCompletenessDefinition(d.EntityTypeId, d.Id)));
+        }
     }
 
     // ---------- Link types ----------
