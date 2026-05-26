@@ -364,6 +364,14 @@ public sealed class Shell
         return new RoleProvisioning(client).DeleteAsync(roleName, ct);
     }
 
+    /// <summary>Bulk add or remove a single permission across many roles in the connected env.</summary>
+    public Task<IReadOnlyList<RoleProvisioning.ProvisionResult>> BulkSetRolePermissionAsync(
+        IReadOnlyList<string> roleNames, string permission, bool add, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new RoleProvisioning(client).SetPermissionOnRolesAsync(roleNames, permission, add, ct);
+    }
+
     // ---------------- Restricted fields ----------------
 
     public Task<IReadOnlyList<RestrictedFieldSummary>> ListRestrictedFieldsAsync(CancellationToken ct = default)

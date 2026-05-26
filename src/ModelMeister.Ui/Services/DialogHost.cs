@@ -69,6 +69,16 @@ internal static class DialogHost
         return ok ? vm : null;
     }
 
+    /// <summary>Show the bulk role-permission dialog (pick a permission + Add/Remove). Returns the VM
+    /// on Apply, else <c>null</c>.</summary>
+    public static async Task<BulkRolePermissionViewModel?> BulkRolePermissionAsync(
+        int roleCount, System.Collections.Generic.IReadOnlyList<string> permissions)
+    {
+        var vm = new BulkRolePermissionViewModel(roleCount, permissions);
+        var ok = await ShowDialogAsync<BulkRolePermissionDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
     /// <summary>Show the per-row promote confirmation. Returns <c>true</c> when the user clicks Continue.</summary>
     public static Task<bool> ConfirmPromoteAsync(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string targetStage)
     {

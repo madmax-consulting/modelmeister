@@ -213,6 +213,50 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
+    // ----- Bulk start / stop / run over the checked extensions -----
+
+    /// <summary>Start every checked extension.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public Task StartSelectedAsync() => BulkExtensionActionAsync("Start",
+        (id, env, secret) => _shell.StartExtensionAsync(id, env, secret));
+
+    /// <summary>Stop every checked extension.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public Task StopSelectedAsync() => BulkExtensionActionAsync("Stop",
+        (id, env, secret) => _shell.StopExtensionAsync(id, env, secret));
+
+    /// <summary>Trigger a run on every checked extension (REST; gated on a configured REST key).</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    public Task RunSelectedAsync()
+    {
+        if (!HasRestKey) { StatusMessage = "REST key required for run trigger."; return Task.CompletedTask; }
+        return BulkExtensionActionAsync("Run", (id, env, secret) => _shell.RunExtensionAsync(id, env, secret));
+    }
+
+    private async Task BulkExtensionActionAsync(
+        string verb, Func<string, Models.EnvironmentEntry?, Models.EnvironmentSecret?, Task<bool>> action)
+    {
+        var ids = ItemsSelection.SelectedOf<ExtensionRow>().Select(r => r.Info.Id).ToList();
+        if (ids.Count == 0) { StatusMessage = "Select at least one extension."; return; }
+        Busy = true;
+        var env = _main.ConnectedEnv;
+        var secret = env is null ? null : _main.Vault.GetSecret(env.Id);
+        int ok = 0, failed = 0;
+        try
+        {
+            foreach (var id in ids)
+            {
+                StatusMessage = $"{verb} '{id}'…";
+                try { if (await action(id, env, secret).ConfigureAwait(true)) ok++; else failed++; }
+                catch (Exception ex) { failed++; _log.Warn("Extensions", $"{verb} '{id}' failed: {ex.Message}"); }
+            }
+            StatusMessage = failed == 0 ? $"{verb} · {ok} extension(s)." : $"{verb} · {ok} ok, {failed} failed.";
+            _log.Info("Extensions", StatusMessage);
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        finally { Busy = false; }
+    }
+
     [RelayCommand(CanExecute = nameof(NotBusy))]
     public async Task ViewEventsAsync(ExtensionRow? row)
     {

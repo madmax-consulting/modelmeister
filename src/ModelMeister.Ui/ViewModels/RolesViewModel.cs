@@ -157,6 +157,37 @@ public partial class RolesViewModel : FeaturePageViewModel
         await ProvisionRoleSpecAsync(row.Name, vm.Description, vm.SelectedPermissions, "Updated").ConfigureAwait(true);
     }
 
+    /// <summary>Grant or revoke a single permission across every checked role (one dialog, one batch).</summary>
+    [RelayCommand]
+    private async Task BulkSetPermissionAsync()
+    {
+        if (!_main.IsConnected) { Status = "Connect first."; return; }
+        var names = Selection.SelectedOf<RoleListRow>().Select(r => r.Name).ToList();
+        if (names.Count == 0) { Status = "Select at least one role."; return; }
+
+        var vm = await DialogHost.BulkRolePermissionAsync(names.Count, Permissions.ToList()).ConfigureAwait(true);
+        if (vm is null || string.IsNullOrWhiteSpace(vm.SelectedPermission)) return;
+
+        Busy = true;
+        var verb = vm.Add ? "Granted" : "Revoked";
+        try
+        {
+            Status = $"{(vm.Add ? "Granting" : "Revoking")} '{vm.SelectedPermission}' on {names.Count} role(s)…";
+            var results = await _shell.BulkSetRolePermissionAsync(names, vm.SelectedPermission, vm.Add).ConfigureAwait(true);
+            var errors = results.Sum(r => r.Errors.Count);
+            foreach (var r in results)
+                foreach (var err in r.Errors) _log.Warn("Roles", $"{r.RoleName}: {err}");
+            Status = errors == 0
+                ? $"{verb} '{vm.SelectedPermission}' on {names.Count} role(s)."
+                : $"{verb} with {errors} error(s) across {names.Count} role(s).";
+            _log.Success("Roles", Status);
+            MarkDataDirty();
+            await RefreshAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Roles", ex.Message, ex); }
+        finally { Busy = false; }
+    }
+
     private async Task ProvisionRoleSpecAsync(string name, string? description, IReadOnlyList<string> permissions, string verb)
     {
         Busy = true;

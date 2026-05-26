@@ -26,6 +26,13 @@
                 Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
                 StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
         </Button>
+        <Button Classes="ghost icon" ToolTip.Tip="Add or remove a permission on selected roles"
+                Command="{Binding BulkSetPermissionCommand}"
+                IsVisible="{Binding Selection.HasSelection}">
+          <Path Data="{DynamicResource IcoShield}" Width="14" Height="14" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
         <Button Classes="ghost icon danger" ToolTip.Tip="Delete selected roles"
                 Command="{Binding DeleteSelectedRolesCommand}"
                 IsVisible="{Binding Selection.HasSelection}">

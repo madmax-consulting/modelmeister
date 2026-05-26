@@ -19,6 +19,29 @@
                IsBusy="{Binding Busy}">
     <c:PageShell.Actions>
       <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <!-- Bulk actions over the checked extensions. -->
+        <Button Classes="ghost icon" ToolTip.Tip="Start selected extensions"
+                Command="{Binding StartSelectedCommand}"
+                IsVisible="{Binding ItemsSelection.HasSelection}">
+          <Path Data="{DynamicResource IcoPlay}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Button Classes="ghost icon" ToolTip.Tip="Stop selected extensions"
+                Command="{Binding StopSelectedCommand}"
+                IsVisible="{Binding ItemsSelection.HasSelection}">
+          <Path Data="{DynamicResource IcoX}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Button Classes="ghost icon" ToolTip.Tip="Trigger a run on selected extensions"
+                Command="{Binding RunSelectedCommand}"
+                IsVisible="{Binding ItemsSelection.HasSelection}"
+                IsEnabled="{Binding HasRestKey}">
+          <Path Data="{DynamicResource IcoZap}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
         <Button Classes="ghost icon danger" ToolTip.Tip="Delete selected extensions"
                 Command="{Binding DeleteSelectedExtensionsCommand}"
                 IsVisible="{Binding ItemsSelection.HasSelection}">
@@ -26,6 +49,8 @@
                 Stroke="{DynamicResource Danger}" StrokeThickness="1.6"
                 StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
         </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}"
+                IsVisible="{Binding ItemsSelection.HasSelection}" />
         <Button Content="Latest events" Command="{Binding RefreshAllEventsCommand}"
                 Classes="ghost" IsEnabled="{Binding !Busy}" />
         <c:PageActions DataContext="{Binding}" />

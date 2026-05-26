@@ -91,6 +91,20 @@ public partial class CvlEditorViewModel : ViewModelBase
         foreach (var r in Selection.SelectedOf<CvlValueEditRow>()) Values.Remove(r);
     }
 
+    /// <summary>Flag every checked value active. Staged in memory; persisted by the Save upsert loop.</summary>
+    [RelayCommand]
+    private void ActivateSelectedValues()
+    {
+        foreach (var r in Selection.SelectedOf<CvlValueEditRow>()) r.Deactivated = false;
+    }
+
+    /// <summary>Flag every checked value deactivated. Staged in memory; persisted by the Save upsert loop.</summary>
+    [RelayCommand]
+    private void DeactivateSelectedValues()
+    {
+        foreach (var r in Selection.SelectedOf<CvlValueEditRow>()) r.Deactivated = true;
+    }
+
     public bool? Result { get; private set; }
     public event Action? Closed;
 

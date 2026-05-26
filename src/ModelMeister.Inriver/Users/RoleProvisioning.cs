@@ -149,6 +149,37 @@ public sealed class RoleProvisioning
         return new ProvisionResult(roleName, false, false, errors);
     }
 
+    /// <summary>
+    /// Bulk add or remove a single permission across many roles. For each role it reads the current
+    /// permission set, adds or removes <paramref name="permission"/> per <paramref name="add"/>, then
+    /// re-provisions via <see cref="ProvisionAsync"/> so the existing membership reconciliation does
+    /// the bind/unbind. Returns one result per role; errors are collected, not thrown, so a bad role
+    /// doesn't abort the batch.
+    /// </summary>
+    public async Task<IReadOnlyList<ProvisionResult>> SetPermissionOnRolesAsync(
+        IReadOnlyList<string> roleNames, string permission, bool add, CancellationToken ct = default)
+    {
+        var results = new List<ProvisionResult>();
+        foreach (var name in roleNames)
+        {
+            var existing = _remoting.Read(m =>
+            {
+                try { return m.UserService.GetRoleByName(name); }
+                catch { return null; }
+            });
+            if (existing is null || existing.Id == 0)
+            {
+                results.Add(new ProvisionResult(name, false, false, new[] { $"Role '{name}' not found." }));
+                continue;
+            }
+            var perms = (existing.Permissions ?? []).Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (add) perms.Add(permission); else perms.Remove(permission);
+            results.Add(await ProvisionAsync(
+                new RoleSpec(existing.Name, existing.Description, perms.ToList()), ct).ConfigureAwait(false));
+        }
+        return results;
+    }
+
     private async Task<bool> SyncPermissionsAsync(int roleId, Role? existing, IReadOnlyList<string> desiredNames, List<string> errors, CancellationToken ct)
     {
         var allPerms = _remoting.Read(m => m.UserService.GetAllPermissions() ?? [])

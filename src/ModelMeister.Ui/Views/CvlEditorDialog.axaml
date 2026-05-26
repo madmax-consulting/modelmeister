@@ -53,10 +53,15 @@
             <TextBlock Text="Add value" />
           </StackPanel>
         </Button>
-        <Button Grid.Column="3" Classes="ghost danger" Padding="8,3" Margin="6,0,0,0"
-                Command="{Binding DeleteSelectedValuesCommand}"
-                IsVisible="{Binding Selection.HasSelection}"
-                Content="Delete selected" />
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="6,0,0,0"
+                    IsVisible="{Binding Selection.HasSelection}">
+          <Button Classes="ghost" Padding="8,3" Command="{Binding ActivateSelectedValuesCommand}"
+                  ToolTip.Tip="Mark selected values active" Content="Activate" />
+          <Button Classes="ghost" Padding="8,3" Command="{Binding DeactivateSelectedValuesCommand}"
+                  ToolTip.Tip="Mark selected values deactivated" Content="Deactivate" />
+          <Button Classes="ghost danger" Padding="8,3" Command="{Binding DeleteSelectedValuesCommand}"
+                  Content="Delete selected" />
+        </StackPanel>
       </Grid>
 
       <!-- Buttons + validation at the bottom -->
