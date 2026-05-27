@@ -74,6 +74,7 @@ public partial class GridToolbar : UserControl
     {
         FilterableHeader fh => (fh.Title as string) is { Length: > 0 } t ? t : fh.Path,
         ChecklistFilterHeader ch => ch.Title is { Length: > 0 } t ? t : ch.Path,
+        TextBlock tb => tb.Text ?? "",
         string s => s,
         { } other => other.ToString() ?? "",
         _ => "",

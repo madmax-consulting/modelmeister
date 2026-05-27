@@ -31,7 +31,7 @@
                                     CellTemplate="{StaticResource RowSelectCell}">
               <DataGridTemplateColumn.Header>
                 <CheckBox IsChecked="{Binding #Root.((vm:ServerSettingsCompareViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
-                          HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                          ToolTip.Tip="Select all" />
               </DataGridTemplateColumn.Header>
             </DataGridTemplateColumn>
             <!-- Which environment(s) the key exists in, as named stage pills — replaces only-left/only-right text. -->

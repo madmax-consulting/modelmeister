@@ -84,7 +84,7 @@
                                   CellTemplate="{StaticResource RowSelectCell}">
             <DataGridTemplateColumn.Header>
               <CheckBox IsChecked="{Binding #PageRoot.((vm:UsersViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
-                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                        ToolTip.Tip="Select all" />
             </DataGridTemplateColumn.Header>
           </DataGridTemplateColumn>
           <!-- Username + Email are identical in inriver for most orgs; only Username is shown.

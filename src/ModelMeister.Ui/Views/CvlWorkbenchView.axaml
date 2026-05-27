@@ -75,7 +75,7 @@
                                   CellTemplate="{StaticResource RowSelectCell}">
             <DataGridTemplateColumn.Header>
               <CheckBox IsChecked="{Binding #PageRoot.((vm:CvlWorkbenchViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
-                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                        ToolTip.Tip="Select all" />
             </DataGridTemplateColumn.Header>
           </DataGridTemplateColumn>
           <!-- Id and Parent share the flexible space (both star) so Id no longer hogs all the slack;

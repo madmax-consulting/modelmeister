@@ -221,6 +221,22 @@ public sealed class StageToTextConverter : IValueConverter
         => Avalonia.Data.BindingOperations.DoNothing;
 }
 
+/// <summary>Turns an environment-type hex color string straight into a pill brush — the strong color
+/// for text/border, or the translucent "soft" variant when the converter parameter is "soft". Unlike
+/// <see cref="StageToBrushConverter"/> (which resolves a key through the registry), this binds the
+/// type's own <see cref="EnvironmentType.ColorHex"/>, so the types-management pill repaints live as the
+/// color is edited.</summary>
+public sealed class HexToPillBrushConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => (parameter as string) == "soft"
+            ? EnvironmentTypeColors.Soft(value as string)
+            : EnvironmentTypeColors.Strong(value as string);
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => Avalonia.Data.BindingOperations.DoNothing;
+}
+
 /// <summary>Returns true when the environment type for the bound key is marked protected (drives the
 /// destructive-operation safety banner).</summary>
 public sealed class StageIsProdConverter : IValueConverter

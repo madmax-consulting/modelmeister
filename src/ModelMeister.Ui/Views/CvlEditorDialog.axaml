@@ -84,7 +84,7 @@
                                     CellTemplate="{StaticResource RowSelectCell}">
               <DataGridTemplateColumn.Header>
                 <CheckBox IsChecked="{Binding #DlgRoot.((vm:CvlEditorViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
-                          HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                          ToolTip.Tip="Select all" />
               </DataGridTemplateColumn.Header>
             </DataGridTemplateColumn>
             <DataGridTextColumn Header="Key" Binding="{Binding Key, Mode=TwoWay}" Width="1.4*" MinWidth="120" />

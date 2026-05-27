@@ -97,7 +97,7 @@
                                     CellTemplate="{StaticResource RowSelectCell}">
               <DataGridTemplateColumn.Header>
                 <CheckBox IsChecked="{Binding #PageRoot.((vm:SnapshotsViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
-                          HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                          ToolTip.Tip="Select all" />
               </DataGridTemplateColumn.Header>
             </DataGridTemplateColumn>
             <!-- Scope-as-column-filter (preserves commit 51ec2fc). MinWidth lets columns size to

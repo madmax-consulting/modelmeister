@@ -86,7 +86,7 @@
                                   CellTemplate="{StaticResource RowSelectCell}">
             <DataGridTemplateColumn.Header>
               <CheckBox IsChecked="{Binding #PageRoot.((vm:ServerSettingsViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
-                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                        ToolTip.Tip="Select all" />
             </DataGridTemplateColumn.Header>
           </DataGridTemplateColumn>
           <!-- Star widths so the grid always fills the window; Value gets the larger share. The key

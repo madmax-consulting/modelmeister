@@ -74,7 +74,7 @@
                                         CellTemplate="{StaticResource RowSelectCell}">
                   <DataGridTemplateColumn.Header>
                     <CheckBox IsChecked="{Binding #PageRoot.((vm:HtmlTemplatesViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
-                              HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                              ToolTip.Tip="Select all" />
                   </DataGridTemplateColumn.Header>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Binding="{Binding Name}" Width="2*" MinWidth="140">

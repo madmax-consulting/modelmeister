@@ -29,7 +29,7 @@
                                   CellTemplate="{StaticResource RowSelectCell}">
             <DataGridTemplateColumn.Header>
               <CheckBox IsChecked="{Binding #Root.((vm:CvlCompareViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
-                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                        ToolTip.Tip="Select all" />
             </DataGridTemplateColumn.Header>
           </DataGridTemplateColumn>
           <DataGridTextColumn Binding="{Binding Bucket}" Width="110" MinWidth="100">

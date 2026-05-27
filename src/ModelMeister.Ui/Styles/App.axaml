@@ -51,6 +51,18 @@
     <Setter Property="FontSize" Value="12" />
   </Style>
 
+  <!-- Plain column-header title for grid columns that carry no filter box (badges, checkboxes,
+       actions). Matches the title row of FilterableHeader (weight/size/color/top margin) so every
+       header in a mixed grid lines up. -->
+  <Style Selector="TextBlock.colhead">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSec}" />
+    <Setter Property="Margin" Value="10,6,10,2" />
+    <Setter Property="VerticalAlignment" Value="Top" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
   <Style Selector="TextBlock.label">
     <Setter Property="FontSize" Value="11" />
     <Setter Property="FontWeight" Value="Medium" />
@@ -313,14 +325,22 @@
     <Setter Property="FontSize" Value="13" />
   </Style>
 
-  <!-- Select-all checkbox living directly in a grid column header. The Fluent CheckBox default
-       MinWidth + content padding overflowed the 40px selection column (ClipToBounds then clipped it
-       to just the left half of the box); collapse it to its box so it centers. The checklist-filter
-       checkboxes live in a Flyout popup, not under the header, so they're unaffected. -->
+  <!-- Select-all checkbox that sits directly in a grid column header. The DataGrid column-header
+       content presenter left-pins its content at the column's left edge — it ignores the header's
+       HorizontalContentAlignment AND the child's own HorizontalAlignment — so a plain checkbox lands
+       hard against the left and the Fluent box (drawn at the control's left, with a 120px default
+       MinWidth) gets clipped by the column. The row cells below escape this only because DataGridCell
+       has Padding="10,0", which insets their checkbox to the column centre. We reproduce that here: a
+       fixed 20x20 box, left-aligned with a 10px left margin (= RowSelectColWidth/2 − box/2), so the
+       header checkbox lines up exactly with the row checkboxes. The checklist-filter checkboxes live
+       in a Flyout popup, not under the header, so this descendant selector never reaches them. -->
   <Style Selector="DataGridColumnHeader CheckBox">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="20" />
     <Setter Property="MinWidth" Value="0" />
     <Setter Property="Padding" Value="0" />
-    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="Margin" Value="10,0,0,0" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
