@@ -79,7 +79,6 @@
 
           <Button Grid.Column="3" Content="Refresh" Margin="14,0,0,0"
                   Command="{Binding CompareCommand}" Classes="primary"
-                  IsEnabled="{Binding !Busy}"
                   ToolTip.Tip="Re-run the compare against both environments" />
           <Button Grid.Column="4" Content="Save CSV" Margin="6,0,0,0"
                   Command="{Binding SaveCsvCommand}" Classes="ghost"

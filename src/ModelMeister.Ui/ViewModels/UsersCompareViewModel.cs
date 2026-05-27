@@ -140,9 +140,10 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         _ = CompareAsync();
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     public async Task CompareAsync()
     {
+        if (Busy) return;
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
         if (LeftEnv.Id == RightEnv.Id) { Status = "Pick two different environments."; return; }
 

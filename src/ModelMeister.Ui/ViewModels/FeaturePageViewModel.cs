@@ -75,15 +75,28 @@ public abstract partial class FeaturePageViewModel : ViewModelBase
         IsDataDirty = false;
     }
 
+    /// <summary>Re-entrancy guard for <see cref="RefreshCommand"/>: the button is always clickable
+    /// (never disabled), so a click landing while a refresh is already in flight is collapsed to a no-op
+    /// rather than firing a second overlapping fetch.</summary>
+    private bool _refreshing;
+
     protected FeaturePageViewModel()
     {
         // The Refresh button always forces a reload — gating the toolbar button on the dirty flag
-        // would defeat its purpose (user clicks it specifically to bypass any cache).
+        // would defeat its purpose (user clicks it specifically to bypass any cache). It must also stay
+        // enabled while work is in flight: AllowConcurrentExecutions keeps CanExecute true (so the button
+        // never greys out) and the _refreshing flag prevents an actual double-fetch.
         RefreshCommand     = new AsyncRelayCommand(async () =>
         {
-            await RefreshAsync().ConfigureAwait(true);
-            IsDataDirty = false;
-        });
+            if (_refreshing) return;
+            _refreshing = true;
+            try
+            {
+                await RefreshAsync().ConfigureAwait(true);
+                IsDataDirty = false;
+            }
+            finally { _refreshing = false; }
+        }, AsyncRelayCommandOptions.AllowConcurrentExecutions);
         BackupCommand        = new AsyncRelayCommand(BackupAsync);
         ExportExcelCommand   = new AsyncRelayCommand(ExportExcelAsync);
         ExportTemplateCommand = new AsyncRelayCommand(ExportTemplateAsync);
