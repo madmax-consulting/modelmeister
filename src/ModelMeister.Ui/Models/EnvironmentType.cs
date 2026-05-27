@@ -6,8 +6,10 @@ namespace ModelMeister.Ui.Models;
 /// A user-definable environment classification: a colored shorthand badge plus a name and
 /// description, with a <see cref="IsProtected"/> flag that drives the destructive-operation safety
 /// banner. The seven built-in types — keyed by the legacy <see cref="EnvironmentStage"/> names —
-/// ship out of the box; they are fully editable but can never be deleted. Custom types and any edits
-/// to built-ins are persisted (non-secret) in <see cref="AppSettings.EnvironmentTypes"/>.
+/// ship out of the box as a starter set; they are fully editable and may also be deleted (the
+/// deletion is tombstoned in <see cref="AppSettings.DeletedBuiltInTypeKeys"/> so it survives restarts).
+/// Custom types and any edits to built-ins are persisted (non-secret) in
+/// <see cref="AppSettings.EnvironmentTypes"/>.
 ///
 /// Raises <see cref="ObservableObject.PropertyChanged"/> so the types-management grid reflects edits
 /// in place: <see cref="ModelMeister.Ui.Services.IEnvironmentTypeRegistry.Upsert"/> mutates the same
@@ -46,7 +48,8 @@ public sealed class EnvironmentType : ObservableObject
     /// safety banner ("PROTECTED ENVIRONMENT"). Built-in <c>Prod</c> ships with this on.</summary>
     public bool IsProtected { get => _isProtected; set => SetProperty(ref _isProtected, value); }
 
-    /// <summary>True for the seven shipped types — editable but never deletable.</summary>
+    /// <summary>True for the seven shipped starter types. Distinguishes a deletion that must be
+    /// tombstoned (built-in, re-seeded on rebuild) from a plain custom-type removal.</summary>
     public bool IsBuiltIn { get => _isBuiltIn; set => SetProperty(ref _isBuiltIn, value); }
 
     /// <summary>Display order in lists; built-ins seed 0..6, custom types append after.</summary>

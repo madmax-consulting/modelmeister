@@ -364,7 +364,6 @@ public sealed partial class EnvironmentRow : SelectableRow
         ? "—"
         : Entry.LastUsedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
     public string Notes => Entry.Notes ?? "";
-    public string DefaultMarker => IsDefault ? "★" : "";
 
     [ObservableProperty] private bool _isTesting;
     [ObservableProperty] private bool _testSucceeded;

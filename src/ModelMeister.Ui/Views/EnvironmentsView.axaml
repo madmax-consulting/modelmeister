@@ -132,18 +132,19 @@
                           ToolTip.Tip="Select all" />
               </DataGridTemplateColumn.Header>
             </DataGridTemplateColumn>
-            <DataGridTemplateColumn Header="" Width="40">
+            <DataGridTemplateColumn Width="1.4*" MinWidth="140" SortMemberPath="Name">
+              <DataGridTemplateColumn.Header><c:FilterableHeader Title="Name" Path="Name" /></DataGridTemplateColumn.Header>
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="vm:EnvironmentRow">
-                  <TextBlock Text="{Binding DefaultMarker}"
-                             HorizontalAlignment="Center" VerticalAlignment="Center"
-                             Foreground="{DynamicResource Accent}" FontSize="14" />
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <!-- Gold star marks the default (auto-connect) environment; collapsed otherwise. -->
+                    <TextBlock Text="★" Foreground="{DynamicResource Accent}" FontSize="14"
+                               VerticalAlignment="Center" IsVisible="{Binding IsDefault}" />
+                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                  </StackPanel>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Width="1.4*" MinWidth="140" Binding="{Binding Name}">
-              <DataGridTextColumn.Header><c:FilterableHeader Title="Name" Path="Name" /></DataGridTextColumn.Header>
-            </DataGridTextColumn>
             <DataGridTemplateColumn Width="100" SortMemberPath="Stage">
               <DataGridTemplateColumn.Header><c:FilterableHeader Title="Stage" Path="Stage" /></DataGridTemplateColumn.Header>
               <DataGridTemplateColumn.CellTemplate>

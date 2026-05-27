@@ -31,7 +31,8 @@ public interface IEnvironmentTypeRegistry
     /// <summary>Create a custom type or update an existing one (built-in or custom). Persists + raises <see cref="Changed"/>.</summary>
     void Upsert(EnvironmentType type);
 
-    /// <summary>Delete a custom type. Built-ins are never deleted (no-op). Persists + raises <see cref="Changed"/>.</summary>
+    /// <summary>Delete a type. Built-ins are a starter set and may be deleted too — the deletion is
+    /// tombstoned so it survives a restart. Persists + raises <see cref="Changed"/>.</summary>
     void Delete(string key);
 
     /// <summary>Raised after the set of types changes (Upsert / Delete).</summary>
@@ -113,8 +114,16 @@ public sealed class EnvironmentTypeRegistry : IEnvironmentTypeRegistry
     public void Delete(string key)
     {
         var existing = _all.FirstOrDefault(t => string.Equals(t.Key, key, StringComparison.Ordinal));
-        if (existing is null || existing.IsBuiltIn) return;
+        if (existing is null) return;
         _all.Remove(existing);
+        if (existing.IsBuiltIn)
+        {
+            // Built-ins are re-seeded from Defaults() on every Rebuild — tombstone the key so the
+            // deletion sticks across restarts.
+            var tombstones = _settings.Current.DeletedBuiltInTypeKeys ??= new List<string>();
+            if (!tombstones.Contains(existing.Key, StringComparer.Ordinal))
+                tombstones.Add(existing.Key);
+        }
         Persist();
         Changed?.Invoke();
     }
@@ -123,9 +132,13 @@ public sealed class EnvironmentTypeRegistry : IEnvironmentTypeRegistry
     {
         _all.Clear();
         var persisted = _settings.Current.EnvironmentTypes ?? new List<EnvironmentType>();
+        var deleted = _settings.Current.DeletedBuiltInTypeKeys ?? new List<string>();
 
         foreach (var d in Defaults())
         {
+            // The user deleted this built-in — don't re-seed it.
+            if (deleted.Contains(d.Key, StringComparer.Ordinal)) continue;
+
             var overlay = persisted.FirstOrDefault(p => string.Equals(p.Key, d.Key, StringComparison.Ordinal));
             if (overlay is not null)
             {

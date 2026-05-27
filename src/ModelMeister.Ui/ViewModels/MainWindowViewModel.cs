@@ -192,7 +192,11 @@ public partial class MainWindowViewModel : ViewModelBase
         new HubDescriptor(Hub.Environments, "Environments", "IcoEnvironments", HubGroup.System,
             "VAULT",
             "Stored credentials. Connect/disconnect.",
-            Array.Empty<SubPageDescriptor>()),
+            new SubPageDescriptor[]
+            {
+                new("vault",    "Manage", null, "Stored credentials. Connect/disconnect, set default."),
+                new("envtypes", "Types",  null, "Define and color the environment types you assign to environments."),
+            }),
 
         new HubDescriptor(Hub.BackupRestore, "Backups & Restore", "IcoBackup", HubGroup.System,
             "SNAPSHOTS · RECEIPTS",
@@ -211,11 +215,7 @@ public partial class MainWindowViewModel : ViewModelBase
         new HubDescriptor(Hub.Setup, "Setup", "IcoGear", HubGroup.System,
             "APP PREFERENCES",
             "Theme, defaults, storage, diagnostics, about.",
-            new SubPageDescriptor[]
-            {
-                new("general",  "General",           null, "Theme, defaults, storage, and about."),
-                new("envtypes", "Environment types", null, "Define and color the environment types you assign to environments."),
-            }),
+            Array.Empty<SubPageDescriptor>()),
     };
 
     /// <summary>Shared source-set state (slot A / slot B / Single|Compare mode). Read by feature pages and the SourceBar.</summary>
@@ -614,7 +614,6 @@ public partial class MainWindowViewModel : ViewModelBase
         (hub.Hub, sub?.Key) switch
         {
             (Hub.Dashboard, _)               => DashboardVm,
-            (Hub.Setup, "envtypes")          => EnvironmentTypesVm,
             (Hub.Setup, _)                   => SetupVm,
             (Hub.BackupRestore, "snapshots") => SnapshotsVm,
             // Model → Manage: WorkflowStrip drives which legacy step VM is hosted.
@@ -638,6 +637,7 @@ public partial class MainWindowViewModel : ViewModelBase
             (Hub.HtmlTemplates, "compare")   => HtmlTemplatesCompareVm,
             (Hub.HtmlTemplates, _)           => HtmlTemplatesVm,
             // System hubs
+            (Hub.Environments, "envtypes")   => EnvironmentTypesVm,
             (Hub.Environments, _)            => EnvironmentsVm,
             (Hub.Scaffolding, _)             => ToolsVm,
             _ => ResolveLegacy(sub?.Legacy),

@@ -94,15 +94,35 @@ public class EnvironmentTypeRegistryTests
     }
 
     [Fact]
-    public void Builtin_delete_is_rejected_custom_delete_succeeds()
+    public void Custom_delete_succeeds()
     {
         var reg = New();
-        reg.Delete("Prod");
-        reg.All.ShouldContain(t => t.Key == "Prod");
-
         reg.Upsert(new EnvironmentType { Key = "sbx", Name = "Sandbox", Shorthand = "SBX", ColorHex = "#00AA88" });
         reg.Delete("sbx");
         reg.All.ShouldNotContain(t => t.Key == "sbx");
+    }
+
+    [Fact]
+    public void Builtin_delete_succeeds_and_is_tombstoned_across_restart()
+    {
+        var store = new FakeSettingsStore();
+        var reg = New(store);
+
+        reg.Delete("Test");
+        reg.All.ShouldNotContain(t => t.Key == "Test");
+        store.Current.DeletedBuiltInTypeKeys.ShouldContain("Test");
+
+        // Round-trip the persisted settings through JSON, then rebuild a fresh registry: the deleted
+        // built-in must stay gone rather than being re-seeded from Defaults().
+        var json = JsonSerializer.Serialize(store.Current);
+        var restored = new FakeSettingsStore();
+        var settings = JsonSerializer.Deserialize<AppSettings>(json)!;
+        restored.Current.EnvironmentTypes = settings.EnvironmentTypes;
+        restored.Current.DeletedBuiltInTypeKeys = settings.DeletedBuiltInTypeKeys;
+        var reg2 = New(restored);
+
+        reg2.All.ShouldNotContain(t => t.Key == "Test");
+        reg2.All.Select(t => t.Key).ShouldBe(new[] { "Unspecified", "Dev", "QA", "UAT", "Stage", "Prod" });
     }
 
     [Fact]

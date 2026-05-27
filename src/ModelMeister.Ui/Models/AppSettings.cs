@@ -61,4 +61,9 @@ public sealed class AppSettings
     /// <summary>User-defined environment types plus any edits to the built-in seven. Empty on first run
     /// (the registry seeds the built-ins). Persisted here because types are not secret.</summary>
     public List<EnvironmentType> EnvironmentTypes { get; set; } = [];
+
+    /// <summary>Keys of built-in environment types the user has deleted. The registry skips re-seeding
+    /// these on <c>Rebuild</c>, so a deleted built-in stays gone across restarts (the built-ins are
+    /// only a starter set).</summary>
+    public List<string> DeletedBuiltInTypeKeys { get; set; } = [];
 }

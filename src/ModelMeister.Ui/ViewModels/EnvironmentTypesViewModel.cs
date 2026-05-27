@@ -8,10 +8,11 @@ using ModelMeister.Ui.Services;
 namespace ModelMeister.Ui.ViewModels;
 
 /// <summary>
-/// Management page (Setup → Environment types) for the user-defined + built-in environment types.
-/// Lists every type with a live pill preview and Add / Edit / Delete, routed through the modal editor
-/// dialog and the <see cref="IEnvironmentTypeRegistry"/>. Built-in types can be edited but not deleted;
-/// a type in use by an environment can't be deleted until it's reassigned.
+/// Management page (Environments → Environment types) for the user-defined + built-in environment
+/// types. Lists every type with a live pill preview and Add / Edit / Delete, routed through the modal
+/// editor dialog and the <see cref="IEnvironmentTypeRegistry"/>. The built-in types are only a starter
+/// set, so they can be edited or deleted like any other; a type in use by an environment can't be
+/// deleted until it's reassigned.
 /// </summary>
 public partial class EnvironmentTypesViewModel : ViewModelBase
 {
@@ -61,11 +62,6 @@ public partial class EnvironmentTypesViewModel : ViewModelBase
     private async Task DeleteAsync(EnvironmentType? type)
     {
         if (type is null) return;
-        if (type.IsBuiltIn)
-        {
-            Status = "Built-in types can't be deleted (they can be recolored / renamed instead).";
-            return;
-        }
         if (_registry.IsInUse(type.Key))
         {
             await DialogHost.ConfirmAsync(
