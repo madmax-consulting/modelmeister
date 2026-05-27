@@ -1,0 +1,323 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        xmlns:imp="using:ModelMeister.Ui.Services.Import"
+        xmlns:conv="using:ModelMeister.Ui.Converters"
+        xmlns:svc="using:ModelMeister.Ui.Services"
+        x:Class="ModelMeister.Ui.Views.ImportWorkflowDialog"
+        x:DataType="vm:ImportWorkflowViewModel"
+        x:Name="Win"
+        Title="{Binding Title}"
+        Width="1040" Height="720" MinWidth="760" MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        Background="{DynamicResource AppBackground}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Window.Resources>
+    <conv:RowStateToBrushConverter x:Key="StateBrush" />
+    <conv:RowPlanToBrushConverter x:Key="PlanBrush" />
+  </Window.Resources>
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <DockPanel Margin="22,18,22,18" LastChildFill="True">
+
+      <!-- Header -->
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+        <Grid Width="42" Height="42">
+          <Border CornerRadius="12" Background="{DynamicResource AccentGlowFill}"
+                  BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1" />
+          <Path Data="{DynamicResource IcoExcel}" Width="21" Height="21" Stretch="Uniform"
+                Stroke="{DynamicResource Accent}" StrokeThickness="1.5"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Eyebrow}" Classes="eyebrow" />
+          <TextBlock Text="{Binding Title}" FontSize="19" FontWeight="Bold" TextWrapping="Wrap" />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Step rail -->
+      <Border DockPanel.Dock="Top" Margin="0,14,0,12" Padding="0,0,0,12"
+              BorderBrush="{DynamicResource BorderFaint}" BorderThickness="0,0,0,1">
+        <ItemsControl ItemsSource="{Binding Steps}" HorizontalAlignment="Left">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ImportStepItem">
+              <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <Button Classes="step" Classes.done="{Binding IsDone}" Classes.current="{Binding IsCurrent}"
+                        IsHitTestVisible="False" Focusable="False">
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Panel Width="12" Height="12">
+                      <Ellipse Width="12" Height="12" Stroke="{DynamicResource TextDim}" StrokeThickness="1.6"
+                               Fill="Transparent" IsVisible="{Binding !IsDone}" />
+                      <Path Data="{DynamicResource IcoCheck}" Width="12" Height="12" Stretch="Uniform"
+                            Stroke="{DynamicResource Success}" StrokeThickness="2"
+                            StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                            IsVisible="{Binding IsDone}" />
+                    </Panel>
+                    <TextBlock Text="{Binding Title}" />
+                  </StackPanel>
+                </Button>
+                <Path Data="{DynamicResource IcoChevRight}" Width="10" Height="10" Stretch="Uniform"
+                      Stroke="{DynamicResource TextDim}" StrokeThickness="1.5" Fill="Transparent"
+                      VerticalAlignment="Center" Margin="2,0" IsVisible="{Binding HasSeparator}" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+
+      <!-- Footer (status line + step-specific buttons) -->
+      <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" Margin="0,14,0,0">
+        <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Center"
+                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                   Foreground="{DynamicResource TextSec}" Margin="0,0,12,0" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+          <!-- ChooseFile -->
+          <Button Content="Cancel" Command="{Binding CloseCommand}" IsCancel="True"
+                  IsVisible="{Binding CurrentStep, Converter={x:Static svc:Eq.Compare}, ConverterParameter=ChooseFile}" />
+          <Button Content="Verify &amp; preview" Classes="primary" IsDefault="True"
+                  Command="{Binding VerifyCommand}"
+                  IsVisible="{Binding CurrentStep, Converter={x:Static svc:Eq.Compare}, ConverterParameter=ChooseFile}" />
+          <!-- Verify -->
+          <Button Content="Back" Classes="ghost" Command="{Binding BackCommand}"
+                  IsVisible="{Binding CurrentStep, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Verify}" />
+          <Button Content="Start import" Classes="primary" IsDefault="True" Command="{Binding StartImportCommand}"
+                  IsVisible="{Binding CurrentStep, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Verify}" />
+          <!-- Import -->
+          <Button Content="Cancel import" Classes="danger" Command="{Binding CancelCommand}"
+                  IsVisible="{Binding CurrentStep, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Import}" />
+          <!-- Results -->
+          <Button Content="Reveal backup" Classes="ghost" Command="{Binding RevealBackupCommand}"
+                  IsVisible="{Binding CurrentStep, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Results}" />
+          <Button Content="Done" Classes="primary" IsDefault="True" Command="{Binding CloseCommand}"
+                  IsVisible="{Binding CurrentStep, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Results}" />
+        </StackPanel>
+      </Grid>
+
+      <!-- Body: one panel per step -->
+      <Panel>
+
+        <!-- ===== Choose file ===== -->
+        <StackPanel Spacing="14" VerticalAlignment="Top"
+                    IsVisible="{Binding CurrentStep, Converter={x:Static svc:Eq.Compare}, ConverterParameter=ChooseFile}">
+          <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap"
+                     Foreground="{DynamicResource TextSec}" FontSize="13" LineHeight="20" />
+          <StackPanel Spacing="6">
+            <TextBlock Text="WORKBOOK" Classes="label" />
+            <Grid ColumnDefinitions="*,Auto,Auto">
+              <TextBox Grid.Column="0" Text="{Binding WorkbookPath, Mode=TwoWay}"
+                       Classes="mono" Watermark="path\to\workbook.xlsx" />
+              <Button Grid.Column="1" Content="Pick…" Command="{Binding PickFileCommand}"
+                      Classes="ghost" Margin="8,0,0,0" />
+              <Button Grid.Column="2" Name="RecentsButton" Classes="ghost" Margin="6,0,0,0"
+                      Click="OnRecentsClick" IsVisible="{Binding HasRecents}"
+                      ToolTip.Tip="Recently imported workbooks">
+                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                  <Path Data="{DynamicResource IcoHistory}" Width="13" Height="13" Stretch="Uniform"
+                        Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                        StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+                  <Path Data="{DynamicResource IcoChevDown}" Width="10" Height="10" Stretch="Uniform"
+                        Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                        StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+                </StackPanel>
+              </Button>
+            </Grid>
+          </StackPanel>
+
+          <Border Classes="cardSubtle">
+            <StackPanel Spacing="8" Margin="4,2">
+              <CheckBox IsChecked="{Binding AbortOnFirstError, Mode=TwoWay}"
+                        Content="Abort on first error" />
+              <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextDim}" FontSize="12" LineHeight="18"
+                         Text="When on, the import stops at the first row that fails. When off (default), every row is attempted and all errors are collected in the results." />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="cardSubtle">
+            <StackPanel Spacing="6" Margin="4,2">
+              <TextBlock Text="WHAT HAPPENS NEXT" Classes="label" />
+              <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSec}" FontSize="12" LineHeight="18"
+                         Text="1. Verify — the workbook is loaded and compared to the connected environment, row by row.&#10;2. Backup — a backup is captured automatically before anything is written.&#10;3. Import — each row is applied with live progress; you can cancel at any time.&#10;4. Results — a full per-row summary." />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- ===== Verify ===== -->
+        <DockPanel LastChildFill="True"
+                   IsVisible="{Binding CurrentStep, Converter={x:Static svc:Eq.Compare}, ConverterParameter=Verify}">
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,*,*,*" Margin="0,0,0,12">
+            <Border Grid.Column="0" Classes="cardSubtle" Margin="0,0,4,0">
+              <StackPanel Spacing="2" Margin="10,8">
+                <TextBlock Text="WILL CREATE" Classes="label" />
+                <TextBlock Text="{Binding VerifyCreate}" Classes="metricSm" Foreground="{DynamicResource Success}" />
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Classes="cardSubtle" Margin="4,0,4,0">
+              <StackPanel Spacing="2" Margin="10,8">
+                <TextBlock Text="WILL UPDATE" Classes="label" />
+                <TextBlock Text="{Binding VerifyUpdate}" Classes="metricSm" Foreground="{DynamicResource Accent}" />
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Classes="cardSubtle" Margin="4,0,4,0">
+              <StackPanel Spacing="2" Margin="10,8">
+                <TextBlock Text="UNCHANGED" Classes="label" />
+                <TextBlock Text="{Binding VerifySkip}" Classes="metricSm" Foreground="{DynamicResource TextSec}" />
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="3" Classes="cardSubtle" Margin="4,0,0,0">
+              <StackPanel Spacing="2" Margin="10,8">
+                <TextBlock Text="INVALID" Classes="label" />
+                <TextBlock Text="{Binding VerifyInvalid}" Classes="metricSm" Foreground="{DynamicResource Danger}" />
+              </StackPanel>
+            </Border>
+          </Grid>
+
+          <Border DockPanel.Dock="Top" Classes="cardSubtle" Margin="0,0,0,10"
+                  IsVisible="{Binding InvalidBlocksImport}"
+                  Background="{DynamicResource PillErrBg}">
+            <TextBlock Margin="10,8" TextWrapping="Wrap" Foreground="{DynamicResource Danger}" FontSize="12"
+                       Text="There are invalid rows and 'Abort on first error' is on. Fix the invalid rows or turn the option off to start the import." />
+          </Border>
+
+          <Border Classes="card flush" Padding="0">
+            <DataGrid ItemsSource="{Binding FilteredRows}" IsReadOnly="True"
+                      AutoGenerateColumns="False" SelectionMode="Single"
+                      GridLinesVisibility="Horizontal" HeadersVisibility="Column" BorderThickness="0">
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Width="120" MinWidth="90">
+                  <DataGridTemplateColumn.Header><TextBlock Text="Plan" /></DataGridTemplateColumn.Header>
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate x:DataType="imp:ImportRowViewModel">
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="2,0">
+                        <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                                 Fill="{Binding PlanKind, Converter={StaticResource PlanBrush}}" />
+                        <TextBlock Text="{Binding PlanKind}" Foreground="{Binding PlanKind, Converter={StaticResource PlanBrush}}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Binding="{Binding Key}" Width="220" MinWidth="120">
+                  <DataGridTextColumn.Header>
+                    <TextBlock Text="{Binding #Win.((vm:ImportWorkflowViewModel)DataContext).KeyColumnHeader}" />
+                  </DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Detail" Binding="{Binding Preview}" Width="*" MinWidth="160" />
+                <DataGridTextColumn Header="Note" Binding="{Binding Reason}" Width="1.2*" MinWidth="120" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </Border>
+        </DockPanel>
+
+        <!-- ===== Import + Results share the live grid ===== -->
+        <DockPanel LastChildFill="True" IsVisible="{Binding ShowRunPanel}">
+
+          <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,12">
+            <StackPanel Spacing="12">
+              <Grid ColumnDefinitions="*,*,*,*,*,Auto,Auto">
+                <StackPanel Grid.Column="0" Classes="stat">
+                  <TextBlock Text="TOTAL" Classes="label" />
+                  <TextBlock Text="{Binding Total}" Classes="metric" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Classes="stat">
+                  <TextBlock Text="DONE" Classes="label" />
+                  <TextBlock Text="{Binding Completed}" Classes="metric" Foreground="{DynamicResource Accent}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Classes="stat">
+                  <TextBlock Text="CREATED" Classes="label" />
+                  <TextBlock Text="{Binding Created}" Classes="metric" Foreground="{DynamicResource Success}" />
+                </StackPanel>
+                <StackPanel Grid.Column="3" Classes="stat">
+                  <TextBlock Text="UPDATED" Classes="label" />
+                  <TextBlock Text="{Binding Updated}" Classes="metric" Foreground="{DynamicResource Success}" />
+                </StackPanel>
+                <StackPanel Grid.Column="4" Classes="stat">
+                  <TextBlock Text="FAILED" Classes="label" />
+                  <TextBlock Text="{Binding Failed}" Classes="metric" Foreground="{DynamicResource Danger}" />
+                </StackPanel>
+                <StackPanel Grid.Column="5" Classes="stat" VerticalAlignment="Center" Margin="16,0,0,0">
+                  <TextBlock Text="RATE" Classes="label" />
+                  <TextBlock Text="{Binding RatePerSec}" Classes="metricSm" Foreground="{DynamicResource TextSec}" />
+                </StackPanel>
+                <StackPanel Grid.Column="6" Classes="stat" VerticalAlignment="Center" Margin="16,0,0,0">
+                  <TextBlock Text="ETA" Classes="label" />
+                  <TextBlock Text="{Binding Eta}" Classes="metricSm" Foreground="{DynamicResource TextSec}" />
+                </StackPanel>
+              </Grid>
+              <ProgressBar Maximum="{Binding Total}" Value="{Binding Completed}" Height="8" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card flush" Padding="0">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" Padding="14,10"
+                      BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <TextBlock Grid.Column="0" Text="ROWS" Classes="h3" VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                    <ToggleButton Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="All"
+                                  IsChecked="{Binding Filter, ConverterParameter=All, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}">
+                      <TextBlock Text="All" /></ToggleButton>
+                    <ToggleButton Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="Created"
+                                  IsChecked="{Binding Filter, ConverterParameter=Created, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}">
+                      <TextBlock Text="Created" /></ToggleButton>
+                    <ToggleButton Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="Updated"
+                                  IsChecked="{Binding Filter, ConverterParameter=Updated, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}">
+                      <TextBlock Text="Updated" /></ToggleButton>
+                    <ToggleButton Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="Skipped"
+                                  IsChecked="{Binding Filter, ConverterParameter=Skipped, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}">
+                      <TextBlock Text="Skipped" /></ToggleButton>
+                    <ToggleButton Classes="filter" Command="{Binding SetFilterCommand}" CommandParameter="Failed"
+                                  IsChecked="{Binding Filter, ConverterParameter=Failed, Converter={x:Static svc:Eq.Compare}, Mode=OneWay}">
+                      <TextBlock Text="Failed" /></ToggleButton>
+                  </StackPanel>
+                </Grid>
+              </Border>
+              <DataGrid Name="RunGrid" ItemsSource="{Binding FilteredRows}" IsReadOnly="True"
+                        AutoGenerateColumns="False" BorderThickness="0" Classes="fit">
+                <DataGrid.RowDetailsTemplate>
+                  <DataTemplate x:DataType="imp:ImportRowViewModel">
+                    <Border Padding="20,10" Background="{DynamicResource Surface0}"
+                            IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}">
+                      <StackPanel Spacing="6">
+                        <TextBlock Text="ERROR DETAIL" Classes="h3" />
+                        <TextBox Text="{Binding Error, Mode=OneWay}" IsReadOnly="True" Classes="mono"
+                                 AcceptsReturn="True" Height="100" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </DataGrid.RowDetailsTemplate>
+                <DataGrid.Columns>
+                  <DataGridTemplateColumn Width="120" MinWidth="90">
+                    <DataGridTemplateColumn.Header><TextBlock Text="Status" /></DataGridTemplateColumn.Header>
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate x:DataType="imp:ImportRowViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="2,0">
+                          <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                                   Fill="{Binding State, Converter={StaticResource StateBrush}}" />
+                          <TextBlock Text="{Binding State}" Foreground="{Binding State, Converter={StaticResource StateBrush}}" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTextColumn Binding="{Binding Key}" Width="220" MinWidth="120">
+                    <DataGridTextColumn.Header>
+                      <TextBlock Text="{Binding #Win.((vm:ImportWorkflowViewModel)DataContext).KeyColumnHeader}" />
+                    </DataGridTextColumn.Header>
+                  </DataGridTextColumn>
+                  <DataGridTextColumn Header="Detail" Binding="{Binding ResultDetail}" Width="*" MinWidth="160" />
+                  <DataGridTextColumn Header="Error" Binding="{Binding Error}" Width="1.2*" MinWidth="120" />
+                </DataGrid.Columns>
+              </DataGrid>
+            </DockPanel>
+          </Border>
+        </DockPanel>
+
+      </Panel>
+    </DockPanel>
+  </Border>
+</Window>

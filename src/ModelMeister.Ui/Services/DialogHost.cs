@@ -29,13 +29,30 @@ internal static class DialogHost
         return ShowDialogAsync<ConfirmApplyDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 
-    /// <summary>Show the import-from-workbook prompt; returns the populated VM (with the chosen path)
-    /// when the user confirms, else <c>null</c>. <paramref name="recents"/> seeds the Recents dropdown.</summary>
-    public static async Task<ImportWorkbookViewModel?> ImportWorkbookAsync(string title, string subtitle, string suggestedFileName = "workbook.xlsx", System.Collections.Generic.IReadOnlyList<string>? recents = null)
+    /// <summary>Show the unified Excel-import workflow window (one popup for ChooseFile → Verify →
+    /// Import → Results, never closing between steps). Runs the plan's preconditions first and toasts
+    /// + returns <c>false</c> without opening if they fail. Returns <c>true</c> once an import has run
+    /// (so the caller refreshes its page).</summary>
+    public static async Task<bool> ShowImportWorkflowAsync(
+        ModelMeister.Ui.Services.Import.IImportPlan plan,
+        IAppLog log,
+        System.Collections.Generic.IReadOnlyList<string>? recents = null,
+        ModelMeister.Ui.Services.Import.IImportConfirmGate? confirmGate = null,
+        IFileOpener? fileOpener = null)
     {
-        var vm = new ImportWorkbookViewModel(title, subtitle, suggestedFileName, recents);
-        var ok = await ShowDialogAsync<ImportWorkbookDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
-        return ok ? vm : null;
+        var blocker = plan.CheckPreconditions();
+        if (blocker is not null)
+        {
+            log.Toast(LogLevel.Warn, plan.Metadata.Title, blocker);
+            return false;
+        }
+        // The removal gate is only exercised by features that report removals (CVLs); the others pass
+        // none and get a stage-unaware default that is never invoked. The file opener is only used by
+        // the Results "Reveal backup" button.
+        confirmGate ??= new ModelMeister.Ui.Services.Import.ImportConfirmGate(null, Models.EnvironmentStage.Unspecified);
+        fileOpener ??= new OsFileOpener();
+        var vm = new ImportWorkflowViewModel(plan, log, fileOpener, confirmGate, recents);
+        return await ShowDialogAsync<ImportWorkflowDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
     }
 
     /// <summary>Show the Add/Edit server-setting dialog. Returns the populated VM on Confirm, else <c>null</c>.</summary>

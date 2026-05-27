@@ -268,32 +268,13 @@ public partial class WorkAreaViewModel : FeaturePageViewModel
     public override async Task ImportExcelAsync()
     {
         if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        var dlg = await DialogHost.ImportWorkbookAsync(
-            "Import work-area folders",
-            "Create or update shared folders (matched by path) in the connected environment from an edited workareas.xlsx. Existing folders not in the workbook are left untouched.",
-            "workareas.xlsx", _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
-        if (dlg is null || string.IsNullOrWhiteSpace(dlg.WorkbookPath)) return;
-        var workbookPath = dlg.WorkbookPath;
-
-        Busy = true;
-        try
-        {
-            var folders = await Task.Run(() => WorkAreaWorkbook.Load(workbookPath)).ConfigureAwait(true);
-            var ok = await DialogHost.ConfirmAsync(
-                "Apply work-area folders",
-                $"{folders.Count} folder(s) from the workbook will be created or updated in '{_main.ConnectedEnv?.Name}'. Continue?",
-                "Apply", "Cancel").ConfigureAwait(true);
-            if (!ok) { Status = "Import cancelled."; return; }
-
-            var result = await _shell.ApplyWorkAreasAsync(folders, allowDeletes: false).ConfigureAwait(true);
-            Status = $"Import · created {result.Created}, updated {result.Updated}" + (result.Failed > 0 ? $", {result.Failed} failed" : "");
-            _log.Success("WorkAreas", Status);
-            RememberWorkbook(_main.Settings, workbookPath);
-            MarkDataDirty();
-            await RefreshAsync().ConfigureAwait(true);
-        }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("WorkAreas", ex.Message, ex); }
-        finally { Busy = false; }
+        var plan = new ModelMeister.Ui.Services.Import.Plans.WorkAreasImportPlan(_main, _shell, _log);
+        var ran = await DialogHost.ShowImportWorkflowAsync(
+            plan, _log, _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
+        if (!ran) return;
+        RememberWorkbook(_main.Settings, plan.LastWorkbookPath);
+        MarkDataDirty();
+        await RefreshAsync().ConfigureAwait(true);
     }
 
     private static string PrettyJson(string compact)

@@ -43,6 +43,7 @@ public sealed class RestoreService
             "Extensions"       => ExtensionsBackup.Load(info.Path).Extensions.Select(e => e.Id).ToList(),
             "WorkAreas"        => WorkAreasBackup.Load(info.Path).Folders.Select(f => f.Path).ToList(),
             "HtmlTemplates"    => HtmlTemplatesBackup.Load(info.Path).Templates.Select(t => t.Name).ToList(),
+            "Cvls"             => CvlsBackup.Load(info.Path).Cvls.Select(c => c.Id).ToList(),
             "Full"             => DescribeFull(info.Path),
             _                  => new List<string>(),
         }, ct);
@@ -113,6 +114,13 @@ public sealed class RestoreService
                 var results = await _shell.RestoreHtmlTemplatesAsync(backup, ct).ConfigureAwait(false);
                 return results.Select(r => new RestoreOutcome(
                     r.Name, r.Ok ? r.Op : "error", r.Error ?? r.Op)).ToList();
+            }
+            case "Cvls":
+            {
+                var backup = await Task.Run(() => CvlsBackup.Load(info.Path), ct).ConfigureAwait(false);
+                var results = await _shell.RestoreCvlsAsync(backup, ct).ConfigureAwait(false);
+                return results.Select(r => new RestoreOutcome(
+                    r.CvlId, r.Ok ? r.Op : "error", r.Error ?? r.Op)).ToList();
             }
             case "Full":
                 return await RestoreFullAsync(info.Path, env, secret, ct).ConfigureAwait(false);

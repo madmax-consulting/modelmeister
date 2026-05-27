@@ -119,6 +119,15 @@ public sealed class WorkAreaService
     public Task DeleteFolderAsync(Guid id, CancellationToken ct = default) =>
         _client.WriteAsync(m => m.UtilityService.DeleteSharedWorkAreaFolder(id), ct);
 
+    /// <summary>Create a folder with the full attribute set (incl. <c>IsSyndication</c>) used by reconcile.
+    /// Returns the new folder's id.</summary>
+    internal async Task<Guid> AddFolderAsync(string name, Guid? parentId, int index, bool isQuery, bool isSyndication, CancellationToken ct = default)
+    {
+        var dto = new IriverWorkAreaFolder { Name = name, ParentId = parentId, Index = index, IsQuery = isQuery, IsSyndication = isSyndication };
+        var created = await _client.WriteAsync(m => m.UtilityService.AddSharedWorkAreaFolder(dto), ct).ConfigureAwait(false);
+        return created.Id;
+    }
+
     // ---------------- Promote / apply (reconcile by path) ----------------
 
     /// <summary>Promote shared folders from another env (faithful: carries the live query objects).</summary>
@@ -133,11 +142,18 @@ public sealed class WorkAreaService
             IsQuery: f.IsQuery,
             IsSyndication: f.IsSyndication,
             Query: f.Query)).ToList();
-        return ReconcileAsync(desired, allowDeletes, ct);
+        return RunAsync(PlanFromDesired(desired, allowDeletes), ct);
     }
 
     /// <summary>Apply folders described by DTOs (e.g. an Excel import). Query comes from <see cref="WorkAreaFolderDto.QueryJson"/>.</summary>
     public Task<WorkAreaApplyResult> ApplyAsync(IReadOnlyList<WorkAreaFolderDto> source, bool allowDeletes, CancellationToken ct = default)
+        => RunAsync(Plan(source, allowDeletes), ct);
+
+    /// <summary>Diff DTO folders against the live env into an ordered reconcile session (parents-before-
+    /// children, deletes deepest-first). Pure read — no writes. The workflow drives
+    /// <see cref="WorkAreaReconcileSession.Actions"/> one at a time for per-row progress;
+    /// <see cref="ApplyAsync(IReadOnlyList{WorkAreaFolderDto}, bool, CancellationToken)"/> is a thin wrapper.</summary>
+    public WorkAreaReconcileSession Plan(IReadOnlyList<WorkAreaFolderDto> source, bool allowDeletes)
     {
         var byId = source.Where(d => d.Id != Guid.Empty).ToDictionary(d => d.Id);
         string? ParentPath(WorkAreaFolderDto d)
@@ -155,73 +171,138 @@ public sealed class WorkAreaService
             IsQuery: d.IsQuery,
             IsSyndication: d.IsSyndication,
             Query: DeserializeQuery(d.QueryJson))).ToList();
-        return ReconcileAsync(desired, allowDeletes, ct);
+        return PlanFromDesired(desired, allowDeletes);
     }
 
-    private sealed record DesiredFolder(
+    internal sealed record DesiredFolder(
         string Path, string? ParentPath, string Name, int Index, bool IsQuery, bool IsSyndication, ComplexQuery? Query);
 
-    private async Task<WorkAreaApplyResult> ReconcileAsync(List<DesiredFolder> desired, bool allowDeletes, CancellationToken ct)
+    /// <summary>Build the ordered reconcile session from already-resolved desired folders.</summary>
+    private WorkAreaReconcileSession PlanFromDesired(List<DesiredFolder> desired, bool allowDeletes)
     {
-        var result = new WorkAreaApplyResult();
+        var (idByPath, actions) = BuildPlan(GetRawFolders(), desired, allowDeletes);
+        return new WorkAreaReconcileSession(this, idByPath, actions);
+    }
 
-        // Resolve the target's current folders, keyed by path.
-        var targetById = GetRawFolders().ToDictionary(f => f.Id);
+    /// <summary>Pure reconcile: given the live folders + desired folders, produce the seed path→id map and
+    /// the ordered action list (creates/updates parents-before-children by depth then index; deletes
+    /// deepest-first). No I/O — unit-testable.</summary>
+    internal static (Dictionary<string, Guid> idByPath, List<WorkAreaAction> actions) BuildPlan(
+        IReadOnlyList<IriverWorkAreaFolder> live, List<DesiredFolder> desired, bool allowDeletes)
+    {
+        var targetById = live.ToDictionary(f => f.Id);
         var idByPath = targetById.Values.ToDictionary(f => PathOf(f, targetById), f => f.Id, StringComparer.OrdinalIgnoreCase);
 
+        var actions = new List<WorkAreaAction>();
         // Parents before children so a child's ParentId resolves to an already-created folder.
         foreach (var d in desired.OrderBy(d => d.Path.Count(c => c == '/')).ThenBy(d => d.Index))
         {
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-                Guid? parentId = d.ParentPath is null ? null
-                    : idByPath.TryGetValue(d.ParentPath, out var pid) ? pid : null;
-
-                if (idByPath.TryGetValue(d.Path, out var existingId))
-                {
-                    if (!string.Equals(targetById.GetValueOrDefault(existingId)?.Name, d.Name, StringComparison.Ordinal))
-                        await RenameFolderAsync(existingId, d.Name, ct).ConfigureAwait(false);
-                    if (d.IsQuery && d.Query is not null)
-                        await SetQueryAsync(existingId, d.Query, ct).ConfigureAwait(false);
-                    result.Updated++;
-                }
-                else
-                {
-                    var dto = new IriverWorkAreaFolder
-                    {
-                        Name = d.Name, ParentId = parentId, Index = d.Index, IsQuery = d.IsQuery, IsSyndication = d.IsSyndication,
-                    };
-                    var created = await _client.WriteAsync(m => m.UtilityService.AddSharedWorkAreaFolder(dto), ct).ConfigureAwait(false);
-                    idByPath[d.Path] = created.Id;
-                    if (d.IsQuery && d.Query is not null)
-                        await SetQueryAsync(created.Id, d.Query, ct).ConfigureAwait(false);
-                    result.Created++;
-                }
-            }
-            catch (Exception ex)
-            {
-                _log.LogWarning(ex, "WorkArea apply failed for path {Path}", d.Path);
-                result.Failed++;
-            }
+            if (idByPath.TryGetValue(d.Path, out var existingId))
+                actions.Add(new WorkAreaAction(
+                    WorkAreaActionKind.Update, d.Path, d.ParentPath, d.Name, d.Index, d.IsQuery, d.IsSyndication, d.Query,
+                    existingId, targetById.GetValueOrDefault(existingId)?.Name));
+            else
+                actions.Add(new WorkAreaAction(
+                    WorkAreaActionKind.Create, d.Path, d.ParentPath, d.Name, d.Index, d.IsQuery, d.IsSyndication, d.Query,
+                    Guid.Empty, null));
         }
 
         if (allowDeletes)
         {
             var desiredPaths = desired.Select(d => d.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
             // Deepest paths first so children are removed before parents.
-            var toDelete = idByPath
-                .Where(kv => !desiredPaths.Contains(kv.Key))
-                .OrderByDescending(kv => kv.Key.Count(c => c == '/'));
-            foreach (var (path, id) in toDelete)
-            {
-                ct.ThrowIfCancellationRequested();
-                try { await DeleteFolderAsync(id, ct).ConfigureAwait(false); result.Deleted++; }
-                catch (Exception ex) { _log.LogWarning(ex, "WorkArea delete failed for path {Path}", path); result.Failed++; }
-            }
+            foreach (var (path, id) in idByPath
+                         .Where(kv => !desiredPaths.Contains(kv.Key))
+                         .OrderByDescending(kv => kv.Key.Count(c => c == '/')))
+                actions.Add(new WorkAreaAction(
+                    WorkAreaActionKind.Delete, path, null, targetById.GetValueOrDefault(id)?.Name ?? "",
+                    0, false, false, null, id, null));
         }
 
+        return (idByPath, actions);
+    }
+
+    /// <summary>Run a session as a batch (the legacy whole-set apply). Mirrors the per-row loop the
+    /// workflow drives, accumulating the same tallies.</summary>
+    private async Task<WorkAreaApplyResult> RunAsync(WorkAreaReconcileSession session, CancellationToken ct)
+    {
+        var result = new WorkAreaApplyResult();
+        foreach (var action in session.Actions)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                await session.ExecuteAsync(action, ct).ConfigureAwait(false);
+                switch (action.Kind)
+                {
+                    case WorkAreaActionKind.Create: result.Created++; break;
+                    case WorkAreaActionKind.Update: result.Updated++; break;
+                    case WorkAreaActionKind.Delete: result.Deleted++; break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "WorkArea {Kind} failed for path {Path}", action.Kind, action.Path);
+                result.Failed++;
+            }
+        }
         return result;
+    }
+}
+
+/// <summary>What a planned single-folder action does.</summary>
+public enum WorkAreaActionKind { Create, Update, Delete }
+
+/// <summary>One reconcile action produced by <see cref="WorkAreaService.Plan"/>. <see cref="LiveId"/> is the
+/// existing folder's id for update/delete (empty for create); <see cref="CurrentName"/> is the live name
+/// for an update (drives the rename-only-if-changed check).</summary>
+public sealed record WorkAreaAction(
+    WorkAreaActionKind Kind, string Path, string? ParentPath, string Name,
+    int Index, bool IsQuery, bool IsSyndication, ComplexQuery? Query, Guid LiveId, string? CurrentName);
+
+/// <summary>
+/// A stateful reconcile run: holds the path→id map (seeded from the live env, then mutated as folders
+/// are created so a child create resolves its freshly-created parent's id). Execute the
+/// <see cref="Actions"/> in order — they are already sorted parents-before-children, deletes deepest-first.
+/// </summary>
+public sealed class WorkAreaReconcileSession
+{
+    private readonly WorkAreaService _svc;
+    private readonly Dictionary<string, Guid> _idByPath;
+
+    internal WorkAreaReconcileSession(WorkAreaService svc, Dictionary<string, Guid> idByPath, IReadOnlyList<WorkAreaAction> actions)
+    {
+        _svc = svc;
+        _idByPath = idByPath;
+        Actions = actions;
+    }
+
+    /// <summary>The ordered actions to execute.</summary>
+    public IReadOnlyList<WorkAreaAction> Actions { get; }
+
+    /// <summary>Execute one action, mutating the path→id map on create so later children resolve.</summary>
+    public async Task ExecuteAsync(WorkAreaAction a, CancellationToken ct = default)
+    {
+        switch (a.Kind)
+        {
+            case WorkAreaActionKind.Create:
+            {
+                Guid? parentId = a.ParentPath is null ? null
+                    : _idByPath.TryGetValue(a.ParentPath, out var pid) ? pid : null;
+                var created = await _svc.AddFolderAsync(a.Name, parentId, a.Index, a.IsQuery, a.IsSyndication, ct).ConfigureAwait(false);
+                _idByPath[a.Path] = created;
+                if (a.IsQuery && a.Query is not null) await _svc.SetQueryAsync(created, a.Query, ct).ConfigureAwait(false);
+                break;
+            }
+            case WorkAreaActionKind.Update:
+                if (!string.Equals(a.CurrentName, a.Name, StringComparison.Ordinal))
+                    await _svc.RenameFolderAsync(a.LiveId, a.Name, ct).ConfigureAwait(false);
+                if (a.IsQuery && a.Query is not null) await _svc.SetQueryAsync(a.LiveId, a.Query, ct).ConfigureAwait(false);
+                break;
+            case WorkAreaActionKind.Delete:
+                await _svc.DeleteFolderAsync(a.LiveId, ct).ConfigureAwait(false);
+                break;
+        }
     }
 }
 

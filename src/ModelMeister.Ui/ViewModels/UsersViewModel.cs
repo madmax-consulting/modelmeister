@@ -59,27 +59,14 @@ public partial class UsersViewModel : FeaturePageViewModel
     public override async Task ImportExcelAsync()
     {
         if (!_main.IsConnected) { _log.Toast(LogLevel.Warn, "Import users", "Connect first."); return; }
-        var vm = await DialogHost.ImportWorkbookAsync(
-            "Import users from workbook",
-            "Provision (create/update) users in the connected environment from an edited users.xlsx.",
-            "users.xlsx", _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
-        if (vm is null) return;
-        WorkbookPath = vm.WorkbookPath;
-
-        // Always verify + dry-run first; only run the real import if the user approves in the preview.
-        DryRun = true;
-        _proceedWithImport = false;
-        await ProvisionAsync().ConfigureAwait(true);
-        if (!_proceedWithImport) return;
-
-        DryRun = false;
-        await ProvisionAsync().ConfigureAwait(true);
-        RememberWorkbook(_main.Settings, WorkbookPath);
+        var plan = new ModelMeister.Ui.Services.Import.Plans.UsersImportPlan(_main, _shell, _log);
+        var ran = await DialogHost.ShowImportWorkflowAsync(
+            plan, _log, _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
+        if (!ran) return;
+        RememberWorkbook(_main.Settings, plan.LastWorkbookPath);
+        MarkDataDirty();
+        await RefreshAsync().ConfigureAwait(true);
     }
-
-    /// <summary>Set by <see cref="ProvisionAsync"/> when the dry-run preview's "Continue with import"
-    /// was clicked — tells <see cref="ImportExcelAsync"/> to run the real import.</summary>
-    private bool _proceedWithImport;
 
     public ObservableCollection<UserListRow> Users { get; } = [];
     public ObservableCollection<string> Roles { get; } = [];
@@ -90,14 +77,9 @@ public partial class UsersViewModel : FeaturePageViewModel
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadListCommand))]
     [NotifyCanExecuteChangedFor(nameof(DownloadTemplateCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ProvisionCommand))]
     [NotifyCanExecuteChangedFor(nameof(AddUserCommand))]
     private bool _busy;
     [ObservableProperty] private string _status = "";
-    [ObservableProperty] private bool _dryRun = true;
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ProvisionCommand))]
-    private string? _workbookPath;
 
     public UsersViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
     {
@@ -114,16 +96,12 @@ public partial class UsersViewModel : FeaturePageViewModel
                 if (_main.IsConnected) _ = EnsureLoadedAsync();
                 DownloadListCommand.NotifyCanExecuteChanged();
                 DownloadTemplateCommand.NotifyCanExecuteChanged();
-                ProvisionCommand.NotifyCanExecuteChanged();
                 AddUserCommand.NotifyCanExecuteChanged();
             }
         };
     }
 
     private bool CanExportTemplate() => !Busy && _main.IsConnected;
-    private bool CanProvision() =>
-        !Busy && _main.IsConnected
-              && !string.IsNullOrEmpty(WorkbookPath) && File.Exists(WorkbookPath);
 
     /// <inheritdoc/>
     public override async Task RefreshAsync()
@@ -359,99 +337,6 @@ public partial class UsersViewModel : FeaturePageViewModel
         catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Users", ex.Message, ex); }
         finally { Busy = false; }
     }
-
-    [RelayCommand(CanExecute = nameof(CanProvision))]
-    public async Task ProvisionAsync()
-    {
-        if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        if (string.IsNullOrEmpty(WorkbookPath) || !File.Exists(WorkbookPath))
-        {
-            Status = "Pick a workbook.";
-            return;
-        }
-
-        Busy = true;
-        try
-        {
-            var env = _main.ConnectedEnv;
-            var secret = env is null ? null : _main.Vault.GetSecret(env.Id);
-            // Provisioning needs both a REST endpoint and a REST API key. Diagnose up-front so the
-            // user sees a clear "set the REST key" message instead of a generic backend exception
-            // 30 seconds in.
-            if (!DryRun)
-            {
-                if (env is null || string.IsNullOrWhiteSpace(env.RestBaseUrl))
-                {
-                    Status = "Real import requires a REST base URL on the connected environment.";
-                    _log.Warn("Users", Status);
-                    return;
-                }
-                if (secret is null || string.IsNullOrWhiteSpace(secret.RestApiKey))
-                {
-                    Status = "Real import requires a REST API key on the connected environment.";
-                    _log.Warn("Users", Status);
-                    return;
-                }
-            }
-
-            var users = await Task.Run(() => UsersWorkbook.Load(WorkbookPath)).ConfigureAwait(true);
-            int created = 0, updated = 0, errors = 0, warnings = 0;
-            var resultRows = new List<ProvisionResultRow>();
-
-            foreach (var u in users)
-            {
-                if (DryRun)
-                {
-                    resultRows.Add(new ProvisionResultRow(
-                        u.Username,
-                        "would-create",
-                        $"roles: {string.Join(", ", u.Roles)}"));
-                    _log.Info("Users", $"dry: would provision {u.Username} -> {string.Join(", ", u.Roles)}");
-                    continue;
-                }
-                var result = await _shell.ProvisionUserAsync(new UserProvisioning.UserSpec(
-                    u.Username, u.Email, u.FirstName, u.LastName,
-                    u.Roles, u.Language, u.GenerateApiKey), secret, env!).ConfigureAwait(true);
-                if (result.Created) created++;
-                else updated++;
-                if (result.Errors.Count > 0) errors += result.Errors.Count;
-
-                var outcome = result.Errors.Count > 0
-                    ? "error"
-                    : (result.Created ? "created" : "updated");
-                var detail = result.Errors.Count > 0
-                    ? string.Join(" · ", result.Errors)
-                    : $"roles: {string.Join(", ", u.Roles)}";
-                resultRows.Add(new ProvisionResultRow(u.Username, outcome, detail));
-                foreach (var err in result.Errors) _log.Warn("Users", $"{u.Username}: {err}");
-            }
-
-            // The dry-run / real-import result is shown via the same modal dialog so the user gets
-            // a structured row-by-row view instead of a one-line status string.
-            var resultVm = new ProvisionResultViewModel(
-                dryRun: DryRun,
-                created: DryRun ? users.Count : created,
-                updated: DryRun ? 0 : updated,
-                errors: errors,
-                warnings: warnings,
-                rows: resultRows,
-                importEyebrow: "USERS IMPORT",
-                keyColumnHeader: "Username",
-                itemNoun: "users");
-            var proceed = await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
-            _proceedWithImport = DryRun && proceed;
-
-            Status = DryRun
-                ? $"Dry run complete · {users.Count} users would be processed."
-                : $"Provisioned · created {created}, updated {updated}, errors {errors}";
-            // Real provisioning changed remote state; force a reload to reflect the new user list.
-            if (!DryRun) MarkDataDirty();
-            await RefreshAsync().ConfigureAwait(true);
-        }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Users", ex.Message, ex); }
-        finally { Busy = false; }
-    }
-
 }
 
 /// <summary>Selectable grid row wrapping a <see cref="UserSummary"/> for the Users page.</summary>

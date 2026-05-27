@@ -120,6 +120,43 @@ public sealed class BoolToBrushConverter : IValueConverter
         => Avalonia.Data.BindingOperations.DoNothing;
 }
 
+/// <summary>Maps an import row's <c>RowRunState</c> to a themed brush for the live status pill.</summary>
+public sealed class RowStateToBrushConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => ConverterHelpers.Brush(value is ModelMeister.Ui.Services.Import.RowRunState s
+            ? s switch
+            {
+                ModelMeister.Ui.Services.Import.RowRunState.Created or
+                ModelMeister.Ui.Services.Import.RowRunState.Updated => "Success",
+                ModelMeister.Ui.Services.Import.RowRunState.Failed => "Danger",
+                ModelMeister.Ui.Services.Import.RowRunState.Running => "Accent",
+                _ => "TextDim",
+            }
+            : "TextDim");
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => Avalonia.Data.BindingOperations.DoNothing;
+}
+
+/// <summary>Maps an import row's <c>RowPlanKind</c> (from Verify) to a themed brush.</summary>
+public sealed class RowPlanToBrushConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => ConverterHelpers.Brush(value is ModelMeister.Ui.Services.Import.RowPlanKind k
+            ? k switch
+            {
+                ModelMeister.Ui.Services.Import.RowPlanKind.WillCreate => "Success",
+                ModelMeister.Ui.Services.Import.RowPlanKind.WillUpdate => "Accent",
+                ModelMeister.Ui.Services.Import.RowPlanKind.Invalid => "Danger",
+                _ => "TextDim",
+            }
+            : "TextDim");
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => Avalonia.Data.BindingOperations.DoNothing;
+}
+
 /// <summary>Connection-state badge color: green when connected, accent while connecting, red when faulted.</summary>
 public sealed class ConnectionStateToBrushConverter : IValueConverter
 {

@@ -156,6 +156,18 @@ public sealed class BackupService
         return path;
     }
 
+    /// <summary>Capture a CVLs backup (definitions + values). Returns the saved path.</summary>
+    public async Task<string> CaptureCvlsAsync(string? label = null, System.Threading.CancellationToken ct = default)
+    {
+        var env = _connection.Connected ?? throw new InvalidOperationException("Not connected.");
+        var meta = BuildMetadata(label);
+        var backup = await _shell.CaptureCvlsBackupAsync(meta, ct).ConfigureAwait(false);
+        var path = NewFilePath(env.Name, "Cvls");
+        backup.Save(path);
+        RaiseChanged();
+        return path;
+    }
+
     /// <summary>Capture an HtmlTemplates backup. Returns the saved path.</summary>
     public async Task<string> CaptureHtmlTemplatesAsync(string? label = null, System.Threading.CancellationToken ct = default)
     {

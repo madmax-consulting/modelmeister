@@ -62,27 +62,14 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
     public override async Task ImportExcelAsync()
     {
         if (!_main.IsConnected) { _log.Toast(LogLevel.Warn, "Import restricted fields", "Connect first."); return; }
-        var vm = await DialogHost.ImportWorkbookAsync(
-            "Import restricted-field permissions from workbook",
-            "Add restricted-field permissions in the connected environment from an edited restricted-fields.xlsx. Existing rows are skipped.",
-            "restricted-fields.xlsx", _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
-        if (vm is null) return;
-        WorkbookPath = vm.WorkbookPath;
-
-        // Always verify + dry-run first; only run the real import if the user approves in the preview.
-        DryRun = true;
-        _proceedWithImport = false;
-        await ProvisionAsync().ConfigureAwait(true);
-        if (!_proceedWithImport) return;
-
-        DryRun = false;
-        await ProvisionAsync().ConfigureAwait(true);
-        RememberWorkbook(_main.Settings, WorkbookPath);
+        var plan = new ModelMeister.Ui.Services.Import.Plans.RestrictedFieldsImportPlan(_main, _shell, _log);
+        var ran = await DialogHost.ShowImportWorkflowAsync(
+            plan, _log, _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
+        if (!ran) return;
+        RememberWorkbook(_main.Settings, plan.LastWorkbookPath);
+        MarkDataDirty();
+        await RefreshAsync().ConfigureAwait(true);
     }
-
-    /// <summary>Set by <see cref="ProvisionAsync"/> when the dry-run preview's "Continue with import"
-    /// was clicked — tells <see cref="ImportExcelAsync"/> to run the real import.</summary>
-    private bool _proceedWithImport;
 
     public ObservableCollection<RestrictedFieldListRow> Rows { get; } = [];
 
@@ -92,14 +79,9 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadListCommand))]
     [NotifyCanExecuteChangedFor(nameof(DownloadTemplateCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ProvisionCommand))]
     [NotifyCanExecuteChangedFor(nameof(AddCommand))]
     private bool _busy;
     [ObservableProperty] private string _status = "";
-    [ObservableProperty] private bool _dryRun = true;
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ProvisionCommand))]
-    private string? _workbookPath;
 
     public RestrictedFieldsViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
     {
@@ -115,15 +97,12 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
                 if (_main.IsConnected) _ = EnsureLoadedAsync();
                 DownloadListCommand.NotifyCanExecuteChanged();
                 DownloadTemplateCommand.NotifyCanExecuteChanged();
-                ProvisionCommand.NotifyCanExecuteChanged();
                 AddCommand.NotifyCanExecuteChanged();
             }
         };
     }
 
     private bool CanExport() => !Busy && _main.IsConnected;
-    private bool CanProvision() =>
-        !Busy && _main.IsConnected && !string.IsNullOrEmpty(WorkbookPath) && File.Exists(WorkbookPath);
 
     /// <inheritdoc/>
     public override async Task RefreshAsync()
@@ -318,102 +297,6 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         finally { Busy = false; }
     }
 
-    [RelayCommand(CanExecute = nameof(CanProvision))]
-    public async Task ProvisionAsync()
-    {
-        if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        if (string.IsNullOrEmpty(WorkbookPath) || !File.Exists(WorkbookPath)) { Status = "Pick a workbook."; return; }
-
-        Busy = true;
-        try
-        {
-            var fileRows = await Task.Run(() => RestrictedFieldsWorkbook.Load(WorkbookPath)).ConfigureAwait(true);
-            // Dedupe against what's already in the env (and within the file) — there is no update op.
-            var existingKeys = (await _shell.ListRestrictedFieldsAsync().ConfigureAwait(true))
-                .Select(r => r.NaturalKey)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            int added = 0, skipped = 0, errors = 0;
-            var resultRows = new List<ProvisionResultRow>();
-
-            foreach (var row in fileRows)
-            {
-                var entity = RestrictedFieldProvisioning.NullIfEmpty(row.EntityTypeId);
-                var field = RestrictedFieldProvisioning.NullIfEmpty(row.FieldTypeId);
-                var category = RestrictedFieldProvisioning.NullIfEmpty(row.CategoryId);
-                var normType = RestrictedFieldProvisioning.NormalizeRestrictionType(row.RestrictionType);
-
-                // inriver requires a role, a valid restriction type, an entity type, and at least one of
-                // field-type / category. Reject bad rows up front instead of letting the backend fail.
-                var problem =
-                    string.IsNullOrWhiteSpace(row.RoleName) ? "Role name is required."
-                    : normType is null ? $"Restriction type '{row.RestrictionType}' is invalid — must be 'Readonly' or 'Hidden'."
-                    : string.IsNullOrWhiteSpace(entity) ? "Entity type is required."
-                    : (field is null && category is null) ? "At least one of Field type or Category is required."
-                    : null;
-                if (problem is not null)
-                {
-                    errors++;
-                    resultRows.Add(new ProvisionResultRow($"{row.RoleName} · {row.RestrictionType}", "error", problem));
-                    _log.Warn("RestrictedFields", $"Skipped invalid row: {problem}");
-                    continue;
-                }
-
-                var key = RestrictedFieldProvisioning.NaturalKey(row.RoleName, normType!, entity, field, category);
-
-                if (existingKeys.Contains(key))
-                {
-                    skipped++;
-                    resultRows.Add(new ProvisionResultRow(key, "skipped", "already exists"));
-                    continue;
-                }
-
-                if (DryRun)
-                {
-                    added++;
-                    existingKeys.Add(key);
-                    resultRows.Add(new ProvisionResultRow(key, "would-create", $"role: {row.RoleName}"));
-                    continue;
-                }
-
-                var result = await _shell.AddRestrictedFieldAsync(new RestrictedFieldProvisioning.RestrictedFieldSpec(
-                    row.RoleName, normType!, entity, field, category)).ConfigureAwait(true);
-                if (result.Errors.Count > 0)
-                {
-                    errors += result.Errors.Count;
-                    resultRows.Add(new ProvisionResultRow(key, "error", string.Join(" · ", result.Errors)));
-                    foreach (var err in result.Errors) _log.Warn("RestrictedFields", $"{key}: {err}");
-                }
-                else
-                {
-                    added++;
-                    existingKeys.Add(key);
-                    resultRows.Add(new ProvisionResultRow(key, "created", $"role: {row.RoleName}"));
-                }
-            }
-
-            var resultVm = new ProvisionResultViewModel(
-                dryRun: DryRun,
-                created: added,
-                updated: skipped,
-                errors: errors,
-                warnings: 0,
-                rows: resultRows,
-                importEyebrow: "RESTRICTED FIELDS IMPORT",
-                keyColumnHeader: "Restriction",
-                itemNoun: "restrictions");
-            var proceed = await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
-            _proceedWithImport = DryRun && proceed;
-
-            Status = DryRun
-                ? $"Dry run complete · {added} would be added, {skipped} already present."
-                : $"Import complete · added {added}, skipped {skipped}, errors {errors}";
-            if (!DryRun) MarkDataDirty();
-            await RefreshAsync().ConfigureAwait(true);
-        }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("RestrictedFields", ex.Message, ex); }
-        finally { Busy = false; }
-    }
 
 }
 

@@ -46,12 +46,6 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel
     [NotifyCanExecuteChangedFor(nameof(AddCommand))]
     private string _newKey = "";
     [ObservableProperty] private string _newValue = "";
-    [ObservableProperty] private bool _dryRun = true;
-    [ObservableProperty] private string? _workbookPath;
-
-    /// <summary>Set by <see cref="ProvisionAsync"/> when the dry-run preview's "Continue with import"
-    /// was clicked — tells <see cref="ImportExcelAsync"/> to run the real import.</summary>
-    private bool _proceedWithImport;
 
     public ServerSettingsViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
     {
@@ -352,88 +346,13 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel
     public override async Task ImportExcelAsync()
     {
         if (!_main.IsConnected) { _log.Toast(LogLevel.Warn, "Import", "Connect first."); return; }
-        var vm = await DialogHost.ImportWorkbookAsync(
-            "Import server settings from workbook",
-            "Bulk-apply server settings to the connected environment from an edited workbook.",
-            "serversettings.xlsx",
-            _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
-        if (vm?.WorkbookPath is null) return;
-        WorkbookPath = vm.WorkbookPath;
-
-        // Always dry-run first; only run the real apply if the user approves in the preview. Same
-        // two-phase shape as Roles/Users/CVLs so the import experience is uniform across features.
-        DryRun = true;
-        _proceedWithImport = false;
-        await ProvisionAsync().ConfigureAwait(true);
-        if (!_proceedWithImport) return;
-
-        DryRun = false;
-        await ProvisionAsync().ConfigureAwait(true);
-        RememberWorkbook(_main.Settings, WorkbookPath);
-    }
-
-    /// <summary>Dry-run (build a would-set preview) or apply a server-settings workbook, surfacing the
-    /// outcome via the shared <see cref="ProvisionResultViewModel"/>.</summary>
-    public async Task ProvisionAsync()
-    {
-        if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        if (string.IsNullOrEmpty(WorkbookPath) || !System.IO.File.Exists(WorkbookPath)) { Status = "Pick a workbook."; return; }
-
-        Busy = true;
-        try
-        {
-            var dict = await Task.Run(() => ModelMeister.Excel.ServerSettingsWorkbook.Load(WorkbookPath)).ConfigureAwait(true);
-            var resultRows = new List<ProvisionResultRow>();
-            int applied = 0, failed = 0;
-
-            if (DryRun)
-            {
-                foreach (var kvp in dict)
-                    resultRows.Add(new ProvisionResultRow(kvp.Key, "would-set", string.IsNullOrEmpty(kvp.Value) ? "(clear)" : kvp.Value));
-            }
-            else
-            {
-                var entries = dict.Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value));
-                var result = await _shell.BulkApplyServerSettingsAsync(entries).ConfigureAwait(true);
-                applied = result.Applied.Count;
-                failed = result.Failed.Count;
-                var failedSet = new HashSet<string>(result.Failed, StringComparer.Ordinal);
-                foreach (var kvp in dict)
-                {
-                    var error = failedSet.Contains(kvp.Key);
-                    resultRows.Add(new ProvisionResultRow(kvp.Key, error ? "error" : "set",
-                        error ? "apply failed" : (string.IsNullOrEmpty(kvp.Value) ? "(cleared)" : kvp.Value)));
-                }
-            }
-
-            var resultVm = new ProvisionResultViewModel(
-                dryRun: DryRun,
-                created: DryRun ? dict.Count : applied,
-                updated: 0,
-                errors: failed,
-                warnings: 0,
-                rows: resultRows,
-                importEyebrow: "SERVER SETTINGS IMPORT", keyColumnHeader: "Key", itemNoun: "settings");
-            var proceed = await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
-            _proceedWithImport = DryRun && proceed;
-
-            Status = DryRun
-                ? $"Dry run complete · {dict.Count} settings would be applied."
-                : $"Applied {applied} setting(s), {failed} failed.";
-            if (!DryRun)
-            {
-                _log.Success("Import", $"Applied {applied} keys, {failed} failed.");
-                MarkDataDirty();
-                await RefreshAsync().ConfigureAwait(true);
-            }
-        }
-        catch (Exception ex)
-        {
-            Status = "Import failed: " + ex.Message;
-            _log.Error("Import", ex.Message, ex);
-            _log.Toast(LogLevel.Error, "Import failed", ex.Message);
-        }
-        finally { Busy = false; }
+        var plan = new ModelMeister.Ui.Services.Import.Plans.ServerSettingsImportPlan(_main, _shell, _log);
+        var ran = await DialogHost.ShowImportWorkflowAsync(
+            plan, _log, _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
+        if (!ran) return;
+        RememberWorkbook(_main.Settings, plan.LastWorkbookPath);
+        MarkDataDirty();
+        await RefreshAsync().ConfigureAwait(true);
     }
 }
 

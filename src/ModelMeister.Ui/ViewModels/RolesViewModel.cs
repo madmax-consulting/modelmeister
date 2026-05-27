@@ -61,27 +61,14 @@ public partial class RolesViewModel : FeaturePageViewModel
     public override async Task ImportExcelAsync()
     {
         if (!_main.IsConnected) { _log.Toast(LogLevel.Warn, "Import roles", "Connect first."); return; }
-        var vm = await DialogHost.ImportWorkbookAsync(
-            "Import roles from workbook",
-            "Provision (create/update) roles in the connected environment from an edited roles.xlsx.",
-            "roles.xlsx", _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
-        if (vm is null) return;
-        WorkbookPath = vm.WorkbookPath;
-
-        // Always verify + dry-run first; only run the real import if the user approves in the preview.
-        DryRun = true;
-        _proceedWithImport = false;
-        await ProvisionAsync().ConfigureAwait(true);
-        if (!_proceedWithImport) return;
-
-        DryRun = false;
-        await ProvisionAsync().ConfigureAwait(true);
-        RememberWorkbook(_main.Settings, WorkbookPath);
+        var plan = new ModelMeister.Ui.Services.Import.Plans.RolesImportPlan(_main, _shell, _log);
+        var ran = await DialogHost.ShowImportWorkflowAsync(
+            plan, _log, _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
+        if (!ran) return;
+        RememberWorkbook(_main.Settings, plan.LastWorkbookPath);
+        MarkDataDirty();
+        await RefreshAsync().ConfigureAwait(true);
     }
-
-    /// <summary>Set by <see cref="ProvisionAsync"/> when the dry-run preview's "Continue with import"
-    /// was clicked — tells <see cref="ImportExcelAsync"/> to run the real import.</summary>
-    private bool _proceedWithImport;
 
     public ObservableCollection<RoleListRow> Roles { get; } = [];
     public ObservableCollection<string> Permissions { get; } = [];
@@ -92,13 +79,8 @@ public partial class RolesViewModel : FeaturePageViewModel
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadListCommand))]
     [NotifyCanExecuteChangedFor(nameof(DownloadTemplateCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ProvisionCommand))]
     private bool _busy;
     [ObservableProperty] private string _status = "";
-    [ObservableProperty] private bool _dryRun = true;
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ProvisionCommand))]
-    private string? _workbookPath;
 
     public RolesViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
     {
@@ -114,15 +96,12 @@ public partial class RolesViewModel : FeaturePageViewModel
                 if (_main.IsConnected) _ = EnsureLoadedAsync();
                 DownloadListCommand.NotifyCanExecuteChanged();
                 DownloadTemplateCommand.NotifyCanExecuteChanged();
-                ProvisionCommand.NotifyCanExecuteChanged();
                 AddRoleCommand.NotifyCanExecuteChanged();
             }
         };
     }
 
     private bool CanExport() => !Busy && _main.IsConnected;
-    private bool CanProvision() =>
-        !Busy && _main.IsConnected && !string.IsNullOrEmpty(WorkbookPath) && File.Exists(WorkbookPath);
 
     /// <inheritdoc/>
     public override async Task RefreshAsync()
@@ -321,59 +300,6 @@ public partial class RolesViewModel : FeaturePageViewModel
             RolesWorkbook.Save(rows, perms.ToList(), path);
             Status = $"Wrote {Path.GetFileName(path)}";
             _log.Success("Roles", $"Exported {(seedSingleExample ? "template" : "list")}: {path}");
-        }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Roles", ex.Message, ex); }
-        finally { Busy = false; }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanProvision))]
-    public async Task ProvisionAsync()
-    {
-        if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        if (string.IsNullOrEmpty(WorkbookPath) || !File.Exists(WorkbookPath)) { Status = "Pick a workbook."; return; }
-
-        Busy = true;
-        try
-        {
-            var roleRows = await Task.Run(() => RolesWorkbook.Load(WorkbookPath)).ConfigureAwait(true);
-            int created = 0, updated = 0, errors = 0;
-            var resultRows = new List<ProvisionResultRow>();
-
-            foreach (var row in roleRows)
-            {
-                if (DryRun)
-                {
-                    resultRows.Add(new ProvisionResultRow(row.Name, "would-create", $"permissions: {string.Join(", ", row.Permissions)}"));
-                    continue;
-                }
-                var result = await _shell.ProvisionRoleAsync(
-                    new RoleProvisioning.RoleSpec(row.Name, row.Description, row.Permissions)).ConfigureAwait(true);
-                if (result.Created) created++; else updated++;
-                if (result.Errors.Count > 0) errors += result.Errors.Count;
-                var outcome = result.Errors.Count > 0 ? "error" : (result.Created ? "created" : "updated");
-                var detail = result.Errors.Count > 0 ? string.Join(" · ", result.Errors) : $"permissions: {string.Join(", ", row.Permissions)}";
-                resultRows.Add(new ProvisionResultRow(row.Name, outcome, detail));
-                foreach (var err in result.Errors) _log.Warn("Roles", $"{row.Name}: {err}");
-            }
-
-            var resultVm = new ProvisionResultViewModel(
-                dryRun: DryRun,
-                created: DryRun ? roleRows.Count : created,
-                updated: DryRun ? 0 : updated,
-                errors: errors,
-                warnings: 0,
-                rows: resultRows,
-                importEyebrow: "ROLES IMPORT",
-                keyColumnHeader: "Role",
-                itemNoun: "roles");
-            var proceed = await DialogHost.ShowProvisionResultAsync(resultVm).ConfigureAwait(true);
-            _proceedWithImport = DryRun && proceed;
-
-            Status = DryRun
-                ? $"Dry run complete · {roleRows.Count} roles would be processed."
-                : $"Provisioned · created {created}, updated {updated}, errors {errors}";
-            if (!DryRun) MarkDataDirty();
-            await RefreshAsync().ConfigureAwait(true);
         }
         catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("Roles", ex.Message, ex); }
         finally { Busy = false; }

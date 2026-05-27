@@ -702,6 +702,14 @@ public sealed class Shell
         return new WorkAreaService(client).ApplyAsync(folders, allowDeletes, ct);
     }
 
+    /// <summary>Diff work-area folders against the connected env into an ordered, stateful reconcile
+    /// session the import workflow drives one folder at a time (for per-row progress).</summary>
+    public WorkAreaReconcileSession PlanWorkAreas(IReadOnlyList<WorkAreaFolderDto> folders, bool allowDeletes)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new WorkAreaService(client).Plan(folders, allowDeletes);
+    }
+
     /// <summary>Capture a <see cref="WorkAreasBackup"/> from the connected env.</summary>
     public Task<WorkAreasBackup> CaptureWorkAreasBackupAsync(BackupMetadata metadata, CancellationToken ct = default)
     {
@@ -781,6 +789,21 @@ public sealed class Shell
         return new HtmlTemplateService(client).ApplyAsync(templates, allowDeletes, ct);
     }
 
+    /// <summary>Diff templates against the connected env into an ordered action list the import workflow
+    /// drives one template at a time (for per-row progress).</summary>
+    public IReadOnlyList<HtmlTemplateAction> PlanHtmlTemplates(IReadOnlyList<HtmlTemplateDto> templates, bool allowDeletes)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new HtmlTemplateService(client).Plan(templates, allowDeletes);
+    }
+
+    /// <summary>Execute a single planned HTML-template action against the connected env.</summary>
+    public Task ExecuteHtmlTemplateActionAsync(HtmlTemplateAction action, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new HtmlTemplateService(client).ExecuteAsync(action, ct);
+    }
+
     /// <summary>Capture an <see cref="HtmlTemplatesBackup"/> from the connected env.</summary>
     public Task<HtmlTemplatesBackup> CaptureHtmlTemplatesBackupAsync(BackupMetadata metadata, CancellationToken ct = default)
     {
@@ -793,6 +816,21 @@ public sealed class Shell
     {
         var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
         return backup.RestoreAsync(new HtmlTemplateService(client), ct);
+    }
+
+    /// <summary>Capture a <see cref="CvlsBackup"/> (CVL definitions + values) from the connected env.</summary>
+    public async Task<CvlsBackup> CaptureCvlsBackupAsync(BackupMetadata metadata, CancellationToken ct = default)
+    {
+        var live = await CaptureSnapshotAsync(ct).ConfigureAwait(false);
+        return CvlsBackup.Capture(live, metadata);
+    }
+
+    /// <summary>Restore a <see cref="CvlsBackup"/> into the connected env (create missing CVLs, upsert values).</summary>
+    public async Task<List<CvlsBackup.RestoreEntry>> RestoreCvlsAsync(CvlsBackup backup, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        var live = await CaptureSnapshotAsync(ct).ConfigureAwait(false);
+        return await backup.RestoreAsync(new ModelMeister.Inriver.Cvl.CvlAdmin(client), live.Cvls, ct).ConfigureAwait(false);
     }
 
     /// <summary>Switch to <paramref name="env"/> and capture its HTML templates. Leaves the connection

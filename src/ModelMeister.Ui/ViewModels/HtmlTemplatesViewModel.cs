@@ -299,32 +299,13 @@ public partial class HtmlTemplatesViewModel : FeaturePageViewModel
     public override async Task ImportExcelAsync()
     {
         if (!_main.IsConnected) { Status = "Connect to an environment first."; return; }
-        var dlg = await DialogHost.ImportWorkbookAsync(
-            "Import HTML templates",
-            "Create or update templates (matched by name + type) in the connected environment from an edited htmltemplates.xlsx. Existing templates not in the workbook are left untouched.",
-            "htmltemplates.xlsx", _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
-        if (dlg is null || string.IsNullOrWhiteSpace(dlg.WorkbookPath)) return;
-        var workbookPath = dlg.WorkbookPath;
-
-        Busy = true;
-        try
-        {
-            var templates = await Task.Run(() => HtmlTemplateWorkbook.Load(workbookPath)).ConfigureAwait(true);
-            var ok = await DialogHost.ConfirmAsync(
-                "Apply HTML templates",
-                $"{templates.Count} template(s) from the workbook will be created or updated in '{_main.ConnectedEnv?.Name}'. Continue?",
-                "Apply", "Cancel").ConfigureAwait(true);
-            if (!ok) { Status = "Import cancelled."; return; }
-
-            var result = await _shell.ApplyHtmlTemplatesAsync(templates, allowDeletes: false).ConfigureAwait(true);
-            Status = $"Import · created {result.Created}, updated {result.Updated}, unchanged {result.Unchanged}" + (result.Failed > 0 ? $", {result.Failed} failed" : "");
-            _log.Success("HtmlTemplates", Status);
-            RememberWorkbook(_main.Settings, workbookPath);
-            MarkDataDirty();
-            await RefreshAsync().ConfigureAwait(true);
-        }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; _log.Error("HtmlTemplates", ex.Message, ex); }
-        finally { Busy = false; }
+        var plan = new ModelMeister.Ui.Services.Import.Plans.HtmlTemplatesImportPlan(_main, _shell, _log);
+        var ran = await DialogHost.ShowImportWorkflowAsync(
+            plan, _log, _main.Settings.Current.RecentWorkbookPaths).ConfigureAwait(true);
+        if (!ran) return;
+        RememberWorkbook(_main.Settings, plan.LastWorkbookPath);
+        MarkDataDirty();
+        await RefreshAsync().ConfigureAwait(true);
     }
 }
 

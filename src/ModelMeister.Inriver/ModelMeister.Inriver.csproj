@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="ModelMeister.Inriver.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ModelMeister.Model\ModelMeister.Model.csproj" />
     <ProjectReference Include="..\ModelMeister.Rest\ModelMeister.Rest.csproj" />
   </ItemGroup>
