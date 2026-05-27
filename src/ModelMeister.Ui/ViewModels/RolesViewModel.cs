@@ -230,7 +230,7 @@ public partial class RolesViewModel : FeaturePageViewModel
     {
         if (!_main.IsConnected) { Status = "Connect first."; return; }
         var ok = await DialogHost.ConfirmBulkAsync("Delete roles", "Delete", "role", names,
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!ok) return;
         await DeleteRolesAsync(names).ConfigureAwait(true);
     }

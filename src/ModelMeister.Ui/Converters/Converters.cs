@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 using ModelMeister.Ui.Models;
+using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.Converters;
 
@@ -190,55 +191,42 @@ public sealed class ConnectionStateToGlyphConverter : IValueConverter
 }
 
 /// <summary>
-/// Resolves an <see cref="EnvironmentStage"/> (or its string form) to a brush resource.
-/// Pass parameter "soft" to get the muted background brush instead of the foreground brush.
+/// Resolves an environment <see cref="EnvironmentType.Key"/> (or a legacy stage name) to its pill
+/// brush via the <see cref="EnvironmentTypeRegistry"/>. The strong color is used for text/border; pass
+/// parameter "soft" for the translucent background variant. Falls back to neutral gray when the
+/// registry isn't wired yet (design-time) or the key is unknown.
 /// </summary>
 public sealed class StageToBrushConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var stage = value?.ToString() ?? nameof(EnvironmentStage.Unspecified);
-        var soft = (parameter as string) == "soft";
-        return ConverterHelpers.Brush(stage switch
-        {
-            "Prod"  => soft ? "StageProdSoftBrush"   : "StageProdBrush",
-            "Stage" => soft ? "StageProdSoftBrush"   : "StageProdBrush",
-            "UAT"   => soft ? "StageTestSoftBrush"   : "StageTestBrush",
-            "QA"    => soft ? "StageTestSoftBrush"   : "StageTestBrush",
-            "Test"  => soft ? "StageTestSoftBrush"   : "StageTestBrush",
-            "Dev"   => soft ? "StageDevSoftBrush"    : "StageDevBrush",
-            _       => soft ? "StageUnspecSoftBrush" : "StageUnspecBrush",
-        });
+        var hex = EnvironmentTypeRegistry.Current?.Resolve(value?.ToString()).ColorHex ?? "#6B7280";
+        return (parameter as string) == "soft"
+            ? EnvironmentTypeColors.Soft(hex)
+            : EnvironmentTypeColors.Strong(hex);
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => Avalonia.Data.BindingOperations.DoNothing;
 }
 
-/// <summary>Renders the short uppercase tag shown in the stage pill: PROD / TEST / DEV / ENV.</summary>
+/// <summary>Renders the short tag shown in the environment-type pill (e.g. PROD / TEST / DEV / ENV),
+/// resolved from the type's <see cref="EnvironmentType.Shorthand"/>.</summary>
 public sealed class StageToTextConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => (value?.ToString()) switch
-        {
-            "Prod"  => "PROD",
-            "Stage" => "STAGE",
-            "UAT"   => "UAT",
-            "QA"    => "QA",
-            "Test"  => "TEST",
-            "Dev"   => "DEV",
-            _       => "ENV",
-        };
+        => EnvironmentTypeRegistry.Current?.Resolve(value?.ToString()).Shorthand ?? "ENV";
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => Avalonia.Data.BindingOperations.DoNothing;
 }
 
-/// <summary>Returns true when the stage value resolves to <see cref="EnvironmentStage.Prod"/>.</summary>
+/// <summary>Returns true when the environment type for the bound key is marked protected (drives the
+/// destructive-operation safety banner).</summary>
 public sealed class StageIsProdConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => string.Equals(value?.ToString(), nameof(EnvironmentStage.Prod), StringComparison.Ordinal);
+        => EnvironmentTypeRegistry.Current?.IsProtected(value?.ToString()) ?? false;
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => Avalonia.Data.BindingOperations.DoNothing;

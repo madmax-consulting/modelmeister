@@ -60,11 +60,11 @@
         </StackPanel>
       </StackPanel>
 
-      <Border Classes="pill err" IsVisible="{Binding IsProd}" HorizontalAlignment="Left">
+      <Border Classes="pill err" IsVisible="{Binding IsProtected}" HorizontalAlignment="Left">
         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
           <Path Data="{DynamicResource IcoWarn}" Width="11" Height="11" Stretch="Uniform"
                 Stroke="{DynamicResource Danger}" StrokeThickness="1.7" Fill="Transparent" />
-          <TextBlock Text="PRODUCTION ENVIRONMENT" Foreground="{DynamicResource Danger}" />
+          <TextBlock Text="PROTECTED ENVIRONMENT" Foreground="{DynamicResource Danger}" />
         </StackPanel>
       </Border>
 

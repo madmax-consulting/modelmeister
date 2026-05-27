@@ -37,8 +37,8 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
     [ObservableProperty] private bool _hasRows;
     [ObservableProperty] private string _leftColumnHeader = "";
     [ObservableProperty] private string _rightColumnHeader = "";
-    [ObservableProperty] private EnvironmentStage _leftColumnStage;
-    [ObservableProperty] private EnvironmentStage _rightColumnStage;
+    [ObservableProperty] private string? _leftColumnStage;
+    [ObservableProperty] private string? _rightColumnStage;
     [ObservableProperty] private ExtensionDiffRow? _selected;
 
     public IAsyncRelayCommand SaveCsvCommand { get; }
@@ -97,22 +97,22 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
         if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
         if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
 
-        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.Stage; }
-        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.Stage; }
+        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.TypeKey; }
+        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.TypeKey; }
     }
 
     partial void OnLeftEnvChanged(EnvironmentEntry? value)
     {
         _leftCapture = null;
         LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        LeftColumnStage = value?.TypeKey;
         TryAutoCompare();
     }
     partial void OnRightEnvChanged(EnvironmentEntry? value)
     {
         _rightCapture = null;
         RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        RightColumnStage = value?.TypeKey;
         TryAutoCompare();
     }
 

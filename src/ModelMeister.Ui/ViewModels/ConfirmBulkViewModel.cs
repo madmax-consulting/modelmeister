@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CommunityToolkit.Mvvm.Input;
-using ModelMeister.Ui.Models;
+using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
 
@@ -22,7 +22,7 @@ public sealed partial class ConfirmBulkViewModel : ViewModelBase
     public ConfirmBulkViewModel(
         string title, string verb, string noun,
         IReadOnlyList<string> itemNames,
-        string? envName, EnvironmentStage stage, bool destructive)
+        string? envName, string? typeKey, bool destructive)
     {
         Title = title;
         Verb = verb;
@@ -38,8 +38,8 @@ public sealed partial class ConfirmBulkViewModel : ViewModelBase
 
         EnvName = envName;
         HasEnv = !string.IsNullOrEmpty(envName);
-        Stage = stage.ToString();
-        IsProd = stage == EnvironmentStage.Prod && destructive;
+        Stage = typeKey;
+        IsProtected = (EnvironmentTypeRegistry.Current?.IsProtected(typeKey) ?? false) && destructive;
         Eyebrow = destructive ? "DESTRUCTIVE ACTION" : "CONFIRM ACTION";
     }
 
@@ -66,10 +66,10 @@ public sealed partial class ConfirmBulkViewModel : ViewModelBase
     /// <summary>Connected environment name (null for local-file targets like snapshots).</summary>
     public string? EnvName { get; }
     public bool HasEnv { get; }
-    /// <summary>Stage label string the StageTo* converters understand.</summary>
-    public string Stage { get; }
-    /// <summary>True when the target is a Prod stage and the action is destructive.</summary>
-    public bool IsProd { get; }
+    /// <summary>Environment-type key the StageTo* converters resolve into the colored pill.</summary>
+    public string? Stage { get; }
+    /// <summary>True when the target environment's type is protected and the action is destructive.</summary>
+    public bool IsProtected { get; }
 
     public bool? Result { get; private set; }
     public event Action? Closed;

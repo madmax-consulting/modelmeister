@@ -206,7 +206,7 @@ public partial class RestrictedFieldsViewModel : FeaturePageViewModel
         var names = rows.Select(r => $"{r.RoleName} · {r.NaturalKey} ({r.RestrictionType})").ToList();
         var confirmed = await DialogHost.ConfirmBulkAsync(
             "Delete restricted-field permissions", "Delete", "restriction", names,
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!confirmed) return;
         await DeleteRowsAsync(rows).ConfigureAwait(true);
     }

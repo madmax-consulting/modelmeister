@@ -40,8 +40,8 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
     [ObservableProperty] private bool _hasRows;
     [ObservableProperty] private string _leftColumnHeader = "";
     [ObservableProperty] private string _rightColumnHeader = "";
-    [ObservableProperty] private EnvironmentStage _leftColumnStage;
-    [ObservableProperty] private EnvironmentStage _rightColumnStage;
+    [ObservableProperty] private string? _leftColumnStage;
+    [ObservableProperty] private string? _rightColumnStage;
 
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
@@ -96,20 +96,20 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
         if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
         if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
 
-        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.Stage; }
-        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.Stage; }
+        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.TypeKey; }
+        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.TypeKey; }
     }
 
     partial void OnLeftEnvChanged(EnvironmentEntry? value)
     {
         LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        LeftColumnStage = value?.TypeKey;
         TryAutoCompare();
     }
     partial void OnRightEnvChanged(EnvironmentEntry? value)
     {
         RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        RightColumnStage = value?.TypeKey;
         TryAutoCompare();
     }
 
@@ -282,7 +282,7 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
             itemLabel: $"{rows.Count} role(s)",
             sourceEnv: LeftEnv.Name,
             targetEnv: targetEnv.Name,
-            targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
+            targetTypeKey: targetEnv.TypeKey).ConfigureAwait(true);
         if (!confirmed) { Status = "Promote cancelled."; return; }
 
         foreach (var row in rows)
@@ -314,7 +314,7 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
                 itemLabel: row.RoleName,
                 sourceEnv: sourceEnv.Name,
                 targetEnv: targetEnv.Name,
-                targetStage: targetEnv.Stage.ToString()).ConfigureAwait(true);
+                targetTypeKey: targetEnv.TypeKey).ConfigureAwait(true);
             if (!confirmed) { Status = "Promote cancelled."; return; }
         }
 

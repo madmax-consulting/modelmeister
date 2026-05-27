@@ -221,7 +221,7 @@ public partial class WorkAreaViewModel : FeaturePageViewModel
         var ok = await DialogHost.ConfirmBulkAsync(
             "Delete work-area folder", "Delete", "folder",
             new[] { Selected.Path + (descendants > 0 ? $"  (+{descendants} nested)" : "") },
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!ok) return;
         Busy = true;
         Status = $"Deleting '{Selected.Name}'… {detail}";

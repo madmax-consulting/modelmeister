@@ -62,7 +62,7 @@ public partial class CvlWorkbenchViewModel : FeaturePageViewModel
         // CVL imports can remove values — pass a stage-aware gate so the destructive confirmation
         // between Verify and Import shows the connected env + prod banner.
         var gate = new ModelMeister.Ui.Services.Import.ImportConfirmGate(
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey);
         var ran = await DialogHost.ShowImportWorkflowAsync(
             plan, _log, _main.Settings.Current.RecentWorkbookPaths, gate).ConfigureAwait(true);
         if (!ran) return;
@@ -223,7 +223,7 @@ public partial class CvlWorkbenchViewModel : FeaturePageViewModel
     {
         if (!_main.IsConnected) { Status = "Connect first."; return; }
         var ok = await DialogHost.ConfirmBulkAsync("Delete CVLs", "Delete", "CVL", ids,
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!ok) return;
         await DeleteCvlsAsync(ids).ConfigureAwait(true);
     }

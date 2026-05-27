@@ -23,9 +23,9 @@ internal static class DialogHost
         string envUrl,
         int changeCount,
         string policySummary = "",
-        string stage = "Unspecified")
+        string? typeKey = null)
     {
-        var vm = new ConfirmApplyViewModel(envUrl, changeCount, policySummary, stage);
+        var vm = new ConfirmApplyViewModel(envUrl, changeCount, policySummary, typeKey);
         return ShowDialogAsync<ConfirmApplyDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 
@@ -49,7 +49,7 @@ internal static class DialogHost
         // The removal gate is only exercised by features that report removals (CVLs); the others pass
         // none and get a stage-unaware default that is never invoked. The file opener is only used by
         // the Results "Reveal backup" button.
-        confirmGate ??= new ModelMeister.Ui.Services.Import.ImportConfirmGate(null, Models.EnvironmentStage.Unspecified);
+        confirmGate ??= new ModelMeister.Ui.Services.Import.ImportConfirmGate(null, null);
         fileOpener ??= new OsFileOpener();
         var vm = new ImportWorkflowViewModel(plan, log, fileOpener, confirmGate, recents);
         return await ShowDialogAsync<ImportWorkflowDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
@@ -60,6 +60,15 @@ internal static class DialogHost
     {
         var vm = new AddServerSettingViewModel(initialKey, initialValue, isEdit);
         var ok = await ShowDialogAsync<AddServerSettingDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
+    /// <summary>Show the Create / Edit environment-type dialog (<paramref name="existing"/> = null to create).
+    /// Returns the populated VM on Save, else <c>null</c>.</summary>
+    public static async Task<EnvironmentTypeEditorViewModel?> EnvironmentTypeEditorAsync(ModelMeister.Ui.Models.EnvironmentType? existing)
+    {
+        var vm = new EnvironmentTypeEditorViewModel(existing);
+        var ok = await ShowDialogAsync<EnvironmentTypeEditorDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
         return ok ? vm : null;
     }
 
@@ -128,9 +137,9 @@ internal static class DialogHost
     }
 
     /// <summary>Show the per-row promote confirmation. Returns <c>true</c> when the user clicks Continue.</summary>
-    public static Task<bool> ConfirmPromoteAsync(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string targetStage)
+    public static Task<bool> ConfirmPromoteAsync(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string? targetTypeKey)
     {
-        var vm = new PromoteConfirmViewModel(conceptLabel, itemLabel, sourceEnv, targetEnv, targetStage);
+        var vm = new PromoteConfirmViewModel(conceptLabel, itemLabel, sourceEnv, targetEnv, targetTypeKey);
         return ShowDialogAsync<PromoteConfirmDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 
@@ -149,10 +158,10 @@ internal static class DialogHost
         string title, string verb, string noun,
         System.Collections.Generic.IReadOnlyList<string> itemNames,
         string? envName,
-        ModelMeister.Ui.Models.EnvironmentStage stage = ModelMeister.Ui.Models.EnvironmentStage.Unspecified,
+        string? typeKey = null,
         bool destructive = true)
     {
-        var vm = new ConfirmBulkViewModel(title, verb, noun, itemNames, envName, stage, destructive);
+        var vm = new ConfirmBulkViewModel(title, verb, noun, itemNames, envName, typeKey, destructive);
         return ShowDialogAsync<ConfirmBulkDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 

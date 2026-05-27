@@ -25,6 +25,7 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IEnvironmentVault _vault;
     private readonly ISettingsStore _settings;
+    private readonly IEnvironmentTypeRegistry _envTypes;
     private readonly IConnectionLifecycle _connection;
     private readonly IAppLog _log;
     private readonly Shell _shell;
@@ -87,6 +88,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public DashboardViewModel DashboardVm { get; }
     public SetupViewModel SetupVm { get; }
+    public EnvironmentTypesViewModel EnvironmentTypesVm { get; }
     public SnapshotsViewModel SnapshotsVm { get; }
 
     /// <summary>Static hub descriptors in sidebar display order, grouped HOME / MANAGE / SYSTEM.
@@ -209,7 +211,11 @@ public partial class MainWindowViewModel : ViewModelBase
         new HubDescriptor(Hub.Setup, "Setup", "IcoGear", HubGroup.System,
             "APP PREFERENCES",
             "Theme, defaults, storage, diagnostics, about.",
-            Array.Empty<SubPageDescriptor>()),
+            new SubPageDescriptor[]
+            {
+                new("general",  "General",           null, "Theme, defaults, storage, and about."),
+                new("envtypes", "Environment types", null, "Define and color the environment types you assign to environments."),
+            }),
     };
 
     /// <summary>Shared source-set state (slot A / slot B / Single|Compare mode). Read by feature pages and the SourceBar.</summary>
@@ -325,6 +331,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(
         IEnvironmentVault vault,
         ISettingsStore settings,
+        IEnvironmentTypeRegistry envTypes,
         IConnectionLifecycle connection,
         IFileOpener fileOpener,
         IAppLog log,
@@ -332,13 +339,14 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _vault = vault;
         _settings = settings;
+        _envTypes = envTypes;
         _connection = connection;
         _log = log;
         _shell = shell;
         Backups = new BackupService(shell, connection, vault);
         Restores = new RestoreService(shell, vault);
 
-        EnvironmentsVm = new EnvironmentsViewModel(this, vault, settings, connection, log);
+        EnvironmentsVm = new EnvironmentsViewModel(this, vault, settings, envTypes, connection, log);
         ModelVm = new ModelViewModel(this, settings, shell, fileOpener, log);
         PolicyVm = new PolicyViewModel(this, settings);
         DiffVm = new DiffViewModel(this, settings, shell, log);
@@ -365,6 +373,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         DashboardVm = new DashboardViewModel(this, log);
         SetupVm = new SetupViewModel(this, settings);
+        EnvironmentTypesVm = new EnvironmentTypesViewModel(this, envTypes, vault, log);
         SnapshotsVm = new SnapshotsViewModel(this, fileOpener, log);
 
         WorkflowSteps = new[]
@@ -605,6 +614,7 @@ public partial class MainWindowViewModel : ViewModelBase
         (hub.Hub, sub?.Key) switch
         {
             (Hub.Dashboard, _)               => DashboardVm,
+            (Hub.Setup, "envtypes")          => EnvironmentTypesVm,
             (Hub.Setup, _)                   => SetupVm,
             (Hub.BackupRestore, "snapshots") => SnapshotsVm,
             // Model → Manage: WorkflowStrip drives which legacy step VM is hosted.
@@ -969,8 +979,8 @@ public partial class MainWindowViewModel : ViewModelBase
         ConnectionDetail = env is not null
             ? $"{env.Name}  ({env.Url})"
             : _connection.LastError ?? "No environment connected";
-        ConnectedStage = (env?.Stage ?? EnvironmentStage.Unspecified).ToString();
-        IsProdConnected = IsConnected && env?.Stage == EnvironmentStage.Prod;
+        ConnectedStage = env?.TypeKey ?? EnvironmentTypeRegistry.UnspecifiedKey;
+        IsProdConnected = IsConnected && _envTypes.IsProtected(env?.TypeKey);
 
         // Connection swapped (or disconnected): any cached snapshot/diff was computed against a
         // different env and is now meaningless. Clear so Apply can't fire against the wrong env.

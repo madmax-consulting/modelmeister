@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:ModelMeister.Ui.ViewModels"
         xmlns:conv="using:ModelMeister.Ui.Converters"
+        xmlns:m="using:ModelMeister.Ui.Models"
         mc:Ignorable="d"
         x:Class="ModelMeister.Ui.Views.EnvEditorDialog"
         x:DataType="vm:EnvEditorViewModel"
@@ -45,9 +46,24 @@
           <TextBlock Text="FRIENDLY NAME" Classes="label" />
           <TextBox Text="{Binding Name, Mode=TwoWay}" Watermark="e.g. Dev / Test / Production" />
         </StackPanel>
-        <StackPanel Grid.Column="1" Spacing="6" MinWidth="160" Margin="14,0,0,0">
-          <TextBlock Text="STAGE" Classes="label" />
-          <ComboBox ItemsSource="{Binding Stages}" SelectedItem="{Binding Stage, Mode=TwoWay}" />
+        <StackPanel Grid.Column="1" Spacing="6" MinWidth="190" Margin="14,0,0,0">
+          <TextBlock Text="TYPE" Classes="label" />
+          <ComboBox ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="m:EnvironmentType">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <Border Classes="stage" VerticalAlignment="Center"
+                          Background="{Binding Key, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                          BorderBrush="{Binding Key, Converter={StaticResource StageBrush}}">
+                    <TextBlock Text="{Binding Shorthand}"
+                               Foreground="{Binding Key, Converter={StaticResource StageBrush}}" />
+                  </Border>
+                  <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
         </StackPanel>
       </Grid>
 

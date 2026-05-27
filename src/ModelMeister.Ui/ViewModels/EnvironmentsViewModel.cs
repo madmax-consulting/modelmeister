@@ -19,6 +19,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
     private readonly MainWindowViewModel _main;
     private readonly IEnvironmentVault _vault;
     private readonly ISettingsStore _settings;
+    private readonly IEnvironmentTypeRegistry _envTypes;
     private readonly IConnectionLifecycle _connection;
     private readonly IAppLog _log;
 
@@ -54,12 +55,14 @@ public partial class EnvironmentsViewModel : ViewModelBase
         MainWindowViewModel main,
         IEnvironmentVault vault,
         ISettingsStore settings,
+        IEnvironmentTypeRegistry envTypes,
         IConnectionLifecycle connection,
         IAppLog log)
     {
         _main = main;
         _vault = vault;
         _settings = settings;
+        _envTypes = envTypes;
         _connection = connection;
         _log = log;
         Selection = new RowSelectionModel(Rows);
@@ -128,7 +131,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
     private async Task AddAsync()
     {
         var entry = new EnvironmentEntry { Name = "", Url = EnvEditorViewModel.DefaultUrl };
-        var dlg = new EnvEditorViewModel(entry, new EnvironmentSecret(), isDefault: false, _connection, _log);
+        var dlg = new EnvEditorViewModel(entry, new EnvironmentSecret(), _envTypes, isDefault: false, _connection, _log);
         if (!await DialogHost.ShowAsync(dlg).ConfigureAwait(true)) return;
 
         _vault.Upsert(dlg.Entry, dlg.Secret);
@@ -149,6 +152,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
         var dlg = new EnvEditorViewModel(
             Clone(SelectedRow.Entry),
             Clone(existingSecret),
+            _envTypes,
             isDefault: SelectedRow.IsDefault,
             _connection,
             _log);
@@ -322,7 +326,9 @@ public partial class EnvironmentsViewModel : ViewModelBase
         Id = e.Id,
         Name = e.Name,
         Url = e.Url,
+        RestBaseUrl = e.RestBaseUrl,
         Stage = e.Stage,
+        TypeKey = e.TypeKey,
         Notes = e.Notes,
         LastUsedUtc = e.LastUsedUtc,
     };
@@ -352,7 +358,8 @@ public sealed partial class EnvironmentRow : SelectableRow
     public bool IsDefault { get; }
 
     public string Name => Entry.Name;
-    public string Stage => Entry.Stage.ToString();
+    /// <summary>Environment-type key, resolved to a colored pill by the StageBrush/StageText converters.</summary>
+    public string Stage => Entry.TypeKey ?? EnvironmentTypeRegistry.UnspecifiedKey;
     public string LastUsed => Entry.LastUsedUtc == default
         ? "—"
         : Entry.LastUsedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");

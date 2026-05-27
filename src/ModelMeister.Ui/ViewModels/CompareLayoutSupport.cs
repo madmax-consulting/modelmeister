@@ -31,8 +31,9 @@ public interface ICompareViewModel
     /// <summary>Header label for the left-value column = left env name.</summary>
     string LeftColumnHeader { get; }
     string RightColumnHeader { get; }
-    EnvironmentStage LeftColumnStage { get; }
-    EnvironmentStage RightColumnStage { get; }
+    /// <summary>Environment-type key of the left/right column env, resolved to a pill by the converters.</summary>
+    string? LeftColumnStage { get; }
+    string? RightColumnStage { get; }
 
     bool Busy { get; }
     string Status { get; }

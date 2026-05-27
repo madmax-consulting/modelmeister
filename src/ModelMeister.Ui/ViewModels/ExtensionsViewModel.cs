@@ -396,7 +396,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
     {
         if (!_main.IsConnected) { StatusMessage = "Connect first."; return; }
         var ok = await DialogHost.ConfirmBulkAsync("Delete extensions", "Delete", "extension", ids,
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!ok) return;
         await DeleteExtensionsAsync(ids).ConfigureAwait(true);
     }
@@ -448,7 +448,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         var keys = SettingsSelection.SelectedOf<ExtensionSettingRow>().Select(r => r.Key).ToList();
         if (keys.Count == 0) { StatusMessage = "Select at least one setting."; return; }
         var ok = await DialogHost.ConfirmBulkAsync($"Delete settings from {Selected.Info.Id}", "Delete", "setting", keys,
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!ok) return;
         Busy = true;
         try
@@ -487,7 +487,7 @@ public partial class ExtensionsViewModel : FeaturePageViewModel
         if (rows.Count == 0) { StatusMessage = "Select at least one state."; return; }
         var ok = await DialogHost.ConfirmBulkAsync("Delete connector states", "Delete", "state",
             rows.Select(r => $"State #{r.Row.Id}").ToList(),
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!ok) return;
         Busy = true;
         try

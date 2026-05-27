@@ -17,7 +17,16 @@ public sealed class EnvironmentEntry
     public string Url { get; set; } = "";
     /// <summary>Base URL of the inriver REST API for this env (e.g. https://apieuw.productmarketingcloud.com). Optional.</summary>
     public string? RestBaseUrl { get; set; }
+
+    /// <summary>Legacy maturity stage. Superseded by <see cref="TypeKey"/>; retained only so older vault
+    /// files still deserialize and migrate. New writes leave it at its default.</summary>
     public EnvironmentStage Stage { get; set; } = EnvironmentStage.Unspecified;
+
+    /// <summary>Key of the <see cref="EnvironmentType"/> assigned to this environment (drives the pill
+    /// color/shorthand and the protected-environment guard). Null on legacy entries until migrated from
+    /// <see cref="Stage"/>; resolves to the built-in "Unspecified" type when unset.</summary>
+    public string? TypeKey { get; set; }
+
     public string? Notes { get; set; }
     public DateTime LastUsedUtc { get; set; }
 }

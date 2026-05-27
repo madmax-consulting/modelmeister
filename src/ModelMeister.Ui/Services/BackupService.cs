@@ -76,7 +76,7 @@ public sealed class BackupService
         {
             EnvName = env?.Name ?? "(none)",
             EnvUrl = env?.Url,
-            Stage = env?.Stage.ToString(),
+            Stage = EnvironmentTypeRegistry.Current?.Resolve(env?.TypeKey).Name,
             CapturedAtUtc = DateTime.UtcNow,
             Label = label,
             Tool = "ModelMeister",

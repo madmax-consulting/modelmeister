@@ -1,5 +1,6 @@
 using System;
 using CommunityToolkit.Mvvm.Input;
+using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
 
@@ -10,14 +11,14 @@ namespace ModelMeister.Ui.ViewModels;
 /// </summary>
 public partial class PromoteConfirmViewModel : ViewModelBase
 {
-    public PromoteConfirmViewModel(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string targetStage)
+    public PromoteConfirmViewModel(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string? targetTypeKey)
     {
         ConceptLabel = conceptLabel;
         ItemLabel = itemLabel;
         SourceEnv = sourceEnv;
         TargetEnv = targetEnv;
-        TargetStage = targetStage;
-        IsProd = string.Equals(targetStage, "Prod", StringComparison.Ordinal);
+        TargetStage = targetTypeKey;
+        IsProtected = EnvironmentTypeRegistry.Current?.IsProtected(targetTypeKey) ?? false;
     }
 
     /// <summary>Concept being promoted (e.g. "User", "Setting", "CVL value").</summary>
@@ -26,8 +27,9 @@ public partial class PromoteConfirmViewModel : ViewModelBase
     public string ItemLabel { get; }
     public string SourceEnv { get; }
     public string TargetEnv { get; }
-    public string TargetStage { get; }
-    public bool IsProd { get; }
+    /// <summary>Target environment's type key (used to resolve the protected guard).</summary>
+    public string? TargetStage { get; }
+    public bool IsProtected { get; }
 
     public string Headline => $"Promote {ConceptLabel.ToLowerInvariant()} '{ItemLabel}'";
     public string Detail =>

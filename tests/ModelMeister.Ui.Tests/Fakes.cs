@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ModelMeister.Ui.Models;
 using ModelMeister.Ui.Services;
 using ModelMeister.Ui.Services.Import;
 
@@ -94,4 +95,29 @@ internal sealed class NullFileOpener : IFileOpener
     public void Open(string path) { }
     public void OpenAt(string filePath, int line) { }
     public void RevealInExplorer(string path) { }
+}
+
+/// <summary>In-memory <see cref="ISettingsStore"/> for registry tests — <see cref="Save"/> just bumps a counter.</summary>
+internal sealed class FakeSettingsStore : ISettingsStore
+{
+    public AppSettings Current { get; } = new();
+    public int SaveCount { get; private set; }
+    public void Save() => SaveCount++;
+}
+
+/// <summary>Minimal in-memory <see cref="IEnvironmentVault"/> exposing a fixed entry list (for IsInUse tests).</summary>
+internal sealed class FakeEnvironmentVault : IEnvironmentVault
+{
+    private readonly List<EnvironmentEntry> _entries;
+    public FakeEnvironmentVault(params EnvironmentEntry[] entries) => _entries = entries.ToList();
+
+    public IReadOnlyList<EnvironmentEntry> List() => _entries;
+    public EnvironmentEntry? Get(Guid id) => _entries.FirstOrDefault(e => e.Id == id);
+    public EnvironmentSecret? GetSecret(Guid id) => null;
+    public bool SecretMissing(Guid id) => false;
+    public void Upsert(EnvironmentEntry entry, EnvironmentSecret secret) { }
+    public void Delete(Guid id) { }
+    public void Touch(Guid id) { }
+    // No-op accessors keep the interface contract without an unused backing field (avoids CS0067).
+    public event Action? Changed { add { } remove { } }
 }

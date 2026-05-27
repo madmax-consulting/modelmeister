@@ -1,5 +1,6 @@
 using System;
 using CommunityToolkit.Mvvm.Input;
+using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
 
@@ -10,13 +11,13 @@ namespace ModelMeister.Ui.ViewModels;
 public partial class ConfirmApplyViewModel : ViewModelBase
 {
     /// <summary>Construct a confirmation prompt for an apply that targets <paramref name="envUrl"/>.</summary>
-    public ConfirmApplyViewModel(string envUrl, int changeCount, string policySummary = "", string stage = "Unspecified")
+    public ConfirmApplyViewModel(string envUrl, int changeCount, string policySummary = "", string? typeKey = null)
     {
         EnvironmentUrl = envUrl;
         ChangeCount = changeCount;
         PolicySummary = policySummary;
-        Stage = stage;
-        IsProd = string.Equals(stage, "Prod", StringComparison.Ordinal);
+        Stage = typeKey;
+        IsProtected = EnvironmentTypeRegistry.Current?.IsProtected(typeKey) ?? false;
     }
 
     /// <summary>URL of the target environment, displayed prominently in the dialog.</summary>
@@ -28,11 +29,11 @@ public partial class ConfirmApplyViewModel : ViewModelBase
     /// <summary>Human-readable summary of the merge policy in effect (deletes allowed, etc.).</summary>
     public string PolicySummary { get; }
 
-    /// <summary>The connected environment's stage label (e.g. "Prod", "Test").</summary>
-    public string Stage { get; }
+    /// <summary>The connected environment's type key, resolved to a pill by the dialog's converters.</summary>
+    public string? Stage { get; }
 
-    /// <summary>True when <see cref="Stage"/> is "Prod"; the dialog renders an extra-red banner in that case.</summary>
-    public bool IsProd { get; }
+    /// <summary>True when the target environment's type is protected; the dialog renders the red safety banner.</summary>
+    public bool IsProtected { get; }
 
     /// <summary>The dialog result, set just before <see cref="Closed"/> fires.</summary>
     public bool? Result { get; private set; }

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using ModelMeister.Ui.Models;
 
 namespace ModelMeister.Ui.Services.Import;
 
@@ -16,19 +15,19 @@ public interface IImportConfirmGate
 }
 
 /// <summary>Default gate backed by <see cref="DialogHost.ConfirmBulkAsync"/>, capturing the connected
-/// environment's name + stage so the prompt can show the prod banner.</summary>
+/// environment's name + type key so the prompt can show the protected-environment banner.</summary>
 public sealed class ImportConfirmGate : IImportConfirmGate
 {
     private readonly string? _envName;
-    private readonly EnvironmentStage _stage;
+    private readonly string? _typeKey;
 
-    public ImportConfirmGate(string? envName, EnvironmentStage stage)
+    public ImportConfirmGate(string? envName, string? typeKey)
     {
         _envName = envName;
-        _stage = stage;
+        _typeKey = typeKey;
     }
 
     /// <inheritdoc/>
     public Task<bool> ConfirmDestructiveAsync(string title, string verb, string noun, IReadOnlyList<string> items)
-        => DialogHost.ConfirmBulkAsync(title, verb, noun, items, _envName, _stage, destructive: true);
+        => DialogHost.ConfirmBulkAsync(title, verb, noun, items, _envName, _typeKey, destructive: true);
 }

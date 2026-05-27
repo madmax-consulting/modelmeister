@@ -68,6 +68,25 @@ public sealed class DpapiEnvironmentVault : IEnvironmentVault
         Paths.EnsureAppDataDir();
         _entries = LoadEntries();
         _secrets = LoadSecrets(_entries, _secretLoadFailures);
+        if (MigrateTypeKeys()) SaveAll();
+    }
+
+    /// <summary>One-time migration: stamp <see cref="EnvironmentEntry.TypeKey"/> from the legacy
+    /// <see cref="EnvironmentEntry.Stage"/> enum name for any entry that predates type keys. The
+    /// built-in type keys equal the enum names, so this is an identity map onto the matching type.
+    /// Returns true when at least one entry changed (so the caller persists once).</summary>
+    private bool MigrateTypeKeys()
+    {
+        var changed = false;
+        foreach (var e in _entries)
+        {
+            if (string.IsNullOrEmpty(e.TypeKey))
+            {
+                e.TypeKey = e.Stage.ToString();
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     /// <inheritdoc/>

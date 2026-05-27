@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -30,17 +31,8 @@ public partial class EnvEditorViewModel : ViewModelBase
     /// <summary>Working-copy secret; the surrounding view-model rebinds field values to this on Save.</summary>
     public EnvironmentSecret Secret { get; }
 
-    /// <summary>Allowed values for the Stage dropdown.</summary>
-    public EnvironmentStage[] Stages { get; } =
-    {
-        EnvironmentStage.Unspecified,
-        EnvironmentStage.Dev,
-        EnvironmentStage.Test,
-        EnvironmentStage.QA,
-        EnvironmentStage.UAT,
-        EnvironmentStage.Stage,
-        EnvironmentStage.Prod,
-    };
+    /// <summary>Environment types offered in the dropdown (built-ins + user-defined), from the registry.</summary>
+    public IReadOnlyList<EnvironmentType> Types { get; }
 
     /// <summary>Display name shown in the environment list.</summary>
     [ObservableProperty] private string _name;
@@ -48,8 +40,8 @@ public partial class EnvEditorViewModel : ViewModelBase
     [ObservableProperty] private string _url;
     /// <summary>Optional base URL for the inriver REST API (e.g. https://apieuw.productmarketingcloud.com).</summary>
     [ObservableProperty] private string? _restBaseUrl;
-    /// <summary>Stage (Dev/Test/Prod/...) used for the prod-guard styling.</summary>
-    [ObservableProperty] private EnvironmentStage _stage;
+    /// <summary>The selected environment type (drives the pill color/shorthand and the protected guard).</summary>
+    [ObservableProperty] private EnvironmentType? _selectedType;
     /// <summary>API key for the Remoting connection.</summary>
     [ObservableProperty] private string? _apiKey;
     /// <summary>Separate REST API key (used for user creation + Extensions). May be the same as ApiKey in many envs.</summary>
@@ -76,6 +68,7 @@ public partial class EnvEditorViewModel : ViewModelBase
     public EnvEditorViewModel(
         EnvironmentEntry entry,
         EnvironmentSecret secret,
+        IEnvironmentTypeRegistry envTypes,
         bool isDefault = false,
         IConnectionLifecycle? connection = null,
         IAppLog? log = null)
@@ -85,10 +78,11 @@ public partial class EnvEditorViewModel : ViewModelBase
         _connection = connection;
         _log = log;
 
+        Types = envTypes.All;
         _name = entry.Name;
         _url = string.IsNullOrWhiteSpace(entry.Url) ? DefaultUrl : entry.Url;
         _restBaseUrl = string.IsNullOrWhiteSpace(entry.RestBaseUrl) ? DefaultRestBaseUrl : entry.RestBaseUrl;
-        _stage = entry.Stage;
+        _selectedType = envTypes.Resolve(entry.TypeKey);
         _apiKey = secret.ApiKey;
         _restApiKey = secret.RestApiKey;
         _notes = entry.Notes;
@@ -103,7 +97,7 @@ public partial class EnvEditorViewModel : ViewModelBase
         Entry.Name = Name.Trim();
         Entry.Url = Url.Trim();
         Entry.RestBaseUrl = string.IsNullOrWhiteSpace(RestBaseUrl) ? null : RestBaseUrl!.Trim();
-        Entry.Stage = Stage;
+        Entry.TypeKey = SelectedType?.Key;
         Entry.Notes = string.IsNullOrWhiteSpace(Notes) ? null : Notes;
 
         Secret.ApiKey = ApiKey;
@@ -144,7 +138,7 @@ public partial class EnvEditorViewModel : ViewModelBase
                 Id = Entry.Id,
                 Name = Name.Trim(),
                 Url = Url.Trim(),
-                Stage = Stage,
+                TypeKey = SelectedType?.Key,
             };
             var probeSecret = new EnvironmentSecret { ApiKey = ApiKey };
 

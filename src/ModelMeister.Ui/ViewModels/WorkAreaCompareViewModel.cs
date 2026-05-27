@@ -38,8 +38,8 @@ public partial class WorkAreaCompareViewModel : ViewModelBase, ICompareViewModel
     [ObservableProperty] private bool _hasRows;
     [ObservableProperty] private string _leftColumnHeader = "";
     [ObservableProperty] private string _rightColumnHeader = "";
-    [ObservableProperty] private EnvironmentStage _leftColumnStage;
-    [ObservableProperty] private EnvironmentStage _rightColumnStage;
+    [ObservableProperty] private string? _leftColumnStage;
+    [ObservableProperty] private string? _rightColumnStage;
 
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
@@ -94,7 +94,7 @@ public partial class WorkAreaCompareViewModel : ViewModelBase, ICompareViewModel
     {
         _leftCapture = null;
         LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        LeftColumnStage = value?.TypeKey;
         TryAutoCompare();
     }
 
@@ -102,7 +102,7 @@ public partial class WorkAreaCompareViewModel : ViewModelBase, ICompareViewModel
     {
         _rightCapture = null;
         RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        RightColumnStage = value?.TypeKey;
         TryAutoCompare();
     }
 
@@ -238,7 +238,7 @@ public partial class WorkAreaCompareViewModel : ViewModelBase, ICompareViewModel
 
         var ok = await DialogHost.ConfirmPromoteAsync(
             "work-area folders", $"all shared folders from {LeftEnv.Name}",
-            LeftEnv.Name, RightEnv.Name, RightEnv.Stage.ToString()).ConfigureAwait(true);
+            LeftEnv.Name, RightEnv.Name, RightEnv.TypeKey).ConfigureAwait(true);
         if (!ok) return;
 
         Busy = true;

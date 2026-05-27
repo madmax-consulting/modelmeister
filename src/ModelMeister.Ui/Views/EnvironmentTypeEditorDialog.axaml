@@ -1,0 +1,72 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        x:Class="ModelMeister.Ui.Views.EnvironmentTypeEditorDialog"
+        x:DataType="vm:EnvironmentTypeEditorViewModel"
+        Title="{Binding Title}"
+        Width="540" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <StackPanel Margin="28,26,28,24" Spacing="16">
+
+      <StackPanel Spacing="2">
+        <TextBlock Text="ENVIRONMENT TYPE" Classes="eyebrow" />
+        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" />
+      </StackPanel>
+
+      <!-- Live preview pill -->
+      <Border Classes="cardSubtle">
+        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <Border Classes="stage" VerticalAlignment="Center"
+                  Background="{Binding PreviewSoft}"
+                  BorderBrush="{Binding PreviewStrong}">
+            <TextBlock Text="{Binding PreviewText}" Foreground="{Binding PreviewStrong}" />
+          </Border>
+          <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" />
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Text="Name" Classes="label" />
+          <TextBox Text="{Binding Name, Mode=TwoWay}" Watermark="e.g. Production" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4" MinWidth="140" Margin="14,0,0,0">
+          <TextBlock Text="Shorthand" Classes="label" />
+          <TextBox Text="{Binding Shorthand, Mode=TwoWay}" Watermark="e.g. PROD" />
+        </StackPanel>
+      </Grid>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Description" Classes="label" />
+        <TextBox Text="{Binding Description, Mode=TwoWay}" Watermark="Short description (optional)"
+                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="Auto,*">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Text="Color" Classes="label" />
+          <ColorPicker Color="{Binding Color, Mode=TwoWay}" HorizontalAlignment="Left" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Bottom" Margin="14,0,0,0">
+          <CheckBox Content="Protected environment (show safety warnings)"
+                    IsChecked="{Binding IsProtected, Mode=TwoWay}" />
+          <TextBlock Text="Destructive operations against environments of this type show a red confirmation banner."
+                     Classes="dim" TextWrapping="Wrap" FontSize="11" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="{Binding Validation}" Foreground="{DynamicResource Danger}" FontSize="12"
+                 IsVisible="{Binding Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+        <Button Content="Abort" Command="{Binding AbortCommand}" IsCancel="True" />
+        <Button Content="Save"  Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

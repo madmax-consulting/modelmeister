@@ -250,7 +250,7 @@ public partial class HtmlTemplatesViewModel : FeaturePageViewModel
         var ok = await DialogHost.ConfirmBulkAsync(
             "Delete HTML templates", "Delete", "template",
             rows.Select(r => r.Name).ToList(),
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!ok) return;
         Busy = true;
         int deleted = 0, errors = 0;

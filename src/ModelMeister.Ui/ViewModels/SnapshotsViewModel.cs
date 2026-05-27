@@ -135,7 +135,7 @@ public partial class SnapshotsViewModel : FeaturePageViewModel
             // listing every item, exactly like a destructive delete.
             var ok = await DialogHost.ConfirmBulkAsync(
                 $"Restore {row.Scope} to {env.Name}", "Restore", "item", items,
-                env.Name, env.Stage, destructive: true).ConfigureAwait(true);
+                env.Name, env.TypeKey, destructive: true).ConfigureAwait(true);
             if (!ok) return;
 
             Summary = $"Restoring {row.Scope} into '{env.Name}'…";

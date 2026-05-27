@@ -189,7 +189,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel
         if (row is null || !_main.IsConnected) return;
         var ok = await DialogHost.ConfirmBulkAsync(
             "Delete setting", "Delete", "setting", new[] { row.Key },
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!ok) return;
         await DeleteAsync(row).ConfigureAwait(true);
     }
@@ -203,7 +203,7 @@ public partial class ServerSettingsViewModel : FeaturePageViewModel
         if (rows.Count == 0) { Status = "Select at least one setting."; return; }
         var ok = await DialogHost.ConfirmBulkAsync(
             "Delete settings", "Delete", "setting", rows.Select(r => r.Key).ToList(),
-            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.Stage ?? Models.EnvironmentStage.Unspecified).ConfigureAwait(true);
+            _main.ConnectedEnv?.Name, _main.ConnectedEnv?.TypeKey).ConfigureAwait(true);
         if (!ok) return;
 
         Busy = true;

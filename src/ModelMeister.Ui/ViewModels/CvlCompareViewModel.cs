@@ -40,10 +40,10 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
     [ObservableProperty] private string _leftColumnHeader = "";
     /// <summary>Header label for the right-value column = right env name.</summary>
     [ObservableProperty] private string _rightColumnHeader = "";
-    /// <summary>Stage of the left env (for the pill in the value-column header).</summary>
-    [ObservableProperty] private EnvironmentStage _leftColumnStage;
-    /// <summary>Stage of the right env (for the pill in the value-column header).</summary>
-    [ObservableProperty] private EnvironmentStage _rightColumnStage;
+    /// <summary>Type key of the left env (for the pill in the value-column header).</summary>
+    [ObservableProperty] private string? _leftColumnStage;
+    /// <summary>Type key of the right env (for the pill in the value-column header).</summary>
+    [ObservableProperty] private string? _rightColumnStage;
 
     public IAsyncRelayCommand SaveCsvCommand { get; }
     public IAsyncRelayCommand CopyMarkdownCommand { get; }
@@ -109,21 +109,21 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
         if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
         if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
 
-        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.Stage; }
-        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.Stage; }
+        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.TypeKey; }
+        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.TypeKey; }
     }
 
     partial void OnLeftEnvChanged(EnvironmentEntry? value)
     {
         LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        LeftColumnStage = value?.TypeKey;
         TryAutoCompare();
     }
 
     partial void OnRightEnvChanged(EnvironmentEntry? value)
     {
         RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.Stage ?? EnvironmentStage.Unspecified;
+        RightColumnStage = value?.TypeKey;
         TryAutoCompare();
     }
 

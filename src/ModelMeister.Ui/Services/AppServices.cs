@@ -13,6 +13,8 @@ public sealed class AppServices
     public IEnvironmentVault Vault { get; }
     /// <summary>Persisted user preferences (recent paths, default env, drawer state, ...).</summary>
     public ISettingsStore Settings { get; }
+    /// <summary>User-defined + built-in environment types (pill colors, shorthands, protected flag).</summary>
+    public IEnvironmentTypeRegistry EnvironmentTypes { get; }
     /// <summary>State machine for the single live inriver connection.</summary>
     public IConnectionLifecycle Connection { get; }
     /// <summary>OS-shell facade for opening files / revealing in Explorer.</summary>
@@ -27,6 +29,7 @@ public sealed class AppServices
     private AppServices(
         IEnvironmentVault vault,
         ISettingsStore settings,
+        IEnvironmentTypeRegistry environmentTypes,
         IConnectionLifecycle connection,
         IFileOpener fileOpener,
         IAppLog log,
@@ -35,6 +38,7 @@ public sealed class AppServices
     {
         Vault = vault;
         Settings = settings;
+        EnvironmentTypes = environmentTypes;
         Connection = connection;
         FileOpener = fileOpener;
         Log = log;
@@ -48,11 +52,13 @@ public sealed class AppServices
     {
         IEnvironmentVault vault = new DpapiEnvironmentVault();
         ISettingsStore settings = new JsonSettingsStore();
+        IEnvironmentTypeRegistry environmentTypes = new EnvironmentTypeRegistry(settings, vault);
+        EnvironmentTypeRegistry.Current = environmentTypes; // resolved by the pill value-converters
         IConnectionLifecycle connection = new ConnectionLifecycle(vault);
         IFileOpener fileOpener = new OsFileOpener();
         IAppLog log = new AppLog();
         var shell = new Shell(connection);
-        var main = new MainWindowViewModel(vault, settings, connection, fileOpener, log, shell);
-        return new AppServices(vault, settings, connection, fileOpener, log, shell, main);
+        var main = new MainWindowViewModel(vault, settings, environmentTypes, connection, fileOpener, log, shell);
+        return new AppServices(vault, settings, environmentTypes, connection, fileOpener, log, shell, main);
     }
 }

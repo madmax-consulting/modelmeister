@@ -57,4 +57,8 @@ public sealed class AppSettings
 
     /// <summary>Field-type id ignore rules (contains / starts-with / ends-with) applied during diff.</summary>
     public List<FieldIdIgnoreRule> IgnoredFieldIdPatterns { get; set; } = [];
+
+    /// <summary>User-defined environment types plus any edits to the built-in seven. Empty on first run
+    /// (the registry seeds the built-ins). Persisted here because types are not secret.</summary>
+    public List<EnvironmentType> EnvironmentTypes { get; set; } = [];
 }
