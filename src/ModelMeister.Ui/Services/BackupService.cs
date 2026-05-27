@@ -144,6 +144,30 @@ public sealed class BackupService
         return path;
     }
 
+    /// <summary>Capture a WorkAreas backup. Returns the saved path.</summary>
+    public async Task<string> CaptureWorkAreasAsync(string? label = null, System.Threading.CancellationToken ct = default)
+    {
+        var env = _connection.Connected ?? throw new InvalidOperationException("Not connected.");
+        var meta = BuildMetadata(label);
+        var backup = await _shell.CaptureWorkAreasBackupAsync(meta, ct).ConfigureAwait(false);
+        var path = NewFilePath(env.Name, "WorkAreas");
+        backup.Save(path);
+        RaiseChanged();
+        return path;
+    }
+
+    /// <summary>Capture an HtmlTemplates backup. Returns the saved path.</summary>
+    public async Task<string> CaptureHtmlTemplatesAsync(string? label = null, System.Threading.CancellationToken ct = default)
+    {
+        var env = _connection.Connected ?? throw new InvalidOperationException("Not connected.");
+        var meta = BuildMetadata(label);
+        var backup = await _shell.CaptureHtmlTemplatesBackupAsync(meta, ct).ConfigureAwait(false);
+        var path = NewFilePath(env.Name, "HtmlTemplates");
+        backup.Save(path);
+        RaiseChanged();
+        return path;
+    }
+
     /// <summary>
     /// Capture a Full snapshot — model + users + server-settings + extensions — into a folder
     /// under the env's backup directory. Slices that fail or aren't requested are noted in the

@@ -139,6 +139,15 @@ internal static class DialogHost
         return ShowDialogAsync<ConfirmBulkDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 
+    /// <summary>Prompt for a single short string. Returns the trimmed value on Confirm, else <c>null</c>.</summary>
+    public static async Task<string?> PromptTextAsync(
+        string title, string label, string? initial = null, string? watermark = null, string confirmLabel = "OK")
+    {
+        var vm = new TextPromptViewModel(title, label, initial, watermark, confirmLabel);
+        var ok = await ShowDialogAsync<TextPromptDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm.Text : null;
+    }
+
     /// <summary>Simple yes/no confirmation. Returns <c>true</c> on the affirmative button.</summary>
     public static async Task<bool> ConfirmAsync(string title, string message, string confirmLabel = "Continue", string cancelLabel = "Abort")
     {

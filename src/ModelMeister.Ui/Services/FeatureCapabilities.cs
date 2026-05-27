@@ -17,6 +17,8 @@ public enum BackupScope
     RestrictedFields,
     ServerSettings,
     Extensions,
+    WorkAreas,
+    HtmlTemplates,
 }
 
 /// <summary>Excel button set the page should expose on the FeaturePage toolbar.</summary>

@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
+             xmlns:views="using:ModelMeister.Ui.Views"
+             x:Class="ModelMeister.Ui.Views.WorkAreaCompareView"
+             x:DataType="vm:WorkAreaCompareViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter x:Key="StageText" />
+  </UserControl.Resources>
+
+  <views:CompareLayoutView Eyebrow="WORK AREAS · COMPARE"
+                           Subtitle="Compare shared folders + saved queries across two environments — promote source → target">
+    <views:CompareLayoutView.Body>
+      <DockPanel LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="2,0,0,8" TargetGrid="{Binding #MainGrid}" />
+        <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
+                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                  Classes="filterable fit">
+          <DataGrid.Columns>
+            <!-- Which environment(s) the folder exists in, as named stage pills (no left/right wording). -->
+            <DataGridTemplateColumn Header="Environment" Width="170" MinWidth="130">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:WorkAreaDiffRow">
+                  <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <Border Classes="pill" IsVisible="{Binding LeftPresent}"
+                            Background="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="7,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).LeftColumnHeader}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="10" FontWeight="SemiBold" />
+                    </Border>
+                    <Border Classes="pill" IsVisible="{Binding RightPresent}"
+                            Background="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                            BorderBrush="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                            BorderThickness="1" Padding="7,0">
+                      <TextBlock Text="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).RightColumnHeader}"
+                                 Foreground="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                 FontSize="10" FontWeight="SemiBold" />
+                    </Border>
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Binding="{Binding Path}" Width="2*" MinWidth="160">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Path" Path="Path" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding Kind}" Width="110" MinWidth="90">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Kind" Path="Kind" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding Detail}" Width="1.6*" MinWidth="140">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Difference" Path="Detail" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </DockPanel>
+    </views:CompareLayoutView.Body>
+  </views:CompareLayoutView>
+</UserControl>

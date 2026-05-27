@@ -1,0 +1,160 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.HtmlTemplatesView"
+             x:DataType="vm:HtmlTemplatesViewModel"
+             x:Name="PageRoot">
+
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding Selection.ClearCommand}" />
+  </UserControl.KeyBindings>
+
+  <c:PageShell Eyebrow="HTML TEMPLATES"
+               Subtitle="Print / ContentStore templates in the connected environment — edit inline, export/import, or compare across environments"
+               Status="{Binding Status}"
+               IsBusy="{Binding Busy}">
+    <c:PageShell.Actions>
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Button Classes="ghost icon" ToolTip.Tip="New template"
+                Command="{Binding NewTemplateCommand}">
+          <Path Data="{DynamicResource IcoPlus}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Button Classes="ghost icon" ToolTip.Tip="Delete selected templates"
+                Command="{Binding DeleteSelectedCommand}"
+                IsVisible="{Binding Selection.HasSelection}">
+          <Path Data="{DynamicResource IcoTrash}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource Danger}" StrokeThickness="1.6"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
+        <c:ExcelMenu DataContext="{Binding}" />
+        <c:PageActions DataContext="{Binding}" />
+      </StackPanel>
+    </c:PageShell.Actions>
+
+    <Grid ColumnDefinitions="2*,3*">
+
+      <!-- Left: templates list -->
+      <Border Grid.Column="0" Classes="card flush" Padding="0" Margin="0,0,8,0">
+        <DockPanel LastChildFill="True">
+          <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #TemplatesGrid}" />
+          <Grid>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" Margin="0,40"
+                        IsVisible="{Binding Items.Count, Converter={x:Static svc:Eq.IsZero}}">
+              <TextBlock Text="No templates" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
+              <TextBlock Text="Connect to an environment, or add one with the + above."
+                         Classes="subtle" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="240" TextAlignment="Center" />
+            </StackPanel>
+            <DataGrid Name="TemplatesGrid"
+                      ItemsSource="{Binding Items}" IsReadOnly="True"
+                      SelectedItem="{Binding Selected, Mode=TwoWay}"
+                      AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                      BorderThickness="0" svc:GridSelectionBehavior.Selection="{Binding Selection}">
+              <DataGrid.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="Delete"
+                            Command="{Binding DeleteCommand}"
+                            CommandParameter="{Binding #TemplatesGrid.SelectedItem}" />
+                  <Separator />
+                  <MenuItem Header="Copy name"
+                            Command="{Binding CopyNameCommand}"
+                            CommandParameter="{Binding #TemplatesGrid.SelectedItem}" />
+                  <MenuItem Header="Copy content"
+                            Command="{Binding CopyContentCommand}"
+                            CommandParameter="{Binding #TemplatesGrid.SelectedItem}" />
+                </ContextMenu>
+              </DataGrid.ContextMenu>
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                        CellTemplate="{StaticResource RowSelectCell}">
+                  <DataGridTemplateColumn.Header>
+                    <CheckBox IsChecked="{Binding #PageRoot.((vm:HtmlTemplatesViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Select all" />
+                  </DataGridTemplateColumn.Header>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Binding="{Binding Name}" Width="2*" MinWidth="140">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Name" Path="Name" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding TemplateType}" Width="*" MinWidth="90">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Type" Path="TemplateType" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+                <DataGridTextColumn Binding="{Binding SizeLabel}" Width="110" MinWidth="90">
+                  <DataGridTextColumn.Header><c:FilterableHeader Title="Chars" Path="SizeLabel" /></DataGridTextColumn.Header>
+                </DataGridTextColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </Grid>
+        </DockPanel>
+      </Border>
+
+      <!-- Right: inline editor -->
+      <Border Grid.Column="1" Classes="card flush" Padding="0" Margin="8,0,0,0">
+        <Grid>
+          <!-- Empty state -->
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6"
+                      IsVisible="{Binding !IsEditing}">
+            <TextBlock Text="Select a template" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
+            <TextBlock Text="Pick a template to edit its body, or click + to create one."
+                       Classes="subtle" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="260" TextAlignment="Center" />
+          </StackPanel>
+
+          <DockPanel IsVisible="{Binding IsEditing}">
+            <Border DockPanel.Dock="Top" Padding="14,12"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                  <TextBlock Text="{Binding EditorTitle}" Classes="eyebrow" />
+                </StackPanel>
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                  <Button Content="Cancel" Classes="ghost" Padding="10,4"
+                          Command="{Binding CancelEditCommand}" />
+                  <Button Content="Save" Classes="primary" Padding="14,4"
+                          Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+                </StackPanel>
+                <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                      ColumnDefinitions="2*,*">
+                  <StackPanel Grid.Column="0" Spacing="3" Margin="0,0,8,0">
+                    <TextBlock Text="Name" Classes="label" />
+                    <TextBox Text="{Binding EditName, Mode=TwoWay}" Watermark="template name" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="3">
+                    <TextBlock Text="Type" Classes="label" />
+                    <TextBox Text="{Binding EditType, Mode=TwoWay}" Watermark="template type" />
+                  </StackPanel>
+                </Grid>
+              </Grid>
+            </Border>
+
+            <Grid RowDefinitions="Auto,Auto,Auto,*">
+              <TextBlock Grid.Row="0" Text="PROPERTIES" Classes="h3" Margin="14,10,14,4" />
+              <TextBox Grid.Row="1" Text="{Binding EditProperties, Mode=TwoWay}" Classes="mono"
+                       Margin="14,0,14,8" MinHeight="48" MaxHeight="120"
+                       AcceptsReturn="True" TextWrapping="Wrap"
+                       Watermark="(optional) properties / settings string" />
+
+              <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="14,4,14,4">
+                <TextBlock Grid.Column="0" Text="CONTENT (HTML)" Classes="h3" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" Classes="dim" FontSize="11"
+                           Text="{Binding EditContentLength, StringFormat='{}{0:n0} chars'}" />
+              </Grid>
+              <TextBox Grid.Row="3" Text="{Binding EditContent, Mode=TwoWay}" Classes="mono"
+                       Margin="14,0,14,12"
+                       Background="{DynamicResource DiffTextBackground}"
+                       AcceptsReturn="True" TextWrapping="NoWrap"
+                       VerticalAlignment="Stretch"
+                       ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                       ScrollViewer.VerticalScrollBarVisibility="Auto"
+                       Watermark="&lt;html&gt;…&lt;/html&gt;" />
+            </Grid>
+          </DockPanel>
+        </Grid>
+      </Border>
+    </Grid>
+
+  </c:PageShell>
+</UserControl>

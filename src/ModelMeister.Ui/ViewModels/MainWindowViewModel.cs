@@ -78,6 +78,10 @@ public partial class MainWindowViewModel : ViewModelBase
     public ServerSettingsViewModel ServerSettingsVm { get; }
     public ServerSettingsCompareViewModel ServerSettingsCompareVm { get; }
     public CompareExtensionsViewModel CompareExtensionsVm { get; }
+    public WorkAreaViewModel WorkAreaVm { get; }
+    public WorkAreaCompareViewModel WorkAreaCompareVm { get; }
+    public HtmlTemplatesViewModel HtmlTemplatesVm { get; }
+    public HtmlTemplatesCompareViewModel HtmlTemplatesCompareVm { get; }
 
     // ----- New hub-level VMs (placeholders in Session 1, full content in later sessions). -----
 
@@ -161,6 +165,24 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 new("manage",  "Manage",  NavTarget.ServerSettings, "Server-settings dictionary for the connected env."),
                 new("compare", "Compare", NavTarget.ServerSettings, "Compare server settings across two environments."),
+            }),
+
+        new HubDescriptor(Hub.WorkAreas, "Work areas", "IcoFolder", HubGroup.Manage,
+            "SHARED FOLDERS · SAVED QUERIES",
+            "Shared work-area folders and their saved searches in the connected env.",
+            new SubPageDescriptor[]
+            {
+                new("manage",  "Manage",  NavTarget.WorkAreas, "Browse, create, rename, and delete shared folders in the connected env."),
+                new("compare", "Compare", NavTarget.CompareWorkAreas, "Compare shared folders across two environments and promote them."),
+            }),
+
+        new HubDescriptor(Hub.HtmlTemplates, "HTML templates", "IcoTemplate", HubGroup.Manage,
+            "PRINT · CONTENTSTORE TEMPLATES",
+            "HTML print / ContentStore templates in the connected env.",
+            new SubPageDescriptor[]
+            {
+                new("manage",  "Manage",  NavTarget.HtmlTemplates, "Edit, create, and delete HTML templates in the connected env."),
+                new("compare", "Compare", NavTarget.CompareHtmlTemplates, "Compare HTML templates across two environments and promote them."),
             }),
 
         // ----- SYSTEM: vault, backups, scaffolding, app prefs -----
@@ -336,6 +358,10 @@ public partial class MainWindowViewModel : ViewModelBase
         ServerSettingsVm = new ServerSettingsViewModel(this, shell, log);
         ServerSettingsCompareVm = new ServerSettingsCompareViewModel(this, shell, vault, log);
         CompareExtensionsVm = new CompareExtensionsViewModel(this, shell, vault, log);
+        WorkAreaVm = new WorkAreaViewModel(this, shell, log);
+        WorkAreaCompareVm = new WorkAreaCompareViewModel(this, shell, vault, log);
+        HtmlTemplatesVm = new HtmlTemplatesViewModel(this, shell, log);
+        HtmlTemplatesCompareVm = new HtmlTemplatesCompareViewModel(this, shell, vault, log);
 
         DashboardVm = new DashboardViewModel(this, log);
         SetupVm = new SetupViewModel(this, settings);
@@ -597,6 +623,10 @@ public partial class MainWindowViewModel : ViewModelBase
             (Hub.Extensions, _)              => ExtensionsVm,
             (Hub.ServerSettings, "compare")  => ServerSettingsCompareVm,
             (Hub.ServerSettings, _)          => ServerSettingsVm,
+            (Hub.WorkAreas, "compare")       => WorkAreaCompareVm,
+            (Hub.WorkAreas, _)               => WorkAreaVm,
+            (Hub.HtmlTemplates, "compare")   => HtmlTemplatesCompareVm,
+            (Hub.HtmlTemplates, _)           => HtmlTemplatesVm,
             // System hubs
             (Hub.Environments, _)            => EnvironmentsVm,
             (Hub.Scaffolding, _)             => ToolsVm,
@@ -630,6 +660,10 @@ public partial class MainWindowViewModel : ViewModelBase
         NavTarget.Extensions        => ExtensionsVm,
         NavTarget.ServerSettings    => ServerSettingsVm,
         NavTarget.CompareExtensions => CompareExtensionsVm,
+        NavTarget.WorkAreas         => WorkAreaVm,
+        NavTarget.CompareWorkAreas  => WorkAreaCompareVm,
+        NavTarget.HtmlTemplates     => HtmlTemplatesVm,
+        NavTarget.CompareHtmlTemplates => HtmlTemplatesCompareVm,
         _                            => DashboardVm,
     };
 
@@ -977,4 +1011,4 @@ public partial class MainWindowViewModel : ViewModelBase
 
 /// <summary>Identifier for one of the main-window navigation sections. Retained for back-compat
 /// during the hub migration — legacy view-models still call <c>_main.GoTo(NavTarget.X)</c>.</summary>
-public enum NavTarget { Environments, Model, Policy, Diff, Apply, History, Tools, CompareEnvs, CvlWorkbench, Users, Roles, RestrictedFields, Extensions, ServerSettings, CompareExtensions }
+public enum NavTarget { Environments, Model, Policy, Diff, Apply, History, Tools, CompareEnvs, CvlWorkbench, Users, Roles, RestrictedFields, Extensions, ServerSettings, CompareExtensions, WorkAreas, CompareWorkAreas, HtmlTemplates, CompareHtmlTemplates }

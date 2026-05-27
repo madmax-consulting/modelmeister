@@ -1,0 +1,192 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.WorkAreaView"
+             x:DataType="vm:WorkAreaViewModel"
+             x:Name="PageRoot">
+
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="F2" Command="{Binding RenameCommand}" />
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
+  </UserControl.KeyBindings>
+
+  <c:PageShell Eyebrow="WORK AREAS"
+               Subtitle="Shared folders and saved searches in the connected environment — export/import or compare across environments"
+               Status="{Binding Status}"
+               IsBusy="{Binding Busy}">
+    <c:PageShell.Actions>
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Button Classes="ghost icon" ToolTip.Tip="New top-level folder"
+                Command="{Binding NewFolderCommand}">
+          <Path Data="{DynamicResource IcoPlus}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
+        <c:ExcelMenu DataContext="{Binding}" />
+        <c:PageActions DataContext="{Binding}" />
+      </StackPanel>
+    </c:PageShell.Actions>
+
+    <Grid ColumnDefinitions="2*,3*">
+
+      <!-- Left: folder tree -->
+      <Border Grid.Column="0" Classes="card flush" Padding="0" Margin="0,0,8,0">
+        <DockPanel>
+          <Border DockPanel.Dock="Top" Padding="14,10"
+                  BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+              <TextBlock Grid.Column="0" Text="FOLDERS" Classes="h3" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Classes="ghost icon" Margin="4,0"
+                      ToolTip.Tip="New sub-folder under selection"
+                      Command="{Binding NewSubfolderCommand}">
+                <Path Data="{DynamicResource IcoFolder}" Width="13" Height="13" Stretch="Uniform"
+                      Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                      StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+              </Button>
+              <Button Grid.Column="2" Classes="ghost icon" Margin="4,0"
+                      ToolTip.Tip="Rename (F2)"
+                      Command="{Binding RenameCommand}">
+                <Path Data="{DynamicResource IcoEdit}" Width="12" Height="12" Stretch="Uniform"
+                      Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+              </Button>
+              <Button Grid.Column="3" Classes="ghost icon"
+                      ToolTip.Tip="Delete (Del)"
+                      Command="{Binding DeleteCommand}">
+                <Path Data="{DynamicResource IcoTrash}" Width="13" Height="13" Stretch="Uniform"
+                      Stroke="{DynamicResource Danger}" StrokeThickness="1.6"
+                      StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <Grid>
+            <!-- Empty state -->
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Spacing="6" Margin="0,40"
+                        IsVisible="{Binding Tree.Count, Converter={x:Static svc:Eq.IsZero}}">
+              <Path Data="{DynamicResource IcoFolder}" Width="26" Height="26" Stretch="Uniform"
+                    Stroke="{DynamicResource TextDim}" StrokeThickness="1.4" Fill="Transparent"
+                    HorizontalAlignment="Center" />
+              <TextBlock Text="No shared folders" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
+              <TextBlock Text="Connect to an environment, then add a folder with the + above."
+                         Classes="subtle" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="240"
+                         TextAlignment="Center" />
+            </StackPanel>
+
+            <TreeView Name="FolderTree" ItemsSource="{Binding Tree}" BorderThickness="0"
+                      SelectedItem="{Binding Selected, Mode=TwoWay}">
+              <TreeView.DataTemplates>
+                <TreeDataTemplate ItemsSource="{Binding Children}" DataType="vm:WorkAreaNode">
+                  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,1">
+                    <Grid.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="New sub-folder"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).NewSubfolderCommand}" />
+                        <MenuItem Header="Rename"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).RenameCommand}" />
+                        <MenuItem Header="Delete"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).DeleteCommand}" />
+                        <Separator />
+                        <MenuItem Header="Copy path"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).CopyPathCommand}"
+                                  CommandParameter="{Binding}" />
+                        <MenuItem Header="Copy query JSON"
+                                  IsEnabled="{Binding IsQuery}"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).CopyQueryCommand}"
+                                  CommandParameter="{Binding}" />
+                      </ContextMenu>
+                    </Grid.ContextMenu>
+                    <Path Grid.Column="0" Data="{DynamicResource IcoFolder}" Width="13" Height="13" Stretch="Uniform"
+                          Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent"
+                          VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                    <Border Grid.Column="2" Classes="pill" Margin="8,0,4,0" Padding="6,1"
+                            Background="{DynamicResource AccentSoft}"
+                            BorderBrush="{DynamicResource Accent}" BorderThickness="1"
+                            IsVisible="{Binding IsQuery}">
+                      <TextBlock Text="query" FontSize="9" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource Accent}" />
+                    </Border>
+                  </Grid>
+                </TreeDataTemplate>
+              </TreeView.DataTemplates>
+            </TreeView>
+          </Grid>
+        </DockPanel>
+      </Border>
+
+      <!-- Right: detail pane -->
+      <Border Grid.Column="1" Classes="card flush" Padding="0" Margin="8,0,0,0">
+        <Grid>
+          <!-- No selection -->
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6"
+                      IsVisible="{Binding !HasSelection}">
+            <TextBlock Text="Select a folder" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center" />
+            <TextBlock Text="Its path, kind, and saved search appear here." Classes="subtle" HorizontalAlignment="Center" />
+          </StackPanel>
+
+          <DockPanel IsVisible="{Binding HasSelection}">
+            <Border DockPanel.Dock="Top" Padding="14,12"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+              <StackPanel Spacing="3">
+                <TextBlock Text="FOLDER" Classes="eyebrow" />
+                <TextBlock Text="{Binding Selected.Name}" FontSize="18" FontWeight="Bold"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Selected.Path}" Classes="dim mono" FontSize="11"
+                           TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                  <Border Classes="pill" Padding="7,1"
+                          Background="{DynamicResource AccentSoft}"
+                          BorderBrush="{DynamicResource Accent}" BorderThickness="1"
+                          IsVisible="{Binding Selected.IsQuery}">
+                    <TextBlock Text="saved query" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{DynamicResource Accent}" />
+                  </Border>
+                  <Border Classes="pill" Padding="7,1"
+                          Background="{DynamicResource BorderFaint}"
+                          BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                          IsVisible="{Binding Selected.IsSyndication}">
+                    <TextBlock Text="syndication" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSec}" />
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Grid>
+              <TextBlock Text="This folder has no saved search — it holds a manual entity collection."
+                         Classes="subtle" Margin="16" TextWrapping="Wrap"
+                         IsVisible="{Binding !HasQuery}" />
+              <DockPanel IsVisible="{Binding HasQuery}">
+                <Border DockPanel.Dock="Top" Padding="14,8"
+                        BorderBrush="{DynamicResource BorderFaint}" BorderThickness="0,0,0,1">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="SAVED QUERY" Classes="h3" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="ghost icon"
+                            ToolTip.Tip="Copy query JSON"
+                            Command="{Binding CopyQueryCommand}" CommandParameter="{Binding Selected}">
+                      <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                            Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                    </Button>
+                  </Grid>
+                </Border>
+                <TextBox Text="{Binding SelectedQueryPretty, Mode=OneWay}" IsReadOnly="True"
+                         Classes="mono"
+                         Background="{DynamicResource DiffTextBackground}"
+                         BorderThickness="0" CornerRadius="0" Padding="14"
+                         AcceptsReturn="True" TextWrapping="NoWrap"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" />
+              </DockPanel>
+            </Grid>
+          </DockPanel>
+        </Grid>
+      </Border>
+    </Grid>
+
+  </c:PageShell>
+</UserControl>

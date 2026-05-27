@@ -12,8 +12,10 @@ using ModelMeister.Inriver.Diff;
 using ModelMeister.Inriver;
 using ModelMeister.Inriver.Extensions;
 using ModelMeister.Inriver.ServerSettings;
+using ModelMeister.Inriver.HtmlTemplates;
 using ModelMeister.Inriver.Snapshot;
 using ModelMeister.Inriver.Users;
+using ModelMeister.Inriver.WorkAreas;
 using ModelMeister.Loading;
 using ModelMeister.Model.Loading;
 using ModelMeister.Model.Validation;
@@ -661,5 +663,160 @@ public sealed class Shell
     {
         await SwitchEnvAsync(env, secret, ct).ConfigureAwait(false);
         return await ListExtensionsAsync(env, secret, ct).ConfigureAwait(false);
+    }
+
+    // ---------------- Work-area folders (shared) ----------------
+
+    /// <summary>List the connected env's shared work-area folders (flat DTOs, each with its tree path).</summary>
+    public Task<IReadOnlyList<WorkAreaFolderDto>> ListWorkAreasAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new WorkAreaService(client).List(), ct);
+    }
+
+    /// <summary>Create a shared work-area folder under an optional parent. Returns the new folder id.</summary>
+    public Task<Guid> CreateWorkAreaFolderAsync(string name, Guid? parentId, int index, bool isQuery, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new WorkAreaService(client).CreateFolderAsync(name, parentId, index, isQuery, ct);
+    }
+
+    /// <summary>Rename a shared work-area folder on the connected env.</summary>
+    public Task RenameWorkAreaFolderAsync(Guid id, string name, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new WorkAreaService(client).RenameFolderAsync(id, name, ct);
+    }
+
+    /// <summary>Delete a shared work-area folder (and its contents) from the connected env.</summary>
+    public Task DeleteWorkAreaFolderAsync(Guid id, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new WorkAreaService(client).DeleteFolderAsync(id, ct);
+    }
+
+    /// <summary>Apply Excel-described folders to the connected env (reconcile by path).</summary>
+    public Task<WorkAreaApplyResult> ApplyWorkAreasAsync(IReadOnlyList<WorkAreaFolderDto> folders, bool allowDeletes, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new WorkAreaService(client).ApplyAsync(folders, allowDeletes, ct);
+    }
+
+    /// <summary>Capture a <see cref="WorkAreasBackup"/> from the connected env.</summary>
+    public Task<WorkAreasBackup> CaptureWorkAreasBackupAsync(BackupMetadata metadata, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => WorkAreasBackup.Capture(new WorkAreaService(client), metadata), ct);
+    }
+
+    /// <summary>Restore a <see cref="WorkAreasBackup"/> into the connected env (create/update by path).</summary>
+    public Task<List<WorkAreasBackup.RestoreEntry>> RestoreWorkAreasAsync(WorkAreasBackup backup, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return backup.RestoreAsync(new WorkAreaService(client), ct);
+    }
+
+    /// <summary>Switch to <paramref name="env"/> and capture its shared work-area folders. Leaves the
+    /// connection bound to <paramref name="env"/> on return.</summary>
+    public async Task<IReadOnlyList<WorkAreaFolderDto>> CaptureWorkAreasFromEnvAsync(
+        EnvironmentEntry env, EnvironmentSecret secret, CancellationToken ct = default)
+    {
+        await SwitchEnvAsync(env, secret, ct).ConfigureAwait(false);
+        return await ListWorkAreasAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Faithful env→env promote of shared work-area folders. Connects to the source to read the live
+    /// folders (keeping their <c>ComplexQuery</c> objects), then connects to the target and reconciles by
+    /// path. Leaves the connection bound to <paramref name="targetEnv"/> on return.
+    /// </summary>
+    public async Task<WorkAreaApplyResult> PromoteWorkAreasAsync(
+        EnvironmentEntry sourceEnv, EnvironmentSecret sourceSecret,
+        EnvironmentEntry targetEnv, EnvironmentSecret targetSecret,
+        bool allowDeletes, CancellationToken ct = default)
+    {
+        await SwitchEnvAsync(sourceEnv, sourceSecret, ct).ConfigureAwait(false);
+        var srcClient = _connection.Client ?? throw new InvalidOperationException("Source connection lost.");
+        var raw = await Task.Run(() => new WorkAreaService(srcClient).GetRawFolders(), ct).ConfigureAwait(false);
+
+        await SwitchEnvAsync(targetEnv, targetSecret, ct).ConfigureAwait(false);
+        var tgtClient = _connection.Client ?? throw new InvalidOperationException("Target connection lost.");
+        return await new WorkAreaService(tgtClient).ApplyAsync(raw, allowDeletes, ct).ConfigureAwait(false);
+    }
+
+    // ---------------- HTML templates ----------------
+
+    /// <summary>List the connected env's HTML templates (body included).</summary>
+    public Task<IReadOnlyList<HtmlTemplateDto>> ListHtmlTemplatesAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new HtmlTemplateService(client).List(), ct);
+    }
+
+    /// <summary>Create a new HTML template on the connected env. Returns the new id.</summary>
+    public Task<int> CreateHtmlTemplateAsync(HtmlTemplateDto dto, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new HtmlTemplateService(client).CreateAsync(dto, ct);
+    }
+
+    /// <summary>Update an existing HTML template on the connected env.</summary>
+    public Task UpdateHtmlTemplateAsync(HtmlTemplateDto dto, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new HtmlTemplateService(client).UpdateAsync(dto, ct);
+    }
+
+    /// <summary>Delete an HTML template (by live id) from the connected env.</summary>
+    public Task DeleteHtmlTemplateAsync(int id, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new HtmlTemplateService(client).DeleteAsync(id, ct);
+    }
+
+    /// <summary>Apply Excel-described templates to the connected env (reconcile by name + type).</summary>
+    public Task<HtmlTemplateApplyResult> ApplyHtmlTemplatesAsync(IReadOnlyList<HtmlTemplateDto> templates, bool allowDeletes, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new HtmlTemplateService(client).ApplyAsync(templates, allowDeletes, ct);
+    }
+
+    /// <summary>Capture an <see cref="HtmlTemplatesBackup"/> from the connected env.</summary>
+    public Task<HtmlTemplatesBackup> CaptureHtmlTemplatesBackupAsync(BackupMetadata metadata, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => HtmlTemplatesBackup.Capture(new HtmlTemplateService(client), metadata), ct);
+    }
+
+    /// <summary>Restore an <see cref="HtmlTemplatesBackup"/> into the connected env (create/update by name + type).</summary>
+    public Task<List<HtmlTemplatesBackup.RestoreEntry>> RestoreHtmlTemplatesAsync(HtmlTemplatesBackup backup, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return backup.RestoreAsync(new HtmlTemplateService(client), ct);
+    }
+
+    /// <summary>Switch to <paramref name="env"/> and capture its HTML templates. Leaves the connection
+    /// bound to <paramref name="env"/> on return.</summary>
+    public async Task<IReadOnlyList<HtmlTemplateDto>> CaptureHtmlTemplatesFromEnvAsync(
+        EnvironmentEntry env, EnvironmentSecret secret, CancellationToken ct = default)
+    {
+        await SwitchEnvAsync(env, secret, ct).ConfigureAwait(false);
+        return await ListHtmlTemplatesAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Faithful env→env promote of HTML templates (matched by name + type). Connects to the
+    /// source to read templates, then to the target and reconciles. Leaves the connection on the target.</summary>
+    public async Task<HtmlTemplateApplyResult> PromoteHtmlTemplatesAsync(
+        EnvironmentEntry sourceEnv, EnvironmentSecret sourceSecret,
+        EnvironmentEntry targetEnv, EnvironmentSecret targetSecret,
+        bool allowDeletes, CancellationToken ct = default)
+    {
+        await SwitchEnvAsync(sourceEnv, sourceSecret, ct).ConfigureAwait(false);
+        var srcClient = _connection.Client ?? throw new InvalidOperationException("Source connection lost.");
+        var source = await Task.Run(() => new HtmlTemplateService(srcClient).List(), ct).ConfigureAwait(false);
+
+        await SwitchEnvAsync(targetEnv, targetSecret, ct).ConfigureAwait(false);
+        var tgtClient = _connection.Client ?? throw new InvalidOperationException("Target connection lost.");
+        return await new HtmlTemplateService(tgtClient).ApplyAsync(source, allowDeletes, ct).ConfigureAwait(false);
     }
 }

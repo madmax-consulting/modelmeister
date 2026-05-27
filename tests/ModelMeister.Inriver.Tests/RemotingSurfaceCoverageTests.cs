@@ -56,9 +56,9 @@ public class RemotingSurfaceCoverageTests
         "GetPersonalWorkAreaFolder","AddPersonalWorkAreaFolder","DeletePersonalWorkAreaFolder",
         "UpdatePersonalWorkAreaFolderName","MovePersonalWorkAreaFolder","UpdatePersonalWorkAreaQuery",
         "GetAllPersonalWorkAreaFoldersForUser","UpdatePersonalWorkAreaFolderIndex","GetSharedWorkAreaFolder",
-        "AddSharedWorkAreaFolder","DeleteSharedWorkAreaFolder","UpdateSharedWorkAreaSyndication",
-        "UpdateSharedWorkAreaFolderName","MoveSharedWorkAreaFolder","UpdateSharedWorkAreaQuery",
-        "GetAllSharedWorkAreaFolders","UpdateSharedWorkAreaFolderIndex","AddEntitiesToWorkAreaFolder",
+        // Shared work-area folder reads/writes used by WorkAreaService are covered (scanned) below;
+        // these remaining shared-folder methods are not used by the toolkit.
+        "UpdateSharedWorkAreaSyndication","UpdateSharedWorkAreaFolderIndex","AddEntitiesToWorkAreaFolder",
         "RemoveEntitiesFromWorkAreaFolder","AddNotification","UpdateNotificaton","GetNotification",
         "DeleteNotification","GetAllNotifications","GetAllNotificationsForUser","GetAllActiveNotifications",
         "AddFileImportMapping","GetFileImportMapping","UpdateFileImportMapping","GetAllFileImportMappings",
@@ -69,7 +69,8 @@ public class RemotingSurfaceCoverageTests
         "GetCalendarUrlForPlannerView","GetPlannerViewByCalendarUrl","GetAllConnectorStates",
         "GetAllConnectorStatesForConnector","AddConnectorState","UpdateConnectorState","DeleteConnectorState",
         "DeleteConnectorStates","DeleteAllConnectorStates","DeleteAllHtmlTemplates","GetHtmlTemplate",
-        "GetAllHtmlTemplates","GetHtmlTemplatesByTypes","AddHtmlTemplate","UpdateHtmlTemplate","DeleteHtmlTemplate",
+        // GetAllHtmlTemplates / Add / Update / Delete are used by HtmlTemplateService — scanned below.
+        "GetHtmlTemplatesByTypes",
         "GetAllSyndications","RunSyndicate","RebuildQuickSearchIndex","GetEnvironmentContextAsync",
         // IUserService: user mgmt, settings — orthogonal to model mgmt.
         "GetUser","GetUserByUsername","GetAllUsers","SetUserSetting","DeleteUserSetting",
@@ -131,6 +132,10 @@ public class RemotingSurfaceCoverageTests
                 "GetAllCompletenessDefinitions","GetCompletenessGroupForDefinition","GetCompletenessBusinessRulesForGroup","GetAllCompletenessRuleSettingsForBusinessRule",
                 "AddCompletenessDefinition","DeleteCompletenessDefinition","DeleteAllCompletenessGroupsForDefinition",
                 "AddCompletenessGroup","AddCompletenessBusinessRule","SetCompletenessBusinessRuleSettings",
+                // Shared work-area folders (WorkAreaService) + HTML templates (HtmlTemplateService).
+                "GetAllSharedWorkAreaFolders","AddSharedWorkAreaFolder","DeleteSharedWorkAreaFolder",
+                "UpdateSharedWorkAreaFolderName","MoveSharedWorkAreaFolder","UpdateSharedWorkAreaQuery",
+                "GetAllHtmlTemplates","AddHtmlTemplate","UpdateHtmlTemplate","DeleteHtmlTemplate",
             })
             {
                 if (text.Contains("." + name + "(", StringComparison.Ordinal)) result.Add(name);

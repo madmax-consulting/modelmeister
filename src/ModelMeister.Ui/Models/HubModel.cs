@@ -15,6 +15,8 @@ public enum Hub
     RestrictedFields,
     Extensions,
     ServerSettings,
+    WorkAreas,
+    HtmlTemplates,
     // System group
     Environments,
     BackupRestore,

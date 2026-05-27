@@ -41,6 +41,8 @@ public sealed class RestoreService
             "RestrictedFields" => RestrictedFieldsBackup.Load(info.Path).RestrictedFields.Select(RestrictedFieldLabel).ToList(),
             "ServerSettings"   => ServerSettingsBackup.Load(info.Path).Settings.Keys.ToList(),
             "Extensions"       => ExtensionsBackup.Load(info.Path).Extensions.Select(e => e.Id).ToList(),
+            "WorkAreas"        => WorkAreasBackup.Load(info.Path).Folders.Select(f => f.Path).ToList(),
+            "HtmlTemplates"    => HtmlTemplatesBackup.Load(info.Path).Templates.Select(t => t.Name).ToList(),
             "Full"             => DescribeFull(info.Path),
             _                  => new List<string>(),
         }, ct);
@@ -97,6 +99,20 @@ public sealed class RestoreService
                     r.Id,
                     r.Ok ? r.Op : "error",
                     r.Error ?? r.Op)).ToList();
+            }
+            case "WorkAreas":
+            {
+                var backup = await Task.Run(() => WorkAreasBackup.Load(info.Path), ct).ConfigureAwait(false);
+                var results = await _shell.RestoreWorkAreasAsync(backup, ct).ConfigureAwait(false);
+                return results.Select(r => new RestoreOutcome(
+                    r.Path, r.Ok ? r.Op : "error", r.Error ?? r.Op)).ToList();
+            }
+            case "HtmlTemplates":
+            {
+                var backup = await Task.Run(() => HtmlTemplatesBackup.Load(info.Path), ct).ConfigureAwait(false);
+                var results = await _shell.RestoreHtmlTemplatesAsync(backup, ct).ConfigureAwait(false);
+                return results.Select(r => new RestoreOutcome(
+                    r.Name, r.Ok ? r.Op : "error", r.Error ?? r.Op)).ToList();
             }
             case "Full":
                 return await RestoreFullAsync(info.Path, env, secret, ct).ConfigureAwait(false);
