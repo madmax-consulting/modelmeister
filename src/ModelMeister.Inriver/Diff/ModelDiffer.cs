@@ -40,15 +40,36 @@ public static class ModelDiffer
         var categoryIdByClrType = code.Categories.ToDictionary(c => c.ClrType, c => c.CategoryId);
 
         DiffLanguages(code, live, changes);
-        DiffCategories(code, live, changes, policy);
-        DiffCvls(code, live, changes, policy);
+        DiffCategories(code, live, changes, policy, warnings);
+        DiffCvls(code, live, changes, policy, warnings);
         DiffEntityTypesAndFields(code, live, changes, policy, warnings, cvlIdByClrType, categoryIdByClrType);
-        DiffFieldsets(code, live, changes, policy);
-        DiffLinkTypes(code, live, changes, policy);
-        DiffRoles(code, live, changes, policy);
-        DiffCompleteness(code, live, changes, policy);
+        DiffFieldsets(code, live, changes, policy, warnings);
+        DiffLinkTypes(code, live, changes, policy, warnings);
+        DiffRoles(code, live, changes, policy, warnings);
+        DiffCompleteness(code, live, changes, policy, warnings);
 
         return new ModelChangeSet { Changes = changes, Warnings = warnings };
+    }
+
+    /// <summary>
+    /// Emit deletions, or — when <see cref="MergePolicy.AllowDeletes"/> is off — record one
+    /// <c>DeleteBlocked</c> warning per candidate. This makes "N change(s) suppressed by policy"
+    /// surfaceable instead of silently dropping destructive ops, while preserving idempotency:
+    /// an in-sync model has no candidates, so emits neither changes nor warnings.
+    /// </summary>
+    private static void EmitDeletes<T>(
+        MergePolicy policy,
+        IEnumerable<T> candidates,
+        Func<T, ModelChange> toDelete,
+        Func<T, string> describeBlocked,
+        List<ModelChange> changes,
+        List<DiffWarning> warnings)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (policy.AllowDeletes) changes.Add(toDelete(candidate));
+            else warnings.Add(new DiffWarning("DeleteBlocked", describeBlocked(candidate)));
+        }
     }
 
     // ---------- Languages ----------
@@ -62,7 +83,7 @@ public static class ModelDiffer
     }
 
     // ---------- Categories ----------
-    private static void DiffCategories(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy)
+    private static void DiffCategories(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy, List<DiffWarning> warnings)
     {
         var liveById = live.Categories.ToDictionary(c => c.Id, IdComparer);
         foreach (var c in code.Categories)
@@ -72,13 +93,12 @@ public static class ModelDiffer
             else if (CategoryDiffers(c, l, policy))
                 changes.Add(new UpdateCategory(c));
         }
-        if (policy.AllowDeletes)
-        {
-            var codeIds = code.Categories.Select(c => c.CategoryId).ToHashSet(IdComparer);
-            changes.AddRange(live.Categories
-                .Where(l => !codeIds.Contains(l.Id) && !ProtectedCategories.Contains(l.Id))
-                .Select(l => new DeleteCategory(l.Id)));
-        }
+        var codeIds = code.Categories.Select(c => c.CategoryId).ToHashSet(IdComparer);
+        EmitDeletes(policy,
+            live.Categories.Where(l => !codeIds.Contains(l.Id) && !ProtectedCategories.Contains(l.Id)),
+            l => new DeleteCategory(l.Id),
+            l => $"Category '{l.Id}' exists in the environment but not in code — deletion suppressed (AllowDeletes is off).",
+            changes, warnings);
     }
 
     private static bool CategoryDiffers(LoadedCategory c, LiveCategory l, MergePolicy policy) =>
@@ -86,7 +106,7 @@ public static class ModelDiffer
         || (!policy.IgnoreCategoryIndexSortingOnUpdate && c.Index != l.Index);
 
     // ---------- CVLs ----------
-    private static void DiffCvls(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy)
+    private static void DiffCvls(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy, List<DiffWarning> warnings)
     {
         var liveById = live.Cvls.ToDictionary(c => c.Id, IdComparer);
         foreach (var c in code.Cvls)
@@ -99,16 +119,15 @@ public static class ModelDiffer
             else
             {
                 if (CvlDiffers(c, l)) changes.Add(new UpdateCvl(c));
-                DiffCvlValues(c, l, changes, policy);
+                DiffCvlValues(c, l, changes, policy, warnings);
             }
         }
-        if (policy.AllowDeletes)
-        {
-            var codeIds = code.Cvls.Select(c => c.CvlId).ToHashSet(IdComparer);
-            changes.AddRange(live.Cvls
-                .Where(l => !codeIds.Contains(l.Id))
-                .Select(l => new DeleteCvl(l.Id)));
-        }
+        var codeIds = code.Cvls.Select(c => c.CvlId).ToHashSet(IdComparer);
+        EmitDeletes(policy,
+            live.Cvls.Where(l => !codeIds.Contains(l.Id)),
+            l => new DeleteCvl(l.Id),
+            l => $"CVL '{l.Id}' exists in the environment but not in code — deletion suppressed (AllowDeletes is off).",
+            changes, warnings);
     }
 
     private static bool CvlDiffers(LoadedCvl c, LiveCvl l) =>
@@ -116,7 +135,7 @@ public static class ModelDiffer
         || NullableEquals(c.ParentCvlId, l.ParentId) is false
         || c.CustomValueList != l.CustomValueList;
 
-    private static void DiffCvlValues(LoadedCvl c, LiveCvl l, List<ModelChange> changes, MergePolicy policy)
+    private static void DiffCvlValues(LoadedCvl c, LiveCvl l, List<ModelChange> changes, MergePolicy policy, List<DiffWarning> warnings)
     {
         var liveByKey = l.Values.ToDictionary(v => v.Key, IdComparer);
         foreach (var v in c.Values)
@@ -132,13 +151,12 @@ public static class ModelDiffer
                 changes.Add(new UpdateCvlValue(c.CvlId, lv.Id, v));
             }
         }
-        if (policy.AllowDeletes)
-        {
-            var codeKeys = c.Values.Select(v => v.Key).ToHashSet(IdComparer);
-            changes.AddRange(l.Values
-                .Where(lv => !codeKeys.Contains(lv.Key) && !lv.Deactivated)
-                .Select(lv => new DeactivateCvlValue(c.CvlId, lv.Id, lv.Key)));
-        }
+        var codeKeys = c.Values.Select(v => v.Key).ToHashSet(IdComparer);
+        EmitDeletes(policy,
+            l.Values.Where(lv => !codeKeys.Contains(lv.Key) && !lv.Deactivated),
+            lv => new DeactivateCvlValue(c.CvlId, lv.Id, lv.Key),
+            lv => $"CVL value '{c.CvlId}/{lv.Key}' is not in code — deactivation suppressed (AllowDeletes is off).",
+            changes, warnings);
     }
 
     // ---------- Entity types + fields ----------
@@ -165,13 +183,12 @@ public static class ModelDiffer
                 DiffFields(e, l, changes, policy, warnings, cvlIdByClrType, categoryIdByClrType);
             }
         }
-        if (policy.AllowDeletes)
-        {
-            var codeIds = code.EntityTypes.Select(e => e.EntityTypeId).ToHashSet(IdComparer);
-            changes.AddRange(live.EntityTypes
-                .Where(l => !codeIds.Contains(l.Id))
-                .Select(l => new DeleteEntityType(l.Id)));
-        }
+        var codeIds = code.EntityTypes.Select(e => e.EntityTypeId).ToHashSet(IdComparer);
+        EmitDeletes(policy,
+            live.EntityTypes.Where(l => !codeIds.Contains(l.Id)),
+            l => new DeleteEntityType(l.Id),
+            l => $"Entity type '{l.Id}' exists in the environment but not in code — deletion suppressed (AllowDeletes is off).",
+            changes, warnings);
     }
 
     private static bool EntityTypeDiffers(LoadedEntityType e, LiveEntityType l, MergePolicy policy) =>
@@ -215,13 +232,12 @@ public static class ModelDiffer
             if (FieldDiffers(f, lf, policy, cvlIdByClrType, categoryIdByClrType))
                 changes.Add(new UpdateFieldType(f, e));
         }
-        if (policy.AllowDeletes)
-        {
-            var codeIds = e.Fields.Select(f => f.Id).ToHashSet(IdComparer);
-            changes.AddRange(l.Fields
-                .Where(lf => !codeIds.Contains(lf.Id) && !policy.IgnoresFieldId(lf.Id))
-                .Select(lf => new DeleteFieldType(lf.Id)));
-        }
+        var codeFieldIds = e.Fields.Select(f => f.Id).ToHashSet(IdComparer);
+        EmitDeletes(policy,
+            l.Fields.Where(lf => !codeFieldIds.Contains(lf.Id) && !policy.IgnoresFieldId(lf.Id)),
+            lf => new DeleteFieldType(lf.Id),
+            lf => $"Field '{lf.Id}' on '{e.EntityTypeId}' is not in code — deletion suppressed (AllowDeletes is off).",
+            changes, warnings);
     }
 
     /// <summary>
@@ -311,7 +327,7 @@ public static class ModelDiffer
     }
 
     // ---------- Fieldsets ----------
-    private static void DiffFieldsets(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy)
+    private static void DiffFieldsets(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy, List<DiffWarning> warnings)
     {
         var liveById = live.Fieldsets.ToDictionary(f => f.Id, IdComparer);
         foreach (var f in code.Fieldsets)
@@ -350,20 +366,20 @@ public static class ModelDiffer
 
             changes.AddRange(wanted.Except(have, IdComparer)
                 .Select(add => new AddFieldToFieldset(setId, add)));
-            if (policy.AllowDeletes)
-            {
-                changes.AddRange(have.Except(wanted, IdComparer)
-                    .Select(rem => new RemoveFieldFromFieldset(setId, rem)));
-            }
+            var thisSetId = setId;
+            EmitDeletes(policy,
+                have.Except(wanted, IdComparer),
+                rem => new RemoveFieldFromFieldset(thisSetId, rem),
+                rem => $"Field '{rem}' would be removed from fieldset '{thisSetId}' — suppressed (AllowDeletes is off).",
+                changes, warnings);
         }
 
-        if (policy.AllowDeletes)
-        {
-            var codeIds = code.Fieldsets.Select(f => f.FieldsetId).ToHashSet(IdComparer);
-            changes.AddRange(live.Fieldsets
-                .Where(l => !codeIds.Contains(l.Id))
-                .Select(l => new DeleteFieldset(l.Id)));
-        }
+        var codeIds = code.Fieldsets.Select(f => f.FieldsetId).ToHashSet(IdComparer);
+        EmitDeletes(policy,
+            live.Fieldsets.Where(l => !codeIds.Contains(l.Id)),
+            l => new DeleteFieldset(l.Id),
+            l => $"Fieldset '{l.Id}' exists in the environment but not in code — deletion suppressed (AllowDeletes is off).",
+            changes, warnings);
     }
 
     private static bool FieldsetDiffers(LoadedFieldset f, LiveFieldset l, MergePolicy policy)
@@ -377,7 +393,7 @@ public static class ModelDiffer
     // ---------- Completeness ----------
     // Compared at the definition (per entity type) grain via canonical projections so inriver's numeric
     // ids never enter the comparison. A structural difference becomes one Update carrying the live def id.
-    private static void DiffCompleteness(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy)
+    private static void DiffCompleteness(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy, List<DiffWarning> warnings)
     {
         var liveByEntity = live.CompletenessDefinitions
             .GroupBy(d => d.EntityTypeId, IdComparer)
@@ -393,16 +409,15 @@ public static class ModelDiffer
                 changes.Add(new UpdateCompletenessDefinition(def, liveDef.Id));
         }
 
-        if (policy.AllowDeletes)
-        {
-            changes.AddRange(live.CompletenessDefinitions
-                .Where(d => !codeEntities.Contains(d.EntityTypeId))
-                .Select(d => new DeleteCompletenessDefinition(d.EntityTypeId, d.Id)));
-        }
+        EmitDeletes(policy,
+            live.CompletenessDefinitions.Where(d => !codeEntities.Contains(d.EntityTypeId)),
+            d => new DeleteCompletenessDefinition(d.EntityTypeId, d.Id),
+            d => $"Completeness definition for '{d.EntityTypeId}' is not in code — deletion suppressed (AllowDeletes is off).",
+            changes, warnings);
     }
 
     // ---------- Link types ----------
-    private static void DiffLinkTypes(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy)
+    private static void DiffLinkTypes(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy, List<DiffWarning> warnings)
     {
         var liveById = live.LinkTypes.ToDictionary(l => l.Id, IdComparer);
         foreach (var l in code.LinkTypes)
@@ -412,13 +427,12 @@ public static class ModelDiffer
             else if (LinkTypeDiffers(l, lv, policy))
                 changes.Add(new UpdateLinkType(l));
         }
-        if (policy.AllowDeletes)
-        {
-            var codeIds = code.LinkTypes.Select(l => l.LinkTypeId).ToHashSet(IdComparer);
-            changes.AddRange(live.LinkTypes
-                .Where(l => !codeIds.Contains(l.Id))
-                .Select(l => new DeleteLinkType(l.Id)));
-        }
+        var codeIds = code.LinkTypes.Select(l => l.LinkTypeId).ToHashSet(IdComparer);
+        EmitDeletes(policy,
+            live.LinkTypes.Where(l => !codeIds.Contains(l.Id)),
+            l => new DeleteLinkType(l.Id),
+            l => $"Link type '{l.Id}' exists in the environment but not in code — deletion suppressed (AllowDeletes is off).",
+            changes, warnings);
     }
 
     private static bool LinkTypeDiffers(LoadedLinkType l, LiveLinkType lv, MergePolicy policy)
@@ -434,7 +448,7 @@ public static class ModelDiffer
     }
 
     // ---------- Roles ----------
-    private static void DiffRoles(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy)
+    private static void DiffRoles(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy, List<DiffWarning> warnings)
     {
         var liveByName = live.Roles.ToDictionary(r => r.Name, IdComparer);
         foreach (var r in code.Roles)
@@ -460,23 +474,21 @@ public static class ModelDiffer
             changes.AddRange(codeSet.Except(liveSet, IdComparer)
                 .Select(add => new AddPermissionToRole(lv.Id, 0, add, r.Name)));
 
-            if (policy.AllowDeletes)
-            {
-                foreach (var rem in liveSet.Except(codeSet, IdComparer))
-                {
-                    var liveP = lv.Permissions.First(p => p.Name.Equals(rem, StringComparison.OrdinalIgnoreCase));
-                    changes.Add(new RemovePermissionFromRole(lv.Id, liveP.Id, rem, r.Name));
-                }
-            }
+            var liveRole = lv;
+            var codeRole = r;
+            EmitDeletes(policy,
+                liveSet.Except(codeSet, IdComparer),
+                rem => new RemovePermissionFromRole(liveRole.Id, liveRole.Permissions.First(p => p.Name.Equals(rem, StringComparison.OrdinalIgnoreCase)).Id, rem, codeRole.Name),
+                rem => $"Permission '{rem}' would be removed from role '{codeRole.Name}' — suppressed (AllowDeletes is off).",
+                changes, warnings);
         }
 
-        if (policy.AllowDeletes)
-        {
-            var codeNames = code.Roles.Select(r => r.Name).ToHashSet(IdComparer);
-            changes.AddRange(live.Roles
-                .Where(l => !codeNames.Contains(l.Name) && !ProtectedRoles.Contains(l.Name))
-                .Select(l => new DeleteRole(l.Id, l.Name)));
-        }
+        var codeNames = code.Roles.Select(r => r.Name).ToHashSet(IdComparer);
+        EmitDeletes(policy,
+            live.Roles.Where(l => !codeNames.Contains(l.Name) && !ProtectedRoles.Contains(l.Name)),
+            l => new DeleteRole(l.Id, l.Name),
+            l => $"Role '{l.Name}' exists in the environment but not in code — deletion suppressed (AllowDeletes is off).",
+            changes, warnings);
     }
 
     // ---------- Helpers ----------

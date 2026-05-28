@@ -51,6 +51,55 @@ public class MergePolicyDiffTests
     }
 
     [Fact]
+    public void Suppressed_deletes_surface_as_DeleteBlocked_warnings_by_default()
+    {
+        var code = new LoadedModel { EntityTypes = Array.Empty<LoadedEntityType>() };
+        var live = new LiveModel
+        {
+            EnvironmentUrl = "test",
+            CapturedUtc = DateTime.UtcNow,
+            EntityTypes = new[]
+            {
+                new LiveEntityType { Id = "Orphan", Name = new LocaleString("Orphan") },
+                new LiveEntityType { Id = "Ghost", Name = new LocaleString("Ghost") },
+            },
+        };
+
+        var diff = ModelDiffer.Diff(code, live);
+
+        // No destructive changes are emitted, but each candidate delete is surfaced as a warning
+        // so "in sync" can never silently hide them — one warning per candidate.
+        diff.Of<DeleteEntityType>().ShouldBeEmpty();
+        diff.Warnings.Count(w => w.Code == "DeleteBlocked").ShouldBe(2);
+    }
+
+    [Fact]
+    public void No_DeleteBlocked_warnings_when_in_sync()
+    {
+        // An in-sync model has no candidate deletes — neither changes nor DeleteBlocked warnings.
+        var live = new LiveModel
+        {
+            EnvironmentUrl = "test",
+            CapturedUtc = DateTime.UtcNow,
+            EntityTypes = new[] { new LiveEntityType { Id = "Product", Name = new LocaleString("Product") } },
+        };
+        var code = new LoadedModel
+        {
+            EntityTypes = new[]
+            {
+                new LoadedEntityType { ClrType = typeof(object), EntityTypeId = "Product", Name = new LocaleString("Product") },
+            },
+        };
+
+        var diff = ModelDiffer.Diff(code, live);
+        diff.Warnings.ShouldNotContain(w => w.Code == "DeleteBlocked");
+
+        // With AllowDeletes on, the candidate becomes a real delete and emits no warning either.
+        var allowed = ModelDiffer.Diff(code, live, MergePolicy.Default with { AllowDeletes = true });
+        allowed.Warnings.ShouldNotContain(w => w.Code == "DeleteBlocked");
+    }
+
+    [Fact]
     public void Datatype_change_is_warned_by_default_not_applied()
     {
         var owner = new LoadedEntityType
