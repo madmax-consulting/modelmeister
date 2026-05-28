@@ -14,6 +14,8 @@
   <Window.Resources>
     <conv:StageToBrushConverter x:Key="StageBrush" />
     <conv:StageToTextConverter  x:Key="StageText" />
+    <conv:DangerAccentBrushConverter x:Key="AccentBrush" />
+    <conv:OperationToBrushConverter x:Key="OpBrush" />
   </Window.Resources>
 
   <Border Padding="0" Background="{DynamicResource AppBackground}">
@@ -22,16 +24,17 @@
       <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
         <Grid Width="44" Height="44">
           <Border CornerRadius="12"
-                  Background="{DynamicResource PillErrBg}"
-                  BorderBrush="{DynamicResource Danger}"
+                  Background="{DynamicResource Surface1}"
+                  BorderBrush="{Binding UseDangerAccent, Converter={StaticResource AccentBrush}}"
                   BorderThickness="1" />
           <Path Data="{DynamicResource IcoApply}" Width="22" Height="22" Stretch="Uniform"
-                Fill="{DynamicResource Danger}"
+                Fill="{Binding UseDangerAccent, Converter={StaticResource AccentBrush}}"
                 HorizontalAlignment="Center" VerticalAlignment="Center" />
         </Grid>
         <StackPanel Spacing="2">
           <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <TextBlock Text="DESTRUCTIVE ACTION" Classes="eyebrow" Foreground="{DynamicResource Danger}" Margin="0" />
+            <TextBlock Text="{Binding Headline}" Classes="eyebrow"
+                       Foreground="{Binding UseDangerAccent, Converter={StaticResource AccentBrush}}" Margin="0" />
             <Border Classes="stage"
                     Background="{Binding Stage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
                     BorderBrush="{Binding Stage, Converter={StaticResource StageBrush}}">
@@ -63,6 +66,38 @@
           <TextBlock Text="{Binding EnvironmentUrl}" Classes="mono"
                      FontSize="13" Foreground="{DynamicResource TextPri}" TextWrapping="Wrap" />
         </StackPanel>
+      </Border>
+
+      <!-- Per-change review: lets the user see exactly what will be applied before committing. -->
+      <Border Classes="cardSubtle" IsVisible="{Binding HasChanges}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="CHANGES TO APPLY" Classes="h3" Margin="0,0,0,6" />
+          <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Changes}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ApplyReviewItem">
+                  <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,2">
+                    <Border Grid.Column="0" Classes="pill" Background="Transparent"
+                            BorderBrush="{Binding Operation, Converter={StaticResource OpBrush}}"
+                            BorderThickness="1" MinWidth="58" Margin="0,0,8,0">
+                      <TextBlock Text="{Binding Operation}" FontSize="11"
+                                 HorizontalAlignment="Center"
+                                 Foreground="{Binding Operation, Converter={StaticResource OpBrush}}" />
+                    </Border>
+                    <Path Grid.Column="1" Data="{DynamicResource IcoWarn}" Width="12" Height="12" Stretch="Uniform"
+                          Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent"
+                          VerticalAlignment="Center" Margin="0,0,6,0"
+                          ToolTip.Tip="Destructive — deletes data or drops a field."
+                          IsVisible="{Binding IsDangerous}" />
+                    <TextBlock Grid.Column="2" Text="{Binding Description}" FontSize="12"
+                               VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource TextSec}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
       </Border>
 
       <Border Classes="cardSubtle"

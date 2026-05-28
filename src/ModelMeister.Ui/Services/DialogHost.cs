@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -18,14 +19,15 @@ internal static class DialogHost
     public static Task<bool> ShowAsync(EnvEditorViewModel vm)
         => ShowDialogAsync<EnvEditorDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
 
-    /// <summary>Show the apply-confirmation prompt; returns <c>true</c> when the user typed APPLY and confirmed.</summary>
+    /// <summary>Show the apply-confirmation prompt; returns <c>true</c> when the user confirms.</summary>
     public static Task<bool> ConfirmApplyAsync(
         string envUrl,
         int changeCount,
         string policySummary = "",
-        string? typeKey = null)
+        string? typeKey = null,
+        IReadOnlyList<ApplyReviewItem>? changes = null)
     {
-        var vm = new ConfirmApplyViewModel(envUrl, changeCount, policySummary, typeKey);
+        var vm = new ConfirmApplyViewModel(envUrl, changeCount, policySummary, typeKey, changes);
         return ShowDialogAsync<ConfirmApplyDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 
@@ -157,9 +159,9 @@ internal static class DialogHost
     }
 
     /// <summary>Show the per-row promote confirmation. Returns <c>true</c> when the user clicks Continue.</summary>
-    public static Task<bool> ConfirmPromoteAsync(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string? targetTypeKey)
+    public static Task<bool> ConfirmPromoteAsync(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string? targetTypeKey, string? sourceTypeKey = null)
     {
-        var vm = new PromoteConfirmViewModel(conceptLabel, itemLabel, sourceEnv, targetEnv, targetTypeKey);
+        var vm = new PromoteConfirmViewModel(conceptLabel, itemLabel, sourceEnv, targetEnv, targetTypeKey, sourceTypeKey);
         return ShowDialogAsync<PromoteConfirmDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 

@@ -266,20 +266,37 @@ public partial class ApplyViewModel : ViewModelBase
 
     private async Task<bool> ConfirmRealApplyAsync(bool retryOnlyFailed)
     {
-        var changeCount = retryOnlyFailed
-            ? Entries.Count(e => !e.Succeeded)
-            : _main.DiffVm.EffectiveChanges().Count;
-        if (changeCount == 0)
+        // The exact changes that will be applied — either the diff's effective set, or just the
+        // failed rows on a retry (re-matched to their ModelChange so danger/operation is accurate).
+        IReadOnlyList<ModelChange> applying;
+        if (retryOnlyFailed)
+        {
+            var failed = Entries.Where(e => !e.Succeeded).Select(e => e.Description).ToHashSet();
+            applying = (_main.ChangeSet?.Changes ?? [])
+                .Where(c => failed.Contains(c.Describe())).ToList();
+        }
+        else
+        {
+            applying = _main.DiffVm.EffectiveChanges();
+        }
+
+        if (applying.Count == 0)
         {
             StatusMessage = "Nothing to apply.";
             return false;
         }
 
+        var review = applying
+            .Select(c => new ApplyReviewItem(
+                DiffViewModel.OperationOf(c), c.Describe(), DiffViewModel.IsDangerousChange(c)))
+            .ToList();
+
         var confirmed = await DialogHost.ConfirmApplyAsync(
             _main.LiveSnapshot!.EnvironmentUrl,
-            changeCount,
+            applying.Count,
             PolicySummary,
-            _main.ConnectedStage);
+            _main.ConnectedStage,
+            review);
         if (!confirmed) _log.Info("Apply", "User cancelled at confirmation.");
         return confirmed;
     }

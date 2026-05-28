@@ -1,8 +1,14 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.Input;
 using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
+
+/// <summary>One reviewable change line shown in the apply-confirmation dialog.</summary>
+public sealed record ApplyReviewItem(string Operation, string Description, bool IsDangerous);
 
 /// <summary>
 /// View-model behind the apply-confirmation dialog. Clicking Apply confirms — the previous
@@ -11,14 +17,37 @@ namespace ModelMeister.Ui.ViewModels;
 public partial class ConfirmApplyViewModel : ViewModelBase
 {
     /// <summary>Construct a confirmation prompt for an apply that targets <paramref name="envUrl"/>.</summary>
-    public ConfirmApplyViewModel(string envUrl, int changeCount, string policySummary = "", string? typeKey = null)
+    public ConfirmApplyViewModel(
+        string envUrl,
+        int changeCount,
+        string policySummary = "",
+        string? typeKey = null,
+        IReadOnlyList<ApplyReviewItem>? changes = null)
     {
         EnvironmentUrl = envUrl;
         ChangeCount = changeCount;
         PolicySummary = policySummary;
         Stage = typeKey;
         IsProtected = EnvironmentTypeRegistry.Current?.IsProtected(typeKey) ?? false;
+        Changes = new ObservableCollection<ApplyReviewItem>(changes ?? []);
+        HasChanges = Changes.Count > 0;
+        IsDestructive = Changes.Any(c => c.IsDangerous);
     }
+
+    /// <summary>The individual changes that will be applied, for at-a-glance review before committing.</summary>
+    public ObservableCollection<ApplyReviewItem> Changes { get; }
+
+    /// <summary>True when there is at least one change line to show.</summary>
+    public bool HasChanges { get; }
+
+    /// <summary>True when any change is destructive (delete or datatype change). Drives the red/amber styling.</summary>
+    public bool IsDestructive { get; }
+
+    /// <summary>Headline shown in the dialog: escalated only when the batch is destructive or the env is protected.</summary>
+    public string Headline => IsDestructive || IsProtected ? "DESTRUCTIVE ACTION" : "APPLY CHANGES";
+
+    /// <summary>True when the dialog should use the danger (red) accent rather than the neutral accent.</summary>
+    public bool UseDangerAccent => IsDestructive || IsProtected;
 
     /// <summary>URL of the target environment, displayed prominently in the dialog.</summary>
     public string EnvironmentUrl { get; }

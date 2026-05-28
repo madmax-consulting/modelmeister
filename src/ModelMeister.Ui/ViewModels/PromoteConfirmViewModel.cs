@@ -11,13 +11,14 @@ namespace ModelMeister.Ui.ViewModels;
 /// </summary>
 public partial class PromoteConfirmViewModel : ViewModelBase
 {
-    public PromoteConfirmViewModel(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string? targetTypeKey)
+    public PromoteConfirmViewModel(string conceptLabel, string itemLabel, string sourceEnv, string targetEnv, string? targetTypeKey, string? sourceTypeKey = null)
     {
         ConceptLabel = conceptLabel;
         ItemLabel = itemLabel;
         SourceEnv = sourceEnv;
         TargetEnv = targetEnv;
         TargetStage = targetTypeKey;
+        SourceStage = sourceTypeKey;
         IsProtected = EnvironmentTypeRegistry.Current?.IsProtected(targetTypeKey) ?? false;
     }
 
@@ -27,8 +28,10 @@ public partial class PromoteConfirmViewModel : ViewModelBase
     public string ItemLabel { get; }
     public string SourceEnv { get; }
     public string TargetEnv { get; }
-    /// <summary>Target environment's type key (used to resolve the protected guard).</summary>
+    /// <summary>Target environment's type key (used to resolve the protected guard + pill).</summary>
     public string? TargetStage { get; }
+    /// <summary>Source environment's type key (pill only). Null hides the source pill.</summary>
+    public string? SourceStage { get; }
     public bool IsProtected { get; }
 
     public string Headline => $"Promote {ConceptLabel.ToLowerInvariant()} '{ItemLabel}'";

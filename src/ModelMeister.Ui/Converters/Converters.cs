@@ -111,6 +111,35 @@ public sealed class SeverityToBrushConverter : IValueConverter
         => Avalonia.Data.BindingOperations.DoNothing;
 }
 
+/// <summary>
+/// Compare-page "in sync" empty state gate. Inputs (in order): LeftEnv, RightEnv, Busy, HasRows.
+/// Returns true only when both environments are selected, no compare is running, and there are no
+/// difference rows — i.e. the two environments matched. Lets the shared CompareLayoutView render one
+/// uniform "in sync" affirmation across every hub instead of each grid going silently blank.
+/// </summary>
+public sealed class CompareInSyncConverter : IMultiValueConverter
+{
+    public object Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (values.Count < 4) return false;
+        var left = values[0];
+        var right = values[1];
+        var busy = values[2] is true;
+        var hasRows = values[3] is true;
+        return left is not null && right is not null && !busy && !hasRows;
+    }
+}
+
+/// <summary>true &#8594; danger (red) brush, false &#8594; neutral accent brush. Used by the apply-confirmation dialog to escalate styling only for destructive batches.</summary>
+public sealed class DangerAccentBrushConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => ConverterHelpers.Brush(value is true ? "Danger" : "Accent");
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => Avalonia.Data.BindingOperations.DoNothing;
+}
+
 /// <summary>true &#8594; success-green brush, false &#8594; danger-red brush.</summary>
 public sealed class BoolToBrushConverter : IValueConverter
 {
