@@ -13,6 +13,18 @@
 
         <Border Classes="card">
           <StackPanel Spacing="8">
+            <TextBlock Text="GETTING STARTED" Classes="eyebrow" />
+            <TextBlock Text="The model-as-code workflow" FontWeight="SemiBold" />
+            <TextBlock TextWrapping="Wrap" Classes="dim"
+                       Text="1. Add an environment in the Environments hub (Remoting URL + API key).  2. Load — or scaffold — a C# model project in the Model hub.  3. Compare your code against the environment, review the changes, and Apply (a backup is captured first)." />
+            <TextBlock Text="Remoting key vs REST key" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock TextWrapping="Wrap" Classes="dim"
+                       Text="The Remoting API key is required — model diff/apply and most compare pages use it. The REST key is optional and only needed to create users or manage modern extensions; leave it blank otherwise." />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="8">
             <TextBlock Text="APPEARANCE" Classes="eyebrow" />
             <TextBlock Text="Theme" FontWeight="SemiBold" />
             <TextBlock Text="Switch between dark and light theme. The choice is persisted across sessions."

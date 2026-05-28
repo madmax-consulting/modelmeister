@@ -49,6 +49,8 @@
               </StackPanel>
             </Button>
           </Grid>
+          <TextBlock Classes="dim" FontSize="11" TextWrapping="Wrap"
+                     Text="A model project is a C# project that defines your inriver model in code. Point at its .csproj (built on load) or a pre-built .dll. Don't have one yet? Use the Scaffolding hub to generate it from a live environment." />
         </StackPanel>
       </Border>
 

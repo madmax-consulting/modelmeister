@@ -33,14 +33,14 @@
               <CheckBox Grid.Column="0" Content="Allow deletes"
                         IsChecked="{Binding AllowDeletes, Mode=TwoWay}" />
               <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
-                         Text="Allow Delete / Deactivate operations on concepts that exist in inriver but not in code." />
+                         Text="Allow Delete / Deactivate operations on concepts that exist in inriver but not in code. While off, such deletes are skipped and reported as &quot;suppressed by policy&quot; on the Compare page rather than applied." />
             </Grid>
 
             <Grid ColumnDefinitions="Auto,*">
               <CheckBox Grid.Column="0" Content="Allow datatype change (dangerous)"
                         IsChecked="{Binding AllowDatatypeChange, Mode=TwoWay}" />
               <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
-                         Text="Allow a field's datatype to change. Inriver may drop or coerce existing values." />
+                         Text="Allow a field's datatype to change. Inriver may drop or coerce existing values. While off, datatype changes are skipped and reported as &quot;suppressed by policy&quot; on the Compare page." />
             </Grid>
 
             <Grid ColumnDefinitions="Auto,*">

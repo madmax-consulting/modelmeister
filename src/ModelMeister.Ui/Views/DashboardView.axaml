@@ -23,15 +23,59 @@
 
         <!-- COLD START: shown only when nothing's connected and no model loaded -->
         <Border Classes="cardAccent" IsVisible="{Binding ShowColdStart}">
-          <StackPanel Spacing="10">
+          <StackPanel Spacing="14">
             <TextBlock Text="WELCOME" Classes="eyebrow" />
             <TextBlock Text="ModelMeister" Classes="h1" />
-            <TextBlock Text="Start by adding an environment in the vault or loading a model project."
+            <TextBlock Text="Get set up in three steps — manage your inriver model as code."
                        Classes="subtle" MaxWidth="640" />
-            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,6,0,0">
-              <Button Classes="primary" Content="Add an environment" Command="{Binding GoEnvironmentsCommand}" />
-              <Button Content="Load a model" Command="{Binding GoModelCommand}" />
-            </StackPanel>
+
+            <!-- Step 1 -->
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
+              <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13" Margin="0,0,12,0"
+                      Background="{DynamicResource Accent}" VerticalAlignment="Top">
+                <TextBlock Text="1" Foreground="White" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                <TextBlock Text="Add an environment" FontWeight="SemiBold" />
+                <TextBlock Text="Vault your inriver Remoting URL + API key (encrypted on this machine)."
+                           Classes="dim" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Grid.Column="2" Classes="primary" Content="Add environment"
+                      VerticalAlignment="Center" Command="{Binding GoEnvironmentsCommand}" />
+            </Grid>
+
+            <!-- Step 2 -->
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13" Margin="0,0,12,0"
+                      Background="{DynamicResource Surface1}" BorderBrush="{DynamicResource Border}"
+                      BorderThickness="1" VerticalAlignment="Top">
+                <TextBlock Text="2" Foreground="{DynamicResource TextSec}" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                <TextBlock Text="Load a model project" FontWeight="SemiBold" />
+                <TextBlock Text="Point at a C# model project (.csproj) or its built .dll. New here? Scaffold one from a live environment."
+                           Classes="dim" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Grid.Column="2" Content="Load a model"
+                      VerticalAlignment="Center" Command="{Binding GoModelCommand}" />
+            </Grid>
+
+            <!-- Step 3 -->
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13" Margin="0,0,12,0"
+                      Background="{DynamicResource Surface1}" BorderBrush="{DynamicResource Border}"
+                      BorderThickness="1" VerticalAlignment="Top">
+                <TextBlock Text="3" Foreground="{DynamicResource TextSec}" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                <TextBlock Text="Compare &amp; apply" FontWeight="SemiBold" />
+                <TextBlock Text="Diff your code against the environment, review every change, then apply with a backup taken first."
+                           Classes="dim" TextWrapping="Wrap" />
+              </StackPanel>
+            </Grid>
           </StackPanel>
         </Border>
 
