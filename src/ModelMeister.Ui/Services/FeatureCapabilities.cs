@@ -18,6 +18,7 @@ public enum BackupScope
     ServerSettings,
     Extensions,
     WorkAreas,
+    PersonalWorkAreas,
     HtmlTemplates,
 }
 

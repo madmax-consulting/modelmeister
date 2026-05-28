@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using inRiver.Remoting.Query;
 using Shouldly;
 using ModelMeister.Inriver.WorkAreas;
 using Xunit;
@@ -78,5 +79,76 @@ public class WorkAreaPlanTests
         deletes.ShouldBe(new[] { "A/X/Y", "A/X" });
         // The single desired folder is processed (update) before any delete.
         actions.First().Kind.ShouldBe(WorkAreaActionKind.Update);
+    }
+
+    // ---- Reconcile Update now carries live state and applies reorder / syndication idempotently ----
+
+    [Fact]
+    public void Update_carries_live_index_and_syndication_for_diffing()
+    {
+        var aId = Guid.NewGuid();
+        var live = new[] { new IriverWorkAreaFolder { Id = aId, Name = "A", ParentId = null, Index = 5, IsSyndication = true } };
+        var desired = new List<WorkAreaService.DesiredFolder>
+        {
+            new("A", null, "A", Index: 2, IsQuery: false, IsSyndication: false, Query: null),
+        };
+
+        var (_, actions) = WorkAreaService.BuildPlan(live, desired, allowDeletes: false);
+
+        var a = actions.Single();
+        a.Kind.ShouldBe(WorkAreaActionKind.Update);
+        a.CurrentIndex.ShouldBe(5);
+        a.Index.ShouldBe(2);
+        a.CurrentIsSyndication.ShouldBeTrue();
+        a.IsSyndication.ShouldBeFalse();
+    }
+
+    private static WorkAreaAction Update(string name = "A", int index = 0, bool syndication = false,
+        ComplexQuery? query = null, string currentName = "A", int currentIndex = 0,
+        bool currentSyndication = false, string? currentQueryJson = null) =>
+        new(WorkAreaActionKind.Update, "A", null, name, index, query is not null, syndication, query,
+            LiveId: Guid.NewGuid(), CurrentName: currentName,
+            CurrentIndex: currentIndex, CurrentIsSyndication: currentSyndication, CurrentQueryJson: currentQueryJson);
+
+    [Fact]
+    public void Reorder_emits_only_set_index()
+        => WorkAreaReconcileSession.ComputeOps(Update(index: 2, currentIndex: 5))
+            .ShouldBe(new[] { WorkAreaOp.SetIndex });
+
+    [Fact]
+    public void Syndication_toggle_emits_only_set_syndication()
+        => WorkAreaReconcileSession.ComputeOps(Update(syndication: true, currentSyndication: false))
+            .ShouldBe(new[] { WorkAreaOp.SetSyndication });
+
+    [Fact]
+    public void Rename_emits_only_rename()
+        => WorkAreaReconcileSession.ComputeOps(Update(name: "NewName", currentName: "OldName"))
+            .ShouldBe(new[] { WorkAreaOp.Rename });
+
+    [Fact]
+    public void Converged_update_emits_no_ops()
+        => WorkAreaReconcileSession.ComputeOps(Update(index: 3, currentIndex: 3)).ShouldBeEmpty();
+
+    [Fact]
+    public void Create_with_query_emits_create_then_set_query()
+    {
+        var a = new WorkAreaAction(WorkAreaActionKind.Create, "A", null, "A", Index: 0,
+            IsQuery: true, IsSyndication: false, Query: new ComplexQuery { EntityTypeId = "Product" },
+            LiveId: Guid.Empty, CurrentName: null);
+        WorkAreaReconcileSession.ComputeOps(a).ShouldBe(new[] { WorkAreaOp.Create, WorkAreaOp.SetQuery });
+    }
+
+    [Fact]
+    public void Query_change_is_detected_by_serialized_json_and_is_idempotent()
+    {
+        var q = new ComplexQuery { EntityTypeId = "Product" };
+
+        // Live query serializes to something different → SetQuery is emitted.
+        WorkAreaReconcileSession.ComputeOps(Update(query: q, currentQueryJson: "{\"EntityTypeId\":\"Other\"}"))
+            .ShouldContain(WorkAreaOp.SetQuery);
+
+        // Live query already matches the desired query's serialization → no write.
+        WorkAreaReconcileSession.ComputeOps(Update(query: q, currentQueryJson: WorkAreaService.SerializeQuery(q)))
+            .ShouldBeEmpty();
     }
 }

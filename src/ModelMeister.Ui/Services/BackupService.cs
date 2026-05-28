@@ -149,8 +149,20 @@ public sealed class BackupService
     {
         var env = _connection.Connected ?? throw new InvalidOperationException("Not connected.");
         var meta = BuildMetadata(label);
-        var backup = await _shell.CaptureWorkAreasBackupAsync(meta, ct).ConfigureAwait(false);
+        var backup = await _shell.CaptureWorkAreasBackupAsync(meta, ct: ct).ConfigureAwait(false);
         var path = NewFilePath(env.Name, "WorkAreas");
+        backup.Save(path);
+        RaiseChanged();
+        return path;
+    }
+
+    /// <summary>Capture a single user's personal WorkAreas backup. Returns the saved path.</summary>
+    public async Task<string> CapturePersonalWorkAreasAsync(string username, string? label = null, System.Threading.CancellationToken ct = default)
+    {
+        var env = _connection.Connected ?? throw new InvalidOperationException("Not connected.");
+        var meta = BuildMetadata(label ?? username);
+        var backup = await _shell.CaptureWorkAreasBackupAsync(meta, personalUsername: username, ct: ct).ConfigureAwait(false);
+        var path = NewFilePath(env.Name, "PersonalWorkAreas");
         backup.Save(path);
         RaiseChanged();
         return path;

@@ -33,18 +33,28 @@ public sealed record WorkAreasBackup
     }
 
     /// <summary>Reconcile the backed-up folders back into the live env by path (create + update; never
-    /// deletes). Returns one outcome row per folder.</summary>
+    /// deletes). Drives the reconcile session one action at a time so each folder gets an accurate
+    /// created/updated/error outcome (rather than a single batch tally).</summary>
     public async Task<List<RestoreEntry>> RestoreAsync(WorkAreaService service, CancellationToken ct = default)
     {
         var before = service.List().Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var result = await service.ApplyAsync(Folders, allowDeletes: false, ct).ConfigureAwait(false);
-        // ApplyAsync reconciles as a batch; derive per-folder rows from the before/after path sets.
-        var rows = Folders
-            .OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase)
-            .Select(f => new RestoreEntry(f.Path, before.Contains(f.Path) ? "updated" : "created", true))
-            .ToList();
-        if (result.Failed > 0)
-            rows.Add(new RestoreEntry("(batch)", "error", false, $"{result.Failed} folder(s) failed — see log."));
-        return rows;
+        var session = service.Plan(Folders, allowDeletes: false);
+        var rows = new List<RestoreEntry>();
+        foreach (var action in session.Actions)
+        {
+            ct.ThrowIfCancellationRequested();
+            var op = before.Contains(action.Path) ? "updated" : "created";
+            try
+            {
+                await session.ExecuteAsync(action, ct).ConfigureAwait(false);
+                rows.Add(new RestoreEntry(action.Path, op, true));
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                rows.Add(new RestoreEntry(action.Path, "error", false, ex.Message));
+            }
+        }
+        return rows.OrderBy(r => r.Path, StringComparer.OrdinalIgnoreCase).ToList();
     }
 }

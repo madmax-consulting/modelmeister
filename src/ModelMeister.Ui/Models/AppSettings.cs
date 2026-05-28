@@ -66,4 +66,16 @@ public sealed class AppSettings
     /// these on <c>Rebuild</c>, so a deleted built-in stays gone across restarts (the built-ins are
     /// only a starter set).</summary>
     public List<string> DeletedBuiltInTypeKeys { get; set; } = [];
+
+    /// <summary>User-defined organizations plus any edits to the built-in "Default". Empty on first run
+    /// (the registry seeds the built-in). Persisted here because organizations are not secret.</summary>
+    public List<Organization> Organizations { get; set; } = [];
+
+    /// <summary>Keys of built-in organizations the user has deleted. The registry skips re-seeding these
+    /// on <c>Rebuild</c>, so a deleted built-in stays gone across restarts.</summary>
+    public List<string> DeletedBuiltInOrgKeys { get; set; } = [];
+
+    /// <summary>The organization currently selected in the global picker. Scopes the Environments page and
+    /// every compare page. Restored on startup; falls back to "Default" when unset/unknown.</summary>
+    public string? SelectedOrgKey { get; set; }
 }

@@ -42,6 +42,7 @@ public sealed class RestoreService
             "ServerSettings"   => ServerSettingsBackup.Load(info.Path).Settings.Keys.ToList(),
             "Extensions"       => ExtensionsBackup.Load(info.Path).Extensions.Select(e => e.Id).ToList(),
             "WorkAreas"        => WorkAreasBackup.Load(info.Path).Folders.Select(f => f.Path).ToList(),
+            "PersonalWorkAreas" => WorkAreasBackup.Load(info.Path).Folders.Select(f => f.Path).ToList(),
             "HtmlTemplates"    => HtmlTemplatesBackup.Load(info.Path).Templates.Select(t => t.Name).ToList(),
             "Cvls"             => CvlsBackup.Load(info.Path).Cvls.Select(c => c.Id).ToList(),
             "Full"             => DescribeFull(info.Path),
@@ -104,7 +105,16 @@ public sealed class RestoreService
             case "WorkAreas":
             {
                 var backup = await Task.Run(() => WorkAreasBackup.Load(info.Path), ct).ConfigureAwait(false);
-                var results = await _shell.RestoreWorkAreasAsync(backup, ct).ConfigureAwait(false);
+                var results = await _shell.RestoreWorkAreasAsync(backup, ct: ct).ConfigureAwait(false);
+                return results.Select(r => new RestoreOutcome(
+                    r.Path, r.Ok ? r.Op : "error", r.Error ?? r.Op)).ToList();
+            }
+            case "PersonalWorkAreas":
+            {
+                var backup = await Task.Run(() => WorkAreasBackup.Load(info.Path), ct).ConfigureAwait(false);
+                // Personal folders carry their owner; restore into that user's personal scope.
+                var username = backup.Folders.Select(f => f.Username).FirstOrDefault(u => !string.IsNullOrWhiteSpace(u));
+                var results = await _shell.RestoreWorkAreasAsync(backup, personalUsername: username, ct: ct).ConfigureAwait(false);
                 return results.Select(r => new RestoreOutcome(
                     r.Path, r.Ok ? r.Op : "error", r.Error ?? r.Op)).ToList();
             }

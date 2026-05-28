@@ -14,23 +14,32 @@ namespace ModelMeister.Ui.Services.Import.Plans;
 public sealed class WorkAreasImportPlan : ImportPlanBase
 {
     private WorkAreaReconcileSession? _session;
+    private readonly string? _personalUsername;
 
-    public WorkAreasImportPlan(MainWindowViewModel main, Shell shell, IAppLog log) : base(main, shell, log) { }
+    /// <param name="personalUsername">When set, imports into this user's personal folders rather than shared.</param>
+    public WorkAreasImportPlan(MainWindowViewModel main, Shell shell, IAppLog log, string? personalUsername = null)
+        : base(main, shell, log)
+    {
+        _personalUsername = personalUsername;
+        Metadata = new(
+            Eyebrow: personalUsername is null ? "WORK AREAS IMPORT" : "PERSONAL WORK AREAS IMPORT",
+            Title: personalUsername is null ? "Import work-area folders" : $"Import {personalUsername}'s work-area folders",
+            Subtitle: personalUsername is null
+                ? "Create or update shared folders (matched by path) in the connected environment from an edited workareas.xlsx. Existing folders not in the workbook are left untouched."
+                : $"Create or update {personalUsername}'s personal folders (matched by path) from an edited workbook. Existing folders not in the workbook are left untouched.",
+            ItemNoun: "folders",
+            KeyColumnHeader: "Path",
+            SuggestedFileName: "workareas.xlsx",
+            BackupScope: personalUsername is null ? BackupScope.WorkAreas : BackupScope.PersonalWorkAreas);
+    }
 
-    public override ImportPlanMetadata Metadata { get; } = new(
-        Eyebrow: "WORK AREAS IMPORT",
-        Title: "Import work-area folders",
-        Subtitle: "Create or update shared folders (matched by path) in the connected environment from an edited workareas.xlsx. Existing folders not in the workbook are left untouched.",
-        ItemNoun: "folders",
-        KeyColumnHeader: "Path",
-        SuggestedFileName: "workareas.xlsx",
-        BackupScope: BackupScope.WorkAreas);
+    public override ImportPlanMetadata Metadata { get; }
 
     public override Task<VerifyResult> LoadAndVerifyAsync(string workbookPath, CancellationToken ct)
     {
         LastWorkbookPath = workbookPath;
         var folders = WorkAreaWorkbook.Load(workbookPath);
-        _session = Shell.PlanWorkAreas(folders, allowDeletes: false);
+        _session = Shell.PlanWorkAreas(folders, allowDeletes: false, personalUsername: _personalUsername);
 
         // Keep the planner's order (parents-before-children) so a child create resolves its parent.
         var rows = _session.Actions.Select(a => new ImportRowViewModel
@@ -45,7 +54,9 @@ public sealed class WorkAreasImportPlan : ImportPlanBase
     }
 
     public override async Task<string?> BackupAsync(CancellationToken ct)
-        => await Main.Backups.CaptureWorkAreasAsync(ct: ct).ConfigureAwait(false);
+        => _personalUsername is null
+            ? await Main.Backups.CaptureWorkAreasAsync(ct: ct).ConfigureAwait(false)
+            : await Main.Backups.CapturePersonalWorkAreasAsync(_personalUsername, ct: ct).ConfigureAwait(false);
 
     public override async Task<RowOutcome> ApplyRowAsync(ImportRowViewModel row, CancellationToken ct)
     {

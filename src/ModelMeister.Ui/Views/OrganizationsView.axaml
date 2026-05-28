@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:m="using:ModelMeister.Ui.Models"
+             xmlns:c="using:ModelMeister.Ui.Controls"
+             x:Class="ModelMeister.Ui.Views.OrganizationsView"
+             x:DataType="vm:OrganizationsViewModel"
+             x:Name="PageRoot">
+
+  <c:PageShell Eyebrow="ORGANIZATIONS"
+               Subtitle="Group your environments — each environment belongs to one organization. Double-click a row to edit"
+               Status="{Binding Status}">
+    <c:PageShell.Actions>
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Button Classes="ghost icon" ToolTip.Tip="New organization"
+                Command="{Binding AddCommand}">
+          <Path Data="{DynamicResource IcoPlus}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+      </StackPanel>
+    </c:PageShell.Actions>
+
+    <Border Classes="card flush" Padding="0">
+      <DockPanel LastChildFill="True">
+        <c:GridToolbar DockPanel.Dock="Top" Margin="8,8,8,4" TargetGrid="{Binding #OrgsGrid}" />
+        <DataGrid Name="OrgsGrid"
+                  ItemsSource="{Binding Organizations}" IsReadOnly="True"
+                  AutoGenerateColumns="False" SelectionMode="Single"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                  Margin="0" BorderThickness="0" CornerRadius="0">
+          <DataGrid.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Edit"
+                        Command="{Binding EditCommand}"
+                        CommandParameter="{Binding #OrgsGrid.SelectedItem}" />
+              <Separator />
+              <MenuItem Header="Delete"
+                        Command="{Binding DeleteCommand}"
+                        CommandParameter="{Binding #OrgsGrid.SelectedItem}" />
+            </ContextMenu>
+          </DataGrid.ContextMenu>
+          <DataGrid.Columns>
+            <DataGridTextColumn Binding="{Binding Name}" Width="*" MinWidth="160">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Name" Path="Name" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+            <DataGridTextColumn Binding="{Binding Description}" Width="2*" MinWidth="200">
+              <DataGridTextColumn.Header><c:FilterableHeader Title="Description" Path="Description" /></DataGridTextColumn.Header>
+            </DataGridTextColumn>
+
+            <DataGridTemplateColumn Width="90" CanUserSort="False">
+              <DataGridTemplateColumn.Header>
+                <TextBlock Text="Origin" Classes="colhead" />
+              </DataGridTemplateColumn.Header>
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="m:Organization">
+                  <Grid VerticalAlignment="Center">
+                    <TextBlock Text="Built-in" Classes="dim" IsVisible="{Binding IsBuiltIn}" />
+                    <TextBlock Text="Custom"   IsVisible="{Binding !IsBuiltIn}" />
+                  </Grid>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+
+            <DataGridTemplateColumn Header="" Width="100">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="m:Organization">
+                  <StackPanel Orientation="Horizontal" Spacing="3" Margin="4,0">
+                    <Button Classes="ghost icon" Padding="6" ToolTip.Tip="Edit"
+                            Command="{Binding $parent[DataGrid].((vm:OrganizationsViewModel)DataContext).EditCommand}"
+                            CommandParameter="{Binding}">
+                      <Path Data="{DynamicResource IcoEdit}" Width="12" Height="12" Stretch="Uniform"
+                            Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+                    </Button>
+                    <Button Classes="ghost icon danger" Padding="6" ToolTip.Tip="Delete"
+                            Command="{Binding $parent[DataGrid].((vm:OrganizationsViewModel)DataContext).DeleteCommand}"
+                            CommandParameter="{Binding}">
+                      <Path Data="{DynamicResource IcoTrash}" Width="12" Height="12" Stretch="Uniform"
+                            Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent" />
+                    </Button>
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </DockPanel>
+    </Border>
+
+  </c:PageShell>
+</UserControl>

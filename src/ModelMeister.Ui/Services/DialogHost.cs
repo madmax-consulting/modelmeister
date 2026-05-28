@@ -72,6 +72,26 @@ internal static class DialogHost
         return ok ? vm : null;
     }
 
+    /// <summary>Show the Create / Edit organization dialog (<paramref name="existing"/> = null to create).
+    /// Returns the populated VM on Save, else <c>null</c>.</summary>
+    public static async Task<OrganizationEditorViewModel?> OrganizationEditorAsync(ModelMeister.Ui.Models.Organization? existing)
+    {
+        var vm = new OrganizationEditorViewModel(existing);
+        var ok = await ShowDialogAsync<OrganizationEditorDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
+    /// <summary>Show the work-area saved-query builder for <paramref name="folderName"/>, seeded with
+    /// <paramref name="existingQueryJson"/> (null for a brand-new query) and validated against
+    /// <paramref name="meta"/>. Returns the populated VM on Save (read <c>ResultJson</c>), else <c>null</c>.</summary>
+    public static async Task<QueryEditorViewModel?> QueryEditorAsync(
+        string folderName, string? existingQueryJson, ModelMeister.Inriver.WorkAreas.Query.QueryMetadata meta)
+    {
+        var vm = new QueryEditorViewModel(folderName, existingQueryJson, meta);
+        var ok = await ShowDialogAsync<QueryEditorDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        return ok ? vm : null;
+    }
+
     /// <summary>Show the Create / Edit Role dialog. Returns the populated VM on Save, else <c>null</c>.</summary>
     public static async Task<RoleEditorViewModel?> RoleEditorAsync(
         string? name, string? description,

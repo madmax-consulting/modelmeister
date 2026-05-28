@@ -40,6 +40,36 @@ public class WorkAreaWorkbookRoundTripTests
     }
 
     [Fact]
+    public void Round_trips_username_and_oversize_query_via_sidecar()
+    {
+        // A GUI-built query can exceed Excel's 32k cell cap — it must spill to the sidecar and resolve back.
+        var bigQuery = "{\"EntityTypeId\":\"Product\",\"pad\":\"" + new string('x', 40_000) + "\"}";
+        var folders = new List<WorkAreaFolderDto>
+        {
+            new() { Path = "Alice/Pinned", Name = "Pinned", Index = 0, Username = "alice" },
+            new() { Path = "Alice/Big query", Name = "Big query", Index = 1, IsQuery = true, Username = "alice", QueryJson = bigQuery },
+        };
+
+        var path = Path.Combine(Path.GetTempPath(), "mm-workarea-big-" + Guid.NewGuid().ToString("N") + ".xlsx");
+        var sidecar = Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "_files");
+        try
+        {
+            WorkAreaWorkbook.Save(folders, path);
+            var loaded = WorkAreaWorkbook.Load(path);
+
+            loaded.Single(f => f.Path == "Alice/Pinned").Username.ShouldBe("alice");
+            var big = loaded.Single(f => f.Path == "Alice/Big query");
+            big.Username.ShouldBe("alice");
+            big.QueryJson.ShouldBe(bigQuery);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+            if (Directory.Exists(sidecar)) Directory.Delete(sidecar, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Load_missing_sheet_returns_empty()
     {
         var path = Path.Combine(Path.GetTempPath(), "mm-workarea-empty-" + Guid.NewGuid().ToString("N") + ".xlsx");

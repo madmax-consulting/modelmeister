@@ -19,6 +19,9 @@ public sealed class WorkAreaFolderDto
     /// <summary>Serialized <c>ComplexQuery</c> (opaque). Null when the folder has no saved search.</summary>
     public string? QueryJson { get; set; }
 
+    /// <summary>Owner of the folder: a username for a personal folder; <c>null</c> for a shared folder.</summary>
+    public string? Username { get; set; }
+
     /// <summary>Parent-chain of names joined by '/', e.g. <c>Marketing/Launch 2026</c>.</summary>
     public string Path { get; set; } = string.Empty;
 }

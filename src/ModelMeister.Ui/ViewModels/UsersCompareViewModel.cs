@@ -64,6 +64,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         _log = log;
         _vault = main.Vault;
         _vault.Changed += RefreshEnvList;
+        _main.ScopeChanged += RefreshEnvList;
         Buckets.Changed += _ => RebuildVisibleRows();
         Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
@@ -102,7 +103,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
         var lid = LeftEnv?.Id;
         var rid = RightEnv?.Id;
         AvailableEnvs.Clear();
-        foreach (var e in _vault.List().OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var e in _main.EnvironmentsInScope())
             AvailableEnvs.Add(e);
         if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
         if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);

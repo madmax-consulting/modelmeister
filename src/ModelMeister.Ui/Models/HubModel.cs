@@ -16,6 +16,7 @@ public enum Hub
     Extensions,
     ServerSettings,
     WorkAreas,
+    PersonalWorkAreas,
     HtmlTemplates,
     // System group
     Environments,

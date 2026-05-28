@@ -13,7 +13,8 @@ public class RemotingSurfaceCoverageTests
     private static readonly HashSet<string> OutOfScope = new(StringComparer.Ordinal)
     {
         // Singular getters — superseded by GetAll* + in-memory lookups in the snapshot reader.
-        "GetEntityType","GetLinkType","GetCategory","GetCVL","GetCVLValuesForCVL","GetFieldSet","GetFieldType","GetAllFieldTypes",
+        // (GetAllFieldTypes is used by the work-area query builder's QueryMetadataService — scanned below.)
+        "GetEntityType","GetLinkType","GetCategory","GetCVL","GetCVLValuesForCVL","GetFieldSet","GetFieldType",
         // Permission concept management — pre-existing in inriver; we manage only role-permission bindings.
         "AddPermission","DeletePermission","GetPermission","UpdatePermission",
         // Per-key/convenience overloads — we use the int-id path.
@@ -52,13 +53,13 @@ public class RemotingSurfaceCoverageTests
         "SetConnectorSetting","DeleteConnectorSetting","WriteConnectorEvent","GetConnectorEvents",
         "SetConnectorStarted","GetLatestConnectorEvents","GetAllUIPhrases","GetAllUIPhrasesForLanguage",
         "AddUIPhrase","DeleteUIPhrase","UpdateUIPhrase","GetAllUILanguages","GetSmallIconForEntityType",
-        "GetLargeIconForEntityType","GetAllEntityIcons","SendMail","GetPersonalWorkAreaRootFolder",
-        "GetPersonalWorkAreaFolder","AddPersonalWorkAreaFolder","DeletePersonalWorkAreaFolder",
-        "UpdatePersonalWorkAreaFolderName","MovePersonalWorkAreaFolder","UpdatePersonalWorkAreaQuery",
-        "GetAllPersonalWorkAreaFoldersForUser","UpdatePersonalWorkAreaFolderIndex","GetSharedWorkAreaFolder",
+        "GetLargeIconForEntityType","GetAllEntityIcons","SendMail",
+        // Singular personal getters — superseded by GetAllPersonalWorkAreaFoldersForUser. The personal
+        // write surface (Add/Delete/Update/Move) is used by PersonalWorkAreaScope and scanned below.
+        "GetPersonalWorkAreaRootFolder","GetPersonalWorkAreaFolder","GetSharedWorkAreaFolder",
         // Shared work-area folder reads/writes used by WorkAreaService are covered (scanned) below;
-        // these remaining shared-folder methods are not used by the toolkit.
-        "UpdateSharedWorkAreaSyndication","UpdateSharedWorkAreaFolderIndex","AddEntitiesToWorkAreaFolder",
+        // entity-membership is deliberately out of scope (folders are versioned without their entity lists).
+        "AddEntitiesToWorkAreaFolder",
         "RemoveEntitiesFromWorkAreaFolder","AddNotification","UpdateNotificaton","GetNotification",
         "DeleteNotification","GetAllNotifications","GetAllNotificationsForUser","GetAllActiveNotifications",
         "AddFileImportMapping","GetFileImportMapping","UpdateFileImportMapping","GetAllFileImportMappings",
@@ -135,6 +136,11 @@ public class RemotingSurfaceCoverageTests
                 // Shared work-area folders (WorkAreaService) + HTML templates (HtmlTemplateService).
                 "GetAllSharedWorkAreaFolders","AddSharedWorkAreaFolder","DeleteSharedWorkAreaFolder",
                 "UpdateSharedWorkAreaFolderName","MoveSharedWorkAreaFolder","UpdateSharedWorkAreaQuery",
+                "UpdateSharedWorkAreaSyndication","UpdateSharedWorkAreaFolderIndex",
+                // Personal work-area folders (PersonalWorkAreaScope).
+                "GetAllPersonalWorkAreaFoldersForUser","AddPersonalWorkAreaFolder","DeletePersonalWorkAreaFolder",
+                "UpdatePersonalWorkAreaFolderName","MovePersonalWorkAreaFolder","UpdatePersonalWorkAreaFolderIndex",
+                "UpdatePersonalWorkAreaQuery",
                 "GetAllHtmlTemplates","AddHtmlTemplate","UpdateHtmlTemplate","DeleteHtmlTemplate",
             })
             {

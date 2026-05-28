@@ -56,6 +56,7 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
         _vault = vault;
         _log = log;
         _vault.Changed += RefreshEnvList;
+        _main.ScopeChanged += RefreshEnvList;
         RefreshEnvList();
 
         SaveCsvCommand = CompareCommands.MakeSaveCsv(
@@ -92,7 +93,7 @@ public partial class CompareExtensionsViewModel : ViewModelBase, ICompareViewMod
         var lid = LeftEnv?.Id;
         var rid = RightEnv?.Id;
         AvailableEnvs.Clear();
-        foreach (var e in _vault.List().OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var e in _main.EnvironmentsInScope())
             AvailableEnvs.Add(e);
         if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
         if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);

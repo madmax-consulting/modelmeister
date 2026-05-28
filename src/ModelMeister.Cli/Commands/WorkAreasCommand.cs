@@ -12,14 +12,22 @@ namespace ModelMeister.Cli.Commands;
 /// </summary>
 public static class WorkAreasCommand
 {
-    public static async Task<int> ListAsync(string url, InriverAuth auth, CancellationToken ct)
+    /// <summary>Bind the service to the shared surface, or to <paramref name="personalUser"/>'s personal
+    /// folders when a username is supplied (the CLI <c>--user</c> option).</summary>
+    private static WorkAreaService Svc(InriverClient client, string? personalUser) =>
+        string.IsNullOrWhiteSpace(personalUser) ? WorkAreaService.ForShared(client) : WorkAreaService.ForPersonal(client, personalUser);
+
+    private static string ScopeLabel(string? personalUser) =>
+        string.IsNullOrWhiteSpace(personalUser) ? "shared" : $"personal:{personalUser}";
+
+    public static async Task<int> ListAsync(string url, InriverAuth auth, string? personalUser, CancellationToken ct)
     {
         using var client = new InriverClient(url);
         var rc = await auth.ConnectAsync(client).ConfigureAwait(false);
         if (rc != ExitCodes.Success) return rc;
         try
         {
-            var folders = new WorkAreaService(client).List();
+            var folders = Svc(client, personalUser).List();
             var table = new Table().AddColumns("Path", "Query", "Syndication");
             foreach (var f in folders)
                 table.AddRow(
@@ -27,7 +35,7 @@ public static class WorkAreasCommand
                     f.IsQuery ? "[green]yes[/]" : "",
                     f.IsSyndication ? "[blue]yes[/]" : "");
             AnsiConsole.Write(table);
-            AnsiConsole.MarkupLine($"[grey]{folders.Count} folder(s).[/]");
+            AnsiConsole.MarkupLine($"[grey]{folders.Count} folder(s) · {ScopeLabel(personalUser)}.[/]");
             return ExitCodes.Success;
         }
         catch (Exception ex)
@@ -37,14 +45,14 @@ public static class WorkAreasCommand
         }
     }
 
-    public static async Task<int> ExportAsync(string url, InriverAuth auth, string outPath, CancellationToken ct)
+    public static async Task<int> ExportAsync(string url, InriverAuth auth, string outPath, string? personalUser, CancellationToken ct)
     {
         using var client = new InriverClient(url);
         var rc = await auth.ConnectAsync(client).ConfigureAwait(false);
         if (rc != ExitCodes.Success) return rc;
         try
         {
-            var folders = new WorkAreaService(client).List();
+            var folders = Svc(client, personalUser).List();
             WorkAreaWorkbook.Save(folders, outPath);
             AnsiConsole.MarkupLine($"[green]Wrote {folders.Count} folder(s) to[/] {outPath.EscapeMarkup()}");
             return ExitCodes.Success;
@@ -56,7 +64,7 @@ public static class WorkAreasCommand
         }
     }
 
-    public static async Task<int> ImportAsync(string url, InriverAuth auth, string excelPath, bool allowDeletes, bool dryRun, CancellationToken ct)
+    public static async Task<int> ImportAsync(string url, InriverAuth auth, string excelPath, bool allowDeletes, bool dryRun, string? personalUser, CancellationToken ct)
     {
         var desired = WorkAreaWorkbook.Load(excelPath);
         if (dryRun)
@@ -71,7 +79,7 @@ public static class WorkAreasCommand
         if (rc != ExitCodes.Success) return rc;
         try
         {
-            var result = await new WorkAreaService(client).ApplyAsync(desired, allowDeletes, ct).ConfigureAwait(false);
+            var result = await Svc(client, personalUser).ApplyAsync(desired, allowDeletes, ct).ConfigureAwait(false);
             return Report(result);
         }
         catch (Exception ex)
@@ -82,7 +90,7 @@ public static class WorkAreasCommand
     }
 
     public static async Task<int> PromoteAsync(
-        string fromUrl, InriverAuth fromAuth, string toUrl, InriverAuth toAuth, bool allowDeletes, CancellationToken ct)
+        string fromUrl, InriverAuth fromAuth, string toUrl, InriverAuth toAuth, bool allowDeletes, string? personalUser, CancellationToken ct)
     {
         // Read the source env fully into memory (keeps the live query objects), then connect the target.
         IReadOnlyList<inRiver.Remoting.Objects.WorkAreaFolder> source;
@@ -90,7 +98,7 @@ public static class WorkAreasCommand
         {
             var rc = await fromAuth.ConnectAsync(src).ConfigureAwait(false);
             if (rc != ExitCodes.Success) return rc;
-            try { source = new WorkAreaService(src).GetRawFolders(); }
+            try { source = Svc(src, personalUser).GetRawFolders(); }
             catch (Exception ex) { AnsiConsole.MarkupLine($"[red]Read source failed:[/] {ex.Message.EscapeMarkup()}"); return ExitCodes.OperationFailed; }
         }
 
@@ -99,7 +107,7 @@ public static class WorkAreasCommand
         if (trc != ExitCodes.Success) return trc;
         try
         {
-            var result = await new WorkAreaService(tgt).ApplyAsync(source, allowDeletes, ct).ConfigureAwait(false);
+            var result = await Svc(tgt, personalUser).ApplyAsync(source, allowDeletes, ct).ConfigureAwait(false);
             return Report(result);
         }
         catch (Exception ex)

@@ -665,91 +665,140 @@ public sealed class Shell
         return await ListExtensionsAsync(env, secret, ct).ConfigureAwait(false);
     }
 
-    // ---------------- Work-area folders (shared) ----------------
+    // ---------------- Work-area folders (shared + personal) ----------------
 
-    /// <summary>List the connected env's shared work-area folders (flat DTOs, each with its tree path).</summary>
-    public Task<IReadOnlyList<WorkAreaFolderDto>> ListWorkAreasAsync(CancellationToken ct = default)
+    /// <summary>The connected client, or throw if not connected.</summary>
+    private InriverClient ConnectedClient() =>
+        _connection.Client ?? throw new InvalidOperationException("Not connected.");
+
+    /// <summary>Build a <see cref="WorkAreaService"/> bound to the shared surface, or to
+    /// <paramref name="personalUsername"/>'s personal folders when supplied. The optional
+    /// <c>personalUsername</c> on every work-area method below selects which surface to talk to.</summary>
+    private static WorkAreaService WorkAreas(InriverClient client, string? personalUsername) =>
+        personalUsername is null ? WorkAreaService.ForShared(client) : WorkAreaService.ForPersonal(client, personalUsername);
+
+    /// <summary>List the connected env's work-area folders (flat DTOs, each with its tree path).</summary>
+    public Task<IReadOnlyList<WorkAreaFolderDto>> ListWorkAreasAsync(string? personalUsername = null, CancellationToken ct = default)
     {
-        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return Task.Run(() => new WorkAreaService(client).List(), ct);
+        var client = ConnectedClient();
+        return Task.Run(() => WorkAreas(client, personalUsername).List(), ct);
     }
 
-    /// <summary>Create a shared work-area folder under an optional parent. Returns the new folder id.</summary>
-    public Task<Guid> CreateWorkAreaFolderAsync(string name, Guid? parentId, int index, bool isQuery, CancellationToken ct = default)
+    /// <summary>Create a work-area folder under an optional parent. Returns the new folder id.</summary>
+    public Task<Guid> CreateWorkAreaFolderAsync(string name, Guid? parentId, int index, bool isQuery, string? personalUsername = null, CancellationToken ct = default) =>
+        WorkAreas(ConnectedClient(), personalUsername).CreateFolderAsync(name, parentId, index, isQuery, ct);
+
+    /// <summary>Rename a work-area folder on the connected env.</summary>
+    public Task RenameWorkAreaFolderAsync(Guid id, string name, string? personalUsername = null, CancellationToken ct = default) =>
+        WorkAreas(ConnectedClient(), personalUsername).RenameFolderAsync(id, name, ct);
+
+    /// <summary>Move a work-area folder under a new parent at a given index (re-parent / reorder).</summary>
+    public Task MoveWorkAreaFolderAsync(Guid id, Guid newParentId, int newIndex, string? personalUsername = null, CancellationToken ct = default) =>
+        WorkAreas(ConnectedClient(), personalUsername).MoveFolderAsync(id, newParentId, newIndex, ct);
+
+    /// <summary>Reorder a work-area folder among its siblings (same parent).</summary>
+    public Task SetWorkAreaIndexAsync(Guid id, int newIndex, string? personalUsername = null, CancellationToken ct = default) =>
+        WorkAreas(ConnectedClient(), personalUsername).SetIndexAsync(id, newIndex, ct);
+
+    /// <summary>Toggle a shared folder's syndication flag (no-op for personal folders).</summary>
+    public Task SetWorkAreaSyndicationAsync(Guid id, bool isSyndication, string? personalUsername = null, CancellationToken ct = default) =>
+        WorkAreas(ConnectedClient(), personalUsername).SetSyndicationAsync(id, isSyndication, ct);
+
+    /// <summary>Set (or replace) a folder's saved query from its serialized JSON. A null/blank/invalid
+    /// JSON is a no-op (there is no Remoting call to clear a query).</summary>
+    public Task SetWorkAreaQueryAsync(Guid id, string? queryJson, string? personalUsername = null, CancellationToken ct = default)
     {
-        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new WorkAreaService(client).CreateFolderAsync(name, parentId, index, isQuery, ct);
+        var query = WorkAreaService.DeserializeQuery(queryJson);
+        return query is null ? Task.CompletedTask : WorkAreas(ConnectedClient(), personalUsername).SetQueryAsync(id, query, ct);
     }
 
-    /// <summary>Rename a shared work-area folder on the connected env.</summary>
-    public Task RenameWorkAreaFolderAsync(Guid id, string name, CancellationToken ct = default)
-    {
-        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new WorkAreaService(client).RenameFolderAsync(id, name, ct);
-    }
-
-    /// <summary>Delete a shared work-area folder (and its contents) from the connected env.</summary>
-    public Task DeleteWorkAreaFolderAsync(Guid id, CancellationToken ct = default)
-    {
-        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new WorkAreaService(client).DeleteFolderAsync(id, ct);
-    }
+    /// <summary>Delete a work-area folder (and its contents) from the connected env.</summary>
+    public Task DeleteWorkAreaFolderAsync(Guid id, string? personalUsername = null, CancellationToken ct = default) =>
+        WorkAreas(ConnectedClient(), personalUsername).DeleteFolderAsync(id, ct);
 
     /// <summary>Apply Excel-described folders to the connected env (reconcile by path).</summary>
-    public Task<WorkAreaApplyResult> ApplyWorkAreasAsync(IReadOnlyList<WorkAreaFolderDto> folders, bool allowDeletes, CancellationToken ct = default)
-    {
-        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new WorkAreaService(client).ApplyAsync(folders, allowDeletes, ct);
-    }
+    public Task<WorkAreaApplyResult> ApplyWorkAreasAsync(IReadOnlyList<WorkAreaFolderDto> folders, bool allowDeletes, string? personalUsername = null, CancellationToken ct = default) =>
+        WorkAreas(ConnectedClient(), personalUsername).ApplyAsync(folders, allowDeletes, ct);
 
     /// <summary>Diff work-area folders against the connected env into an ordered, stateful reconcile
     /// session the import workflow drives one folder at a time (for per-row progress).</summary>
-    public WorkAreaReconcileSession PlanWorkAreas(IReadOnlyList<WorkAreaFolderDto> folders, bool allowDeletes)
-    {
-        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return new WorkAreaService(client).Plan(folders, allowDeletes);
-    }
+    public WorkAreaReconcileSession PlanWorkAreas(IReadOnlyList<WorkAreaFolderDto> folders, bool allowDeletes, string? personalUsername = null) =>
+        WorkAreas(ConnectedClient(), personalUsername).Plan(folders, allowDeletes);
 
     /// <summary>Capture a <see cref="WorkAreasBackup"/> from the connected env.</summary>
-    public Task<WorkAreasBackup> CaptureWorkAreasBackupAsync(BackupMetadata metadata, CancellationToken ct = default)
+    public Task<WorkAreasBackup> CaptureWorkAreasBackupAsync(BackupMetadata metadata, string? personalUsername = null, CancellationToken ct = default)
     {
-        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return Task.Run(() => WorkAreasBackup.Capture(new WorkAreaService(client), metadata), ct);
+        var client = ConnectedClient();
+        return Task.Run(() => WorkAreasBackup.Capture(WorkAreas(client, personalUsername), metadata), ct);
     }
 
     /// <summary>Restore a <see cref="WorkAreasBackup"/> into the connected env (create/update by path).</summary>
-    public Task<List<WorkAreasBackup.RestoreEntry>> RestoreWorkAreasAsync(WorkAreasBackup backup, CancellationToken ct = default)
+    public Task<List<WorkAreasBackup.RestoreEntry>> RestoreWorkAreasAsync(WorkAreasBackup backup, string? personalUsername = null, CancellationToken ct = default) =>
+        backup.RestoreAsync(WorkAreas(ConnectedClient(), personalUsername), ct);
+
+    /// <summary>Capture the connected env's entity/field/link ids for the query builder's pickers and
+    /// cross-env validity checks. Env-wide — independent of shared vs personal scope.</summary>
+    public Task<ModelMeister.Inriver.WorkAreas.Query.QueryMetadata> CaptureWorkAreaQueryMetadataAsync(CancellationToken ct = default)
     {
-        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
-        return backup.RestoreAsync(new WorkAreaService(client), ct);
+        var client = ConnectedClient();
+        return Task.Run(() => new ModelMeister.Inriver.WorkAreas.Query.QueryMetadataService(client).Capture(), ct);
     }
 
-    /// <summary>Switch to <paramref name="env"/> and capture its shared work-area folders. Leaves the
+    /// <summary>Switch to <paramref name="env"/> and capture its work-area folders. Leaves the
     /// connection bound to <paramref name="env"/> on return.</summary>
     public async Task<IReadOnlyList<WorkAreaFolderDto>> CaptureWorkAreasFromEnvAsync(
-        EnvironmentEntry env, EnvironmentSecret secret, CancellationToken ct = default)
+        EnvironmentEntry env, EnvironmentSecret secret, string? personalUsername = null, CancellationToken ct = default)
     {
         await SwitchEnvAsync(env, secret, ct).ConfigureAwait(false);
-        return await ListWorkAreasAsync(ct).ConfigureAwait(false);
+        return await ListWorkAreasAsync(personalUsername, ct).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Faithful env→env promote of shared work-area folders. Connects to the source to read the live
-    /// folders (keeping their <c>ComplexQuery</c> objects), then connects to the target and reconciles by
-    /// path. Leaves the connection bound to <paramref name="targetEnv"/> on return.
+    /// Faithful env→env promote of work-area folders. Connects to the source to read the live folders
+    /// (keeping their <c>ComplexQuery</c> objects), then connects to the target and reconciles by path.
+    /// When <paramref name="onlyPaths"/> is non-null only those folders (plus their ancestor folders, so a
+    /// child always has a parent) are promoted. Leaves the connection bound to <paramref name="targetEnv"/>.
     /// </summary>
     public async Task<WorkAreaApplyResult> PromoteWorkAreasAsync(
         EnvironmentEntry sourceEnv, EnvironmentSecret sourceSecret,
         EnvironmentEntry targetEnv, EnvironmentSecret targetSecret,
-        bool allowDeletes, CancellationToken ct = default)
+        bool allowDeletes, IReadOnlyList<string>? onlyPaths = null, string? personalUsername = null, CancellationToken ct = default)
     {
         await SwitchEnvAsync(sourceEnv, sourceSecret, ct).ConfigureAwait(false);
-        var srcClient = _connection.Client ?? throw new InvalidOperationException("Source connection lost.");
-        var raw = await Task.Run(() => new WorkAreaService(srcClient).GetRawFolders(), ct).ConfigureAwait(false);
+        var srcClient = ConnectedClient();
+        var raw = await Task.Run(() => WorkAreas(srcClient, personalUsername).GetRawFolders(), ct).ConfigureAwait(false);
+        if (onlyPaths is not null) raw = FilterToPathClosure(raw, onlyPaths);
 
         await SwitchEnvAsync(targetEnv, targetSecret, ct).ConfigureAwait(false);
-        var tgtClient = _connection.Client ?? throw new InvalidOperationException("Target connection lost.");
-        return await new WorkAreaService(tgtClient).ApplyAsync(raw, allowDeletes, ct).ConfigureAwait(false);
+        var tgtClient = ConnectedClient();
+        return await WorkAreas(tgtClient, personalUsername).ApplyAsync(raw, allowDeletes, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Restrict <paramref name="folders"/> to those whose tree path is in <paramref name="keepPaths"/>,
+    /// plus every ancestor folder needed to keep the kept folders reachable (a child needs its parents).</summary>
+    private static IReadOnlyList<inRiver.Remoting.Objects.WorkAreaFolder> FilterToPathClosure(
+        IReadOnlyList<inRiver.Remoting.Objects.WorkAreaFolder> folders, IReadOnlyList<string> keepPaths)
+    {
+        var byId = folders.ToDictionary(f => f.Id);
+        string PathOf(inRiver.Remoting.Objects.WorkAreaFolder f)
+        {
+            var names = new List<string>();
+            var cur = f; var guard = 0;
+            while (cur is not null && guard++ < 64)
+            {
+                names.Add(cur.Name ?? "");
+                cur = cur.ParentId is { } pid && byId.TryGetValue(pid, out var p) ? p : null;
+            }
+            names.Reverse();
+            return string.Join('/', names);
+        }
+        var keep = new HashSet<string>(keepPaths, StringComparer.OrdinalIgnoreCase);
+        return folders.Where(f =>
+        {
+            // Keep a folder if its own path is requested, or if it is an ancestor of a requested path.
+            var path = PathOf(f);
+            return keep.Contains(path) || keep.Any(k => k.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase));
+        }).ToList();
     }
 
     // ---------------- HTML templates ----------------

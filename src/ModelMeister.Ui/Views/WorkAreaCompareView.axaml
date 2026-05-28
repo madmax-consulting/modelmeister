@@ -6,6 +6,7 @@
              xmlns:svc="using:ModelMeister.Ui.Services"
              xmlns:conv="using:ModelMeister.Ui.Converters"
              xmlns:views="using:ModelMeister.Ui.Views"
+             xmlns:users="using:ModelMeister.Inriver.Users"
              x:Class="ModelMeister.Ui.Views.WorkAreaCompareView"
              x:DataType="vm:WorkAreaCompareViewModel"
              x:Name="Root">
@@ -19,11 +20,36 @@
                            Subtitle="Compare shared folders + saved queries across two environments — promote source → target">
     <views:CompareLayoutView.Body>
       <DockPanel LastChildFill="True">
-        <c:GridToolbar DockPanel.Dock="Top" Margin="2,0,0,8" TargetGrid="{Binding #MainGrid}" />
+        <DockPanel DockPanel.Dock="Top" Margin="2,0,0,8">
+          <ComboBox DockPanel.Dock="Left" MinWidth="180" Margin="0,0,10,0" IsVisible="{Binding ShowUserPicker}"
+                    ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser, Mode=TwoWay}"
+                    PlaceholderText="Pick a user…" VerticalAlignment="Center">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="users:UserSummary">
+                <TextBlock Text="{Binding Username}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <CheckBox DockPanel.Dock="Right" IsChecked="{Binding AllowDeletes, Mode=TwoWay}"
+                    VerticalAlignment="Center" Margin="8,0,0,0"
+                    ToolTip.Tip="When promoting ALL folders, also delete folders that exist only in the target (a full mirror). Per-row and selected promotes never delete.">
+            <TextBlock Text="Prune target-only on Promote all" FontSize="12" />
+          </CheckBox>
+          <c:GridToolbar TargetGrid="{Binding #MainGrid}" />
+        </DockPanel>
         <DataGrid Name="MainGrid" ItemsSource="{Binding Rows}" IsReadOnly="True"
                   AutoGenerateColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                  SelectionMode="Extended" svc:GridSelectionBehavior.Selection="{Binding Selection}"
                   Classes="filterable fit">
           <DataGrid.Columns>
+            <DataGridTemplateColumn Width="40" CanUserResize="False" CanUserReorder="False" CanUserSort="False"
+                                    CellTemplate="{StaticResource RowSelectCell}">
+              <DataGridTemplateColumn.Header>
+                <CheckBox IsChecked="{Binding #Root.((vm:WorkAreaCompareViewModel)DataContext).Selection.AllSelected, Mode=TwoWay}"
+                          ToolTip.Tip="Select all" />
+              </DataGridTemplateColumn.Header>
+            </DataGridTemplateColumn>
+
             <!-- Which environment(s) the folder exists in, as named stage pills (no left/right wording). -->
             <DataGridTemplateColumn Header="Environment" Width="170" MinWidth="130">
               <DataGridTemplateColumn.CellTemplate>
@@ -49,15 +75,63 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
+
             <DataGridTextColumn Binding="{Binding Path}" Width="2*" MinWidth="160">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Path" Path="Path" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
             <DataGridTextColumn Binding="{Binding Kind}" Width="110" MinWidth="90">
               <DataGridTextColumn.Header><c:FilterableHeader Title="Kind" Path="Kind" /></DataGridTextColumn.Header>
             </DataGridTextColumn>
-            <DataGridTextColumn Binding="{Binding Detail}" Width="1.6*" MinWidth="140">
-              <DataGridTextColumn.Header><c:FilterableHeader Title="Difference" Path="Detail" /></DataGridTextColumn.Header>
-            </DataGridTextColumn>
+
+            <!-- Difference + an advisory warning when the source query references ids missing from the target. -->
+            <DataGridTemplateColumn Width="1.8*" MinWidth="160">
+              <DataGridTemplateColumn.Header><c:FilterableHeader Title="Difference" Path="Detail" /></DataGridTemplateColumn.Header>
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:WorkAreaDiffRow">
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Path Data="{DynamicResource IcoWarn}" Width="13" Height="13" Stretch="Uniform"
+                          Stroke="{DynamicResource Warn}" StrokeThickness="1.6" Fill="Transparent"
+                          VerticalAlignment="Center" IsVisible="{Binding HasValidityWarning}"
+                          ToolTip.Tip="{Binding ValidityWarning}" />
+                    <TextBlock Text="{Binding Detail}" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Detail}" />
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+
+            <!-- Per-row promote (one-way: source → target). Hidden on target-only rows (would be a delete). -->
+            <DataGridTemplateColumn Header="Promote" Width="150" MinWidth="140">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:WorkAreaDiffRow">
+                  <Button Classes="ghost" Padding="4,2" Margin="4,0"
+                          IsVisible="{Binding CanPromoteLeftToRight}"
+                          ToolTip.Tip="Promote this folder (and its parents) from the source environment into the target one"
+                          Command="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).ApplyCommand}"
+                          CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).LeftColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                      <TextBlock Text="→" VerticalAlignment="Center" />
+                      <Border Classes="pill"
+                              Background="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                              BorderBrush="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                              BorderThickness="1" Padding="4,0">
+                        <TextBlock Text="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageText}}"
+                                   Foreground="{Binding $parent[DataGrid].((vm:WorkAreaCompareViewModel)DataContext).RightColumnStage, Converter={StaticResource StageBrush}}"
+                                   FontSize="9" FontWeight="SemiBold" />
+                      </Border>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
           </DataGrid.Columns>
         </DataGrid>
       </DockPanel>

@@ -648,26 +648,34 @@ static Command BuildWorkAreas()
 {
     var cmd = new Command("workareas", "List, export/import, and promote shared work-area folders + saved queries.");
 
-    var listCmd = new Command("list", "List shared work-area folders.");
+    var listCmd = new Command("list", "List work-area folders (shared, or a user's personal with --user).");
     var connL = new ConnectionOptions();
+    var userL = new Option<string?>("--user", "List this user's personal folders instead of shared.");
     connL.AddTo(listCmd);
+    listCmd.AddOption(userL);
     listCmd.SetHandler(async ctx =>
     {
         Environment.ExitCode = await WorkAreasCommand.ListAsync(
-            ctx.ParseResult.GetValueForOption(connL.Url)!, connL.ToAuth(ctx), ctx.GetCancellationToken()).ConfigureAwait(false);
+            ctx.ParseResult.GetValueForOption(connL.Url)!, connL.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(userL), ctx.GetCancellationToken()).ConfigureAwait(false);
     });
-    listCmd.WithExamples(("List shared folders", "modelmeister workareas list --url $URL"));
+    listCmd.WithExamples(
+        ("List shared folders", "modelmeister workareas list --url $URL"),
+        ("List a user's personal folders", "modelmeister workareas list --url $URL --user alice"));
 
-    var exportCmd = new Command("export", "Export shared work-area folders + queries to an Excel workbook.");
+    var exportCmd = new Command("export", "Export work-area folders + queries to an Excel workbook (shared, or --user).");
     var connE = new ConnectionOptions();
     var eOut = new Option<string>("--out", "Output .xlsx path") { IsRequired = true };
+    var userE = new Option<string?>("--user", "Export this user's personal folders instead of shared.");
     connE.AddTo(exportCmd);
     exportCmd.AddOption(eOut);
+    exportCmd.AddOption(userE);
     exportCmd.SetHandler(async ctx =>
     {
         Environment.ExitCode = await WorkAreasCommand.ExportAsync(
             ctx.ParseResult.GetValueForOption(connE.Url)!, connE.ToAuth(ctx),
-            ctx.ParseResult.GetValueForOption(eOut)!, ctx.GetCancellationToken()).ConfigureAwait(false);
+            ctx.ParseResult.GetValueForOption(eOut)!,
+            ctx.ParseResult.GetValueForOption(userE), ctx.GetCancellationToken()).ConfigureAwait(false);
     });
     exportCmd.WithExamples(("Pull folders to edit/review offline", "modelmeister workareas export --url $URL --out workareas.xlsx"));
 
@@ -677,8 +685,9 @@ static Command BuildWorkAreas()
     iExcel.AddAlias("--xlsx");
     var iDelete = new Option<bool>("--allow-deletes", () => false, "Delete target folders not present in the workbook");
     var iDry = new Option<bool>("--dry-run", () => false);
+    var userI = new Option<string?>("--user", "Apply to this user's personal folders instead of shared.");
     connI.AddTo(importCmd);
-    foreach (var o in new Option[] { iExcel, iDelete, iDry }) importCmd.AddOption(o);
+    foreach (var o in new Option[] { iExcel, iDelete, iDry, userI }) importCmd.AddOption(o);
     importCmd.SetHandler(async ctx =>
     {
         Environment.ExitCode = await WorkAreasCommand.ImportAsync(
@@ -686,6 +695,7 @@ static Command BuildWorkAreas()
             ctx.ParseResult.GetValueForOption(iExcel)!,
             ctx.ParseResult.GetValueForOption(iDelete),
             ctx.ParseResult.GetValueForOption(iDry),
+            ctx.ParseResult.GetValueForOption(userI),
             ctx.GetCancellationToken()).ConfigureAwait(false);
     });
     importCmd.WithExamples(("Apply a reviewed workbook", "modelmeister workareas import --url $URL --excel workareas.xlsx"));
@@ -695,8 +705,9 @@ static Command BuildWorkAreas()
     var fromUrl = new Option<string>("--from-url", "Source inriver URL") { IsRequired = true };
     var fromKey = new Option<string?>("--from-api-key", "Source API key (falls back to INRIVER_API_KEY)");
     var pDelete = new Option<bool>("--allow-deletes", () => false, "Delete target folders not present on the source");
+    var userP = new Option<string?>("--user", "Promote this user's personal folders instead of shared.");
     connT.AddTo(promoteCmd);
-    foreach (var o in new Option[] { fromUrl, fromKey, pDelete }) promoteCmd.AddOption(o);
+    foreach (var o in new Option[] { fromUrl, fromKey, pDelete, userP }) promoteCmd.AddOption(o);
     promoteCmd.SetHandler(async ctx =>
     {
         Environment.ExitCode = await WorkAreasCommand.PromoteAsync(
@@ -705,6 +716,7 @@ static Command BuildWorkAreas()
             ctx.ParseResult.GetValueForOption(connT.Url)!,
             connT.ToAuth(ctx),
             ctx.ParseResult.GetValueForOption(pDelete),
+            ctx.ParseResult.GetValueForOption(userP),
             ctx.GetCancellationToken()).ConfigureAwait(false);
     });
     promoteCmd.WithExamples(

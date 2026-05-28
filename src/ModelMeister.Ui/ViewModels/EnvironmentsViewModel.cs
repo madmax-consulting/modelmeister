@@ -20,6 +20,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
     private readonly IEnvironmentVault _vault;
     private readonly ISettingsStore _settings;
     private readonly IEnvironmentTypeRegistry _envTypes;
+    private readonly IOrganizationRegistry _orgs;
     private readonly IConnectionLifecycle _connection;
     private readonly IAppLog _log;
 
@@ -56,6 +57,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
         IEnvironmentVault vault,
         ISettingsStore settings,
         IEnvironmentTypeRegistry envTypes,
+        IOrganizationRegistry orgs,
         IConnectionLifecycle connection,
         IAppLog log)
     {
@@ -63,6 +65,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
         _vault = vault;
         _settings = settings;
         _envTypes = envTypes;
+        _orgs = orgs;
         _connection = connection;
         _log = log;
         Selection = new RowSelectionModel(Rows);
@@ -72,6 +75,8 @@ public partial class EnvironmentsViewModel : ViewModelBase
             IsConnected = _connection.State == ConnectionState.Connected;
             RefreshConnectedFlags();
         };
+        // Re-filter the grid when the user switches the active organization in the title bar.
+        _main.ScopeChanged += Refresh;
         Refresh();
     }
 
@@ -81,7 +86,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
         var defaultId = _settings.Current.DefaultEnvId;
 
         Rows.Clear();
-        foreach (var entry in _vault.List().OrderBy(x => x.Name))
+        foreach (var entry in _main.EnvironmentsInScope())
             Rows.Add(new EnvironmentRow(entry, _vault.SecretMissing(entry.Id), entry.Id == defaultId));
 
         if (preservedId is Guid pid)
@@ -130,8 +135,8 @@ public partial class EnvironmentsViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanAct))]
     private async Task AddAsync()
     {
-        var entry = new EnvironmentEntry { Name = "", Url = EnvEditorViewModel.DefaultUrl };
-        var dlg = new EnvEditorViewModel(entry, new EnvironmentSecret(), _envTypes, isDefault: false, _connection, _log);
+        var entry = new EnvironmentEntry { Name = "", Url = EnvEditorViewModel.DefaultUrl, OrgKey = _main.SelectedOrganization.Key };
+        var dlg = new EnvEditorViewModel(entry, new EnvironmentSecret(), _envTypes, _orgs, isDefault: false, _connection, _log);
         if (!await DialogHost.ShowAsync(dlg).ConfigureAwait(true)) return;
 
         _vault.Upsert(dlg.Entry, dlg.Secret);
@@ -153,6 +158,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
             Clone(SelectedRow.Entry),
             Clone(existingSecret),
             _envTypes,
+            _orgs,
             isDefault: SelectedRow.IsDefault,
             _connection,
             _log);
@@ -329,6 +335,7 @@ public partial class EnvironmentsViewModel : ViewModelBase
         RestBaseUrl = e.RestBaseUrl,
         Stage = e.Stage,
         TypeKey = e.TypeKey,
+        OrgKey = e.OrgKey,
         Notes = e.Notes,
         LastUsedUtc = e.LastUsedUtc,
     };

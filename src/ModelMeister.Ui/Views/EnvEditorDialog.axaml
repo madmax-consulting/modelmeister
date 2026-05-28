@@ -68,6 +68,18 @@
       </Grid>
 
       <StackPanel Spacing="6">
+        <TextBlock Text="ORGANIZATION" Classes="label" />
+        <ComboBox ItemsSource="{Binding Organizations}" SelectedItem="{Binding SelectedOrganization, Mode=TwoWay}"
+                  HorizontalAlignment="Stretch">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="m:Organization">
+              <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+
+      <StackPanel Spacing="6">
         <TextBlock Text="REMOTING URL" Classes="label" />
         <TextBox Text="{Binding Url, Mode=TwoWay}" Classes="mono"
                  Watermark="https://remoting.productmarketingcloud.com" />

@@ -27,6 +27,11 @@ public sealed class EnvironmentEntry
     /// <see cref="Stage"/>; resolves to the built-in "Unspecified" type when unset.</summary>
     public string? TypeKey { get; set; }
 
+    /// <summary>Key of the <see cref="Organization"/> this environment belongs to. Null on legacy entries
+    /// that predate organizations; resolves to the built-in "Default" organization when unset. The
+    /// editor stamps an explicit key on the next save.</summary>
+    public string? OrgKey { get; set; }
+
     public string? Notes { get; set; }
     public DateTime LastUsedUtc { get; set; }
 }

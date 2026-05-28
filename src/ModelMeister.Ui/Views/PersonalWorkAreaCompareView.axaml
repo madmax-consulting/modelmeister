@@ -1,0 +1,9 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ModelMeister.Ui.ViewModels"
+             xmlns:views="using:ModelMeister.Ui.Views"
+             x:Class="ModelMeister.Ui.Views.PersonalWorkAreaCompareView"
+             x:DataType="vm:PersonalWorkAreaCompareViewModel">
+  <!-- Reuses the shared Compare experience; the user-picker + personal scope come from the VM. -->
+  <views:WorkAreaCompareView />
+</UserControl>

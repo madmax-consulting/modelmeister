@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        x:Class="ModelMeister.Ui.Views.OrganizationEditorDialog"
+        x:DataType="vm:OrganizationEditorViewModel"
+        Title="{Binding Title}"
+        Width="540" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <Border Padding="0" Background="{DynamicResource AppBackground}">
+    <StackPanel Margin="28,26,28,24" Spacing="16">
+
+      <StackPanel Spacing="2">
+        <TextBlock Text="ORGANIZATION" Classes="eyebrow" />
+        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" />
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Name" Classes="label" />
+        <TextBox Text="{Binding Name, Mode=TwoWay}" Watermark="e.g. Acme Corp" />
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Description" Classes="label" />
+        <TextBox Text="{Binding Description, Mode=TwoWay}" Watermark="Short description (optional)"
+                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56" />
+      </StackPanel>
+
+      <TextBlock Text="{Binding Validation}" Foreground="{DynamicResource Danger}" FontSize="12"
+                 IsVisible="{Binding Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+        <Button Content="Abort" Command="{Binding AbortCommand}" IsCancel="True" />
+        <Button Content="Save"  Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

@@ -21,33 +21,55 @@ namespace ModelMeister.Inriver.WorkAreas;
 /// </remarks>
 public sealed class WorkAreaService
 {
-    /// <summary>Opaque-but-readable serialization of the saved query. Enums render as names.</summary>
+    /// <summary>
+    /// Opaque-but-readable serialization of the saved query. Enums render as names.
+    /// <para>Uses <see cref="JsonIgnoreCondition.WhenWritingDefault"/> (not <c>WhenWritingNull</c>) on
+    /// purpose: some inriver query setters validate their input and <b>reject their own default</b> — most
+    /// notably <c>SystemQuery.SegmentIdsOperator</c>, whose getter returns <c>Equal</c> but whose setter only
+    /// accepts <c>ContainsAny</c>/<c>NotContainsAny</c>. Writing default-valued operators therefore produces
+    /// JSON that throws on deserialization (the query is silently lost). Omitting defaults sidesteps that —
+    /// a field left at its default deserializes back to the same default without invoking the setter.</para>
+    /// </summary>
     public static readonly JsonSerializerOptions QueryJsonOptions = new()
     {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
         Converters = { new JsonStringEnumConverter() },
         WriteIndented = false,
     };
 
     private readonly InriverClient _client;
+    private readonly IWorkAreaScope _scope;
     private readonly ILogger _log;
 
+    /// <summary>Construct against the <b>shared</b> work-area surface (the default).</summary>
     public WorkAreaService(InriverClient client, ILogger<WorkAreaService>? log = null)
+        : this(client, new SharedWorkAreaScope(), log) { }
+
+    internal WorkAreaService(InriverClient client, IWorkAreaScope scope, ILogger<WorkAreaService>? log = null)
     {
         _client = client;
+        _scope = scope;
         _log = (ILogger?)log ?? NullLogger.Instance;
     }
+
+    /// <summary>Service bound to the shared work-area folders.</summary>
+    public static WorkAreaService ForShared(InriverClient client, ILogger<WorkAreaService>? log = null)
+        => new(client, new SharedWorkAreaScope(), log);
+
+    /// <summary>Service bound to <paramref name="username"/>'s personal work-area folders.</summary>
+    public static WorkAreaService ForPersonal(InriverClient client, string username, ILogger<WorkAreaService>? log = null)
+        => new(client, new PersonalWorkAreaScope(username), log);
 
     // ---------------- Reads ----------------
 
     /// <summary>List all shared work-area folders as flat DTOs (each carries its computed tree path).</summary>
     public IReadOnlyList<WorkAreaFolderDto> List() => ToDtos(GetRawFolders());
 
-    /// <summary>Raw shared folders straight from inriver — keeps the live <c>ComplexQuery</c> for faithful promote.</summary>
+    /// <summary>Raw folders straight from inriver — keeps the live <c>ComplexQuery</c> for faithful promote.</summary>
     public IReadOnlyList<IriverWorkAreaFolder> GetRawFolders() =>
-        _client.Read(m => m.UtilityService.GetAllSharedWorkAreaFolders(includeEntities: false) ?? []);
+        _client.Read(m => _scope.GetAll(m));
 
-    private static List<WorkAreaFolderDto> ToDtos(IReadOnlyList<IriverWorkAreaFolder> folders)
+    private List<WorkAreaFolderDto> ToDtos(IReadOnlyList<IriverWorkAreaFolder> folders)
     {
         var byId = folders.ToDictionary(f => f.Id);
         return folders
@@ -60,6 +82,7 @@ public sealed class WorkAreaService
                 IsQuery = f.IsQuery,
                 IsSyndication = f.IsSyndication,
                 QueryJson = SerializeQuery(f.Query),
+                Username = f.Username ?? _scope.OwnerUsername,
                 Path = PathOf(f, byId),
             })
             .OrderBy(d => d.Path, StringComparer.OrdinalIgnoreCase)
@@ -99,32 +122,42 @@ public sealed class WorkAreaService
 
     // ---------------- Manage (single-env CRUD) ----------------
 
-    /// <summary>Create a shared folder under an optional parent. Returns the created folder's id.</summary>
+    /// <summary>Create a folder under an optional parent. Returns the created folder's id.</summary>
     public async Task<Guid> CreateFolderAsync(string name, Guid? parentId, int index, bool isQuery, CancellationToken ct = default)
     {
         var dto = new IriverWorkAreaFolder { Name = name, ParentId = parentId, Index = index, IsQuery = isQuery };
-        var created = await _client.WriteAsync(m => m.UtilityService.AddSharedWorkAreaFolder(dto), ct).ConfigureAwait(false);
+        var created = await _client.WriteAsync(m => _scope.Add(m, dto), ct).ConfigureAwait(false);
         return created.Id;
     }
 
     public Task RenameFolderAsync(Guid id, string name, CancellationToken ct = default) =>
-        _client.WriteAsync(m => m.UtilityService.UpdateSharedWorkAreaFolderName(id, name), ct);
+        _client.WriteAsync(m => _scope.Rename(m, id, name), ct);
 
     public Task MoveFolderAsync(Guid id, Guid newParentId, int newIndex, CancellationToken ct = default) =>
-        _client.WriteAsync(m => m.UtilityService.MoveSharedWorkAreaFolder(id, newParentId, newIndex), ct);
+        _client.WriteAsync(m => _scope.Move(m, id, newParentId, newIndex), ct);
+
+    /// <summary>Set a folder's index among its siblings (reorder within the same parent).</summary>
+    public Task SetIndexAsync(Guid id, int newIndex, CancellationToken ct = default) =>
+        _client.WriteAsync(m => _scope.SetIndex(m, id, newIndex), ct);
+
+    /// <summary>Toggle the syndication flag. No-op for scopes that don't support it (personal).</summary>
+    public Task SetSyndicationAsync(Guid id, bool isSyndication, CancellationToken ct = default) =>
+        _scope.SupportsSyndication
+            ? _client.WriteAsync(m => _scope.SetSyndication(m, id, isSyndication), ct)
+            : Task.CompletedTask;
 
     public Task SetQueryAsync(Guid id, ComplexQuery query, CancellationToken ct = default) =>
-        _client.WriteAsync(m => m.UtilityService.UpdateSharedWorkAreaQuery(id, query), ct);
+        _client.WriteAsync(m => _scope.SetQuery(m, id, query), ct);
 
     public Task DeleteFolderAsync(Guid id, CancellationToken ct = default) =>
-        _client.WriteAsync(m => m.UtilityService.DeleteSharedWorkAreaFolder(id), ct);
+        _client.WriteAsync(m => _scope.Delete(m, id), ct);
 
     /// <summary>Create a folder with the full attribute set (incl. <c>IsSyndication</c>) used by reconcile.
     /// Returns the new folder's id.</summary>
     internal async Task<Guid> AddFolderAsync(string name, Guid? parentId, int index, bool isQuery, bool isSyndication, CancellationToken ct = default)
     {
         var dto = new IriverWorkAreaFolder { Name = name, ParentId = parentId, Index = index, IsQuery = isQuery, IsSyndication = isSyndication };
-        var created = await _client.WriteAsync(m => m.UtilityService.AddSharedWorkAreaFolder(dto), ct).ConfigureAwait(false);
+        var created = await _client.WriteAsync(m => _scope.Add(m, dto), ct).ConfigureAwait(false);
         return created.Id;
     }
 
@@ -198,9 +231,19 @@ public sealed class WorkAreaService
         foreach (var d in desired.OrderBy(d => d.Path.Count(c => c == '/')).ThenBy(d => d.Index))
         {
             if (idByPath.TryGetValue(d.Path, out var existingId))
+            {
+                // A path-matched folder shares its parent chain with the live folder (Path encodes the
+                // parent names), so an Update never re-parents — it only reorders, flips syndication, or
+                // re-saves the query. Carry the live folder's current state so the session can diff and
+                // skip no-op writes (idempotency).
+                var liveFolder = targetById.GetValueOrDefault(existingId);
                 actions.Add(new WorkAreaAction(
                     WorkAreaActionKind.Update, d.Path, d.ParentPath, d.Name, d.Index, d.IsQuery, d.IsSyndication, d.Query,
-                    existingId, targetById.GetValueOrDefault(existingId)?.Name));
+                    existingId, liveFolder?.Name,
+                    CurrentIndex: liveFolder?.Index ?? 0,
+                    CurrentIsSyndication: liveFolder?.IsSyndication ?? false,
+                    CurrentQueryJson: SerializeQuery(liveFolder?.Query)));
+            }
             else
                 actions.Add(new WorkAreaAction(
                     WorkAreaActionKind.Create, d.Path, d.ParentPath, d.Name, d.Index, d.IsQuery, d.IsSyndication, d.Query,
@@ -254,11 +297,15 @@ public sealed class WorkAreaService
 public enum WorkAreaActionKind { Create, Update, Delete }
 
 /// <summary>One reconcile action produced by <see cref="WorkAreaService.Plan"/>. <see cref="LiveId"/> is the
-/// existing folder's id for update/delete (empty for create); <see cref="CurrentName"/> is the live name
-/// for an update (drives the rename-only-if-changed check).</summary>
+/// existing folder's id for update/delete (empty for create); the <c>Current*</c> fields carry the live
+/// folder's state for an update so the session applies only what actually changed (idempotency).</summary>
 public sealed record WorkAreaAction(
     WorkAreaActionKind Kind, string Path, string? ParentPath, string Name,
-    int Index, bool IsQuery, bool IsSyndication, ComplexQuery? Query, Guid LiveId, string? CurrentName);
+    int Index, bool IsQuery, bool IsSyndication, ComplexQuery? Query, Guid LiveId, string? CurrentName,
+    int CurrentIndex = 0, bool CurrentIsSyndication = false, string? CurrentQueryJson = null);
+
+/// <summary>A single Remoting write implied by a <see cref="WorkAreaAction"/>.</summary>
+public enum WorkAreaOp { Create, Rename, SetIndex, SetSyndication, SetQuery, Delete }
 
 /// <summary>
 /// A stateful reconcile run: holds the path→id map (seeded from the live env, then mutated as folders
@@ -280,28 +327,79 @@ public sealed class WorkAreaReconcileSession
     /// <summary>The ordered actions to execute.</summary>
     public IReadOnlyList<WorkAreaAction> Actions { get; }
 
-    /// <summary>Execute one action, mutating the path→id map on create so later children resolve.</summary>
-    public async Task ExecuteAsync(WorkAreaAction a, CancellationToken ct = default)
+    /// <summary>
+    /// The writes an action implies, in order. Pure — drives <see cref="ExecuteAsync"/> and is the
+    /// unit-test seam for idempotency: a Create yields <c>Create</c> (+ <c>SetQuery</c> if it has a saved
+    /// search); an Update yields only the sub-operations whose value actually differs from live, so a
+    /// converged plan produces an empty list and issues zero writes; a Delete yields <c>Delete</c>.
+    /// </summary>
+    public static IReadOnlyList<WorkAreaOp> ComputeOps(WorkAreaAction a)
     {
         switch (a.Kind)
         {
             case WorkAreaActionKind.Create:
             {
-                Guid? parentId = a.ParentPath is null ? null
-                    : _idByPath.TryGetValue(a.ParentPath, out var pid) ? pid : null;
-                var created = await _svc.AddFolderAsync(a.Name, parentId, a.Index, a.IsQuery, a.IsSyndication, ct).ConfigureAwait(false);
-                _idByPath[a.Path] = created;
-                if (a.IsQuery && a.Query is not null) await _svc.SetQueryAsync(created, a.Query, ct).ConfigureAwait(false);
-                break;
+                var ops = new List<WorkAreaOp> { WorkAreaOp.Create };
+                if (a.IsQuery && a.Query is not null) ops.Add(WorkAreaOp.SetQuery);
+                return ops;
             }
             case WorkAreaActionKind.Update:
-                if (!string.Equals(a.CurrentName, a.Name, StringComparison.Ordinal))
-                    await _svc.RenameFolderAsync(a.LiveId, a.Name, ct).ConfigureAwait(false);
-                if (a.IsQuery && a.Query is not null) await _svc.SetQueryAsync(a.LiveId, a.Query, ct).ConfigureAwait(false);
-                break;
+            {
+                // Note: a folder's query-ness can be turned ON (setting a query promotes a plain folder to a
+                // query folder via SetQuery below) but not OFF — inriver has no "clear query" call. So a
+                // desired plain folder over a live query folder reconciles every field except that flag.
+                var ops = new List<WorkAreaOp>();
+                if (!string.Equals(a.CurrentName, a.Name, StringComparison.Ordinal)) ops.Add(WorkAreaOp.Rename);
+                if (a.CurrentIndex != a.Index) ops.Add(WorkAreaOp.SetIndex);
+                if (a.CurrentIsSyndication != a.IsSyndication) ops.Add(WorkAreaOp.SetSyndication);
+                if (a.IsQuery && a.Query is not null
+                    && !string.Equals(WorkAreaService.SerializeQuery(a.Query), a.CurrentQueryJson, StringComparison.Ordinal))
+                    ops.Add(WorkAreaOp.SetQuery);
+                return ops;
+            }
             case WorkAreaActionKind.Delete:
-                await _svc.DeleteFolderAsync(a.LiveId, ct).ConfigureAwait(false);
-                break;
+                return [WorkAreaOp.Delete];
+            default:
+                return [];
+        }
+    }
+
+    /// <summary>Execute one action, mutating the path→id map on create so later children resolve.</summary>
+    public async Task ExecuteAsync(WorkAreaAction a, CancellationToken ct = default)
+    {
+        foreach (var op in ComputeOps(a))
+        {
+            ct.ThrowIfCancellationRequested();
+            switch (op)
+            {
+                case WorkAreaOp.Create:
+                {
+                    Guid? parentId = a.ParentPath is null ? null
+                        : _idByPath.TryGetValue(a.ParentPath, out var pid) ? pid : null;
+                    var created = await _svc.AddFolderAsync(a.Name, parentId, a.Index, a.IsQuery, a.IsSyndication, ct).ConfigureAwait(false);
+                    _idByPath[a.Path] = created;
+                    break;
+                }
+                case WorkAreaOp.Rename:
+                    await _svc.RenameFolderAsync(a.LiveId, a.Name, ct).ConfigureAwait(false);
+                    break;
+                case WorkAreaOp.SetIndex:
+                    await _svc.SetIndexAsync(a.LiveId, a.Index, ct).ConfigureAwait(false);
+                    break;
+                case WorkAreaOp.SetSyndication:
+                    await _svc.SetSyndicationAsync(a.LiveId, a.IsSyndication, ct).ConfigureAwait(false);
+                    break;
+                case WorkAreaOp.SetQuery when a.Query is not null:
+                {
+                    // Create resolves the freshly-minted id from the map; Update uses the live id.
+                    var targetId = a.Kind == WorkAreaActionKind.Create ? _idByPath[a.Path] : a.LiveId;
+                    await _svc.SetQueryAsync(targetId, a.Query, ct).ConfigureAwait(false);
+                    break;
+                }
+                case WorkAreaOp.Delete:
+                    await _svc.DeleteFolderAsync(a.LiveId, ct).ConfigureAwait(false);
+                    break;
+            }
         }
     }
 }

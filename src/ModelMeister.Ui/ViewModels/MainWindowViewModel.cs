@@ -26,6 +26,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IEnvironmentVault _vault;
     private readonly ISettingsStore _settings;
     private readonly IEnvironmentTypeRegistry _envTypes;
+    private readonly IOrganizationRegistry _orgs;
     private readonly IConnectionLifecycle _connection;
     private readonly IAppLog _log;
     private readonly Shell _shell;
@@ -54,6 +55,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Vault exposed so secondary view-models (Extensions, Users, …) can read REST credentials.</summary>
     public IEnvironmentVault Vault => _vault;
 
+    /// <summary>Organization registry exposed so child view-models (env editor) can offer the org list.</summary>
+    public IOrganizationRegistry Orgs => _orgs;
+
     /// <summary>The currently connected env, or <c>null</c>. Wraps <see cref="IConnectionLifecycle.Connected"/>.</summary>
     public Models.EnvironmentEntry? ConnectedEnv => _connection.Connected;
 
@@ -81,6 +85,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public CompareExtensionsViewModel CompareExtensionsVm { get; }
     public WorkAreaViewModel WorkAreaVm { get; }
     public WorkAreaCompareViewModel WorkAreaCompareVm { get; }
+    public PersonalWorkAreaViewModel PersonalWorkAreaVm { get; }
+    public PersonalWorkAreaCompareViewModel PersonalWorkAreaCompareVm { get; }
     public HtmlTemplatesViewModel HtmlTemplatesVm { get; }
     public HtmlTemplatesCompareViewModel HtmlTemplatesCompareVm { get; }
 
@@ -89,6 +95,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public DashboardViewModel DashboardVm { get; }
     public SetupViewModel SetupVm { get; }
     public EnvironmentTypesViewModel EnvironmentTypesVm { get; }
+    public OrganizationsViewModel OrganizationsVm { get; }
     public SnapshotsViewModel SnapshotsVm { get; }
 
     /// <summary>Static hub descriptors in sidebar display order, grouped HOME / MANAGE / SYSTEM.
@@ -178,6 +185,15 @@ public partial class MainWindowViewModel : ViewModelBase
                 new("compare", "Compare", NavTarget.CompareWorkAreas, "Compare shared folders across two environments and promote them."),
             }),
 
+        new HubDescriptor(Hub.PersonalWorkAreas, "Personal work areas", "IcoUsers", HubGroup.Manage,
+            "PER-USER FOLDERS · SAVED QUERIES",
+            "A selected user's personal work-area folders and their saved searches.",
+            new SubPageDescriptor[]
+            {
+                new("manage",  "Manage",  NavTarget.PersonalWorkAreas, "Pick a user, then browse, create, rename, and delete their personal folders."),
+                new("compare", "Compare", NavTarget.ComparePersonalWorkAreas, "Compare a user's personal folders across two environments and promote them."),
+            }),
+
         new HubDescriptor(Hub.HtmlTemplates, "HTML templates", "IcoTemplate", HubGroup.Manage,
             "PRINT · CONTENTSTORE TEMPLATES",
             "HTML print / ContentStore templates in the connected env.",
@@ -194,6 +210,7 @@ public partial class MainWindowViewModel : ViewModelBase
             "Stored credentials. Connect/disconnect.",
             new SubPageDescriptor[]
             {
+                new("orgs",     "Organizations", null, "Group your environments. Pick the active organization in the title bar to scope environments and comparisons."),
                 new("vault",    "Manage", null, "Stored credentials. Connect/disconnect, set default."),
                 new("envtypes", "Types",  null, "Define and color the environment types you assign to environments."),
             }),
@@ -220,6 +237,45 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>Shared source-set state (slot A / slot B / Single|Compare mode). Read by feature pages and the SourceBar.</summary>
     public SourceContext Source { get; } = new();
+
+    /// <summary>Organizations shown in the global title-bar picker; mirrors the registry, refreshed on change.</summary>
+    public ObservableCollection<Organization> Organizations { get; } = new();
+
+    /// <summary>The organization currently in scope. Selecting one filters the Environments page and every
+    /// compare page (via <see cref="EnvironmentsInScope"/>), so comparisons stay within a single
+    /// organization by construction. Persisted as <see cref="AppSettings.SelectedOrgKey"/>.</summary>
+    [ObservableProperty] private Organization _selectedOrganization = null!;
+
+    /// <summary>Raised when the in-scope organization changes. The Environments page and every compare VM
+    /// subscribe to re-filter their environment list.</summary>
+    public event Action? ScopeChanged;
+
+    /// <summary>Vault environments belonging to the currently-selected organization (read-through: an
+    /// entry with no <see cref="EnvironmentEntry.OrgKey"/> resolves to "Default"). The single funnel every
+    /// environment-listing page reads from.</summary>
+    public IReadOnlyList<EnvironmentEntry> EnvironmentsInScope()
+        => _vault.List()
+            .Where(e => string.Equals(_orgs.Resolve(e.OrgKey).Key, SelectedOrganization.Key, StringComparison.Ordinal))
+            .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private void ReloadOrganizations()
+    {
+        Organizations.Clear();
+        foreach (var o in _orgs.All) Organizations.Add(o);
+        // Keep the selection pointing at a live instance (it may have been edited/removed).
+        var key = SelectedOrganization?.Key;
+        var match = Organizations.FirstOrDefault(o => string.Equals(o.Key, key, StringComparison.Ordinal));
+        SelectedOrganization = match ?? Organizations.FirstOrDefault() ?? _orgs.Resolve(null);
+    }
+
+    partial void OnSelectedOrganizationChanged(Organization value)
+    {
+        if (value is null) return;
+        _settings.Current.SelectedOrgKey = value.Key;
+        _settings.Save();
+        ScopeChanged?.Invoke();
+    }
 
     /// <summary>HOME group hubs (just Dashboard today).</summary>
     public IReadOnlyList<HubDescriptor> HomeHubs => Hubs.Where(h => h.Group == HubGroup.Home && !h.IsHidden).ToList();
@@ -332,6 +388,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IEnvironmentVault vault,
         ISettingsStore settings,
         IEnvironmentTypeRegistry envTypes,
+        IOrganizationRegistry organizations,
         IConnectionLifecycle connection,
         IFileOpener fileOpener,
         IAppLog log,
@@ -340,13 +397,21 @@ public partial class MainWindowViewModel : ViewModelBase
         _vault = vault;
         _settings = settings;
         _envTypes = envTypes;
+        _orgs = organizations;
         _connection = connection;
         _log = log;
         _shell = shell;
         Backups = new BackupService(shell, connection, vault);
         Restores = new RestoreService(shell, vault);
 
-        EnvironmentsVm = new EnvironmentsViewModel(this, vault, settings, envTypes, connection, log);
+        // Initialise the global organization scope before any env-listing child VM is built — they read
+        // EnvironmentsInScope() in their constructors. Set the backing field directly so the initial
+        // restore doesn't re-persist settings.
+        foreach (var o in _orgs.All) Organizations.Add(o);
+        _selectedOrganization = _orgs.Resolve(settings.Current.SelectedOrgKey);
+        _orgs.Changed += ReloadOrganizations;
+
+        EnvironmentsVm = new EnvironmentsViewModel(this, vault, settings, envTypes, organizations, connection, log);
         ModelVm = new ModelViewModel(this, settings, shell, fileOpener, log);
         PolicyVm = new PolicyViewModel(this, settings);
         DiffVm = new DiffViewModel(this, settings, shell, log);
@@ -368,12 +433,15 @@ public partial class MainWindowViewModel : ViewModelBase
         CompareExtensionsVm = new CompareExtensionsViewModel(this, shell, vault, log);
         WorkAreaVm = new WorkAreaViewModel(this, shell, log);
         WorkAreaCompareVm = new WorkAreaCompareViewModel(this, shell, vault, log);
+        PersonalWorkAreaVm = new PersonalWorkAreaViewModel(this, shell, log);
+        PersonalWorkAreaCompareVm = new PersonalWorkAreaCompareViewModel(this, shell, vault, log);
         HtmlTemplatesVm = new HtmlTemplatesViewModel(this, shell, log);
         HtmlTemplatesCompareVm = new HtmlTemplatesCompareViewModel(this, shell, vault, log);
 
         DashboardVm = new DashboardViewModel(this, log);
         SetupVm = new SetupViewModel(this, settings);
         EnvironmentTypesVm = new EnvironmentTypesViewModel(this, envTypes, vault, log);
+        OrganizationsVm = new OrganizationsViewModel(this, organizations, log);
         SnapshotsVm = new SnapshotsViewModel(this, fileOpener, log);
 
         WorkflowSteps = new[]
@@ -634,9 +702,12 @@ public partial class MainWindowViewModel : ViewModelBase
             (Hub.ServerSettings, _)          => ServerSettingsVm,
             (Hub.WorkAreas, "compare")       => WorkAreaCompareVm,
             (Hub.WorkAreas, _)               => WorkAreaVm,
+            (Hub.PersonalWorkAreas, "compare") => PersonalWorkAreaCompareVm,
+            (Hub.PersonalWorkAreas, _)         => PersonalWorkAreaVm,
             (Hub.HtmlTemplates, "compare")   => HtmlTemplatesCompareVm,
             (Hub.HtmlTemplates, _)           => HtmlTemplatesVm,
             // System hubs
+            (Hub.Environments, "orgs")       => OrganizationsVm,
             (Hub.Environments, "envtypes")   => EnvironmentTypesVm,
             (Hub.Environments, _)            => EnvironmentsVm,
             (Hub.Scaffolding, _)             => ToolsVm,
@@ -672,6 +743,8 @@ public partial class MainWindowViewModel : ViewModelBase
         NavTarget.CompareExtensions => CompareExtensionsVm,
         NavTarget.WorkAreas         => WorkAreaVm,
         NavTarget.CompareWorkAreas  => WorkAreaCompareVm,
+        NavTarget.PersonalWorkAreas => PersonalWorkAreaVm,
+        NavTarget.ComparePersonalWorkAreas => PersonalWorkAreaCompareVm,
         NavTarget.HtmlTemplates     => HtmlTemplatesVm,
         NavTarget.CompareHtmlTemplates => HtmlTemplatesCompareVm,
         _                            => DashboardVm,
@@ -1021,4 +1094,4 @@ public partial class MainWindowViewModel : ViewModelBase
 
 /// <summary>Identifier for one of the main-window navigation sections. Retained for back-compat
 /// during the hub migration — legacy view-models still call <c>_main.GoTo(NavTarget.X)</c>.</summary>
-public enum NavTarget { Environments, Model, Policy, Diff, Apply, History, Tools, CompareEnvs, CvlWorkbench, Users, Roles, RestrictedFields, Extensions, ServerSettings, CompareExtensions, WorkAreas, CompareWorkAreas, HtmlTemplates, CompareHtmlTemplates }
+public enum NavTarget { Environments, Model, Policy, Diff, Apply, History, Tools, CompareEnvs, CvlWorkbench, Users, Roles, RestrictedFields, Extensions, ServerSettings, CompareExtensions, WorkAreas, CompareWorkAreas, PersonalWorkAreas, ComparePersonalWorkAreas, HtmlTemplates, CompareHtmlTemplates }

@@ -99,6 +99,23 @@
           </ListBox.ItemTemplate>
         </ListBox>
 
+        <!-- Global organization scope: selecting one filters the Environments page and every compare
+             page, so comparisons stay within a single organization. -->
+        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6"
+                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,4,8,4">
+          <TextBlock Text="ORG" Classes="eyebrow" VerticalAlignment="Center" />
+          <ComboBox MinWidth="150"
+                    ItemsSource="{Binding Organizations}"
+                    SelectedItem="{Binding SelectedOrganization, Mode=TwoWay}"
+                    ToolTip.Tip="Active organization — scopes environments and comparisons">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="m:Organization">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
+
         <!-- Connection chip: clickable flyout exposes Disconnect / Manage envs on every page. -->
         <Button Grid.Column="5" Classes="ghost"
                 Padding="8,3" Margin="0,4,8,4"

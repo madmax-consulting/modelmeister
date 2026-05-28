@@ -114,6 +114,7 @@ public partial class ServerSettingsCompareViewModel : FeaturePageViewModel, ICom
         _vault = vault;
         _log = log;
         _vault.Changed += RefreshEnvList;
+        _main.ScopeChanged += RefreshEnvList;
         Buckets.Changed += _ => RebuildVisibleRows();
         Selection = new RowSelectionModel(Rows);
         RefreshEnvList();
@@ -152,7 +153,7 @@ public partial class ServerSettingsCompareViewModel : FeaturePageViewModel, ICom
         var lid = LeftEnv?.Id;
         var rid = RightEnv?.Id;
         AvailableEnvs.Clear();
-        foreach (var e in _vault.List().OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var e in _main.EnvironmentsInScope())
             AvailableEnvs.Add(e);
         if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
         if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);

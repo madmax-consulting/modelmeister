@@ -34,6 +34,9 @@ public partial class EnvEditorViewModel : ViewModelBase
     /// <summary>Environment types offered in the dropdown (built-ins + user-defined), from the registry.</summary>
     public IReadOnlyList<EnvironmentType> Types { get; }
 
+    /// <summary>Organizations offered in the dropdown (the parent grouping this environment belongs to).</summary>
+    public IReadOnlyList<Organization> Organizations { get; }
+
     /// <summary>Display name shown in the environment list.</summary>
     [ObservableProperty] private string _name;
     /// <summary>The inriver Remoting endpoint URL.</summary>
@@ -42,6 +45,8 @@ public partial class EnvEditorViewModel : ViewModelBase
     [ObservableProperty] private string? _restBaseUrl;
     /// <summary>The selected environment type (drives the pill color/shorthand and the protected guard).</summary>
     [ObservableProperty] private EnvironmentType? _selectedType;
+    /// <summary>The organization this environment belongs to (required).</summary>
+    [ObservableProperty] private Organization? _selectedOrganization;
     /// <summary>API key for the Remoting connection.</summary>
     [ObservableProperty] private string? _apiKey;
     /// <summary>Separate REST API key (used for user creation + Extensions). May be the same as ApiKey in many envs.</summary>
@@ -69,6 +74,7 @@ public partial class EnvEditorViewModel : ViewModelBase
         EnvironmentEntry entry,
         EnvironmentSecret secret,
         IEnvironmentTypeRegistry envTypes,
+        IOrganizationRegistry orgs,
         bool isDefault = false,
         IConnectionLifecycle? connection = null,
         IAppLog? log = null)
@@ -79,10 +85,12 @@ public partial class EnvEditorViewModel : ViewModelBase
         _log = log;
 
         Types = envTypes.All;
+        Organizations = orgs.All;
         _name = entry.Name;
         _url = string.IsNullOrWhiteSpace(entry.Url) ? DefaultUrl : entry.Url;
         _restBaseUrl = string.IsNullOrWhiteSpace(entry.RestBaseUrl) ? DefaultRestBaseUrl : entry.RestBaseUrl;
         _selectedType = envTypes.Resolve(entry.TypeKey);
+        _selectedOrganization = orgs.Resolve(entry.OrgKey);
         _apiKey = secret.ApiKey;
         _restApiKey = secret.RestApiKey;
         _notes = entry.Notes;
@@ -98,6 +106,7 @@ public partial class EnvEditorViewModel : ViewModelBase
         Entry.Url = Url.Trim();
         Entry.RestBaseUrl = string.IsNullOrWhiteSpace(RestBaseUrl) ? null : RestBaseUrl!.Trim();
         Entry.TypeKey = SelectedType?.Key;
+        Entry.OrgKey = SelectedOrganization?.Key;
         Entry.Notes = string.IsNullOrWhiteSpace(Notes) ? null : Notes;
 
         Secret.ApiKey = ApiKey;
@@ -214,6 +223,11 @@ public partial class EnvEditorViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(ApiKey))
         {
             Validation = "API key is required.";
+            return false;
+        }
+        if (SelectedOrganization is null)
+        {
+            Validation = "Organization is required.";
             return false;
         }
         // When the user has supplied a REST base URL they intend to use REST features (user
