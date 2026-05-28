@@ -783,6 +783,33 @@ public partial class MainWindowViewModel : ViewModelBase
             _log.Info("Restore", $"Loading backup snapshot {Path.GetFileName(backupSnapshotPath)}…");
             var live = await _shell.LoadSnapshotJsonAsync(backupSnapshotPath).ConfigureAwait(true);
 
+            // Compare runs against whatever is connected, NOT the env the backup came from. If those
+            // differ, a careless Apply would revert the wrong environment — so warn before routing.
+            var backupUrl = live.EnvironmentUrl;
+            var connectedUrl = ConnectedEnv?.Url;
+            if (IsConnected
+                && !string.IsNullOrEmpty(backupUrl)
+                && !string.Equals(backupUrl, connectedUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                var proceed = await DialogHost.ConfirmAsync(
+                    "Backup is from a different environment",
+                    $"This backup was taken from:\n{backupUrl}\n\nbut you are connected to:\n{connectedUrl}\n\n"
+                    + "Compare and Apply will target the CONNECTED environment, not the backup's origin. "
+                    + "Connect to the backup's environment first to revert it. Continue anyway?",
+                    confirmLabel: "Continue anyway",
+                    cancelLabel: "Cancel").ConfigureAwait(true);
+                if (!proceed)
+                {
+                    _log.Info("Restore", "Cancelled — connected environment differs from the backup's origin.");
+                    return;
+                }
+            }
+            else if (!string.IsNullOrEmpty(backupUrl))
+            {
+                _log.Toast(LogLevel.Info, "Backup origin",
+                    $"This backup is from {backupUrl}. Compare will target the connected environment.");
+            }
+
             var token = Guid.NewGuid().ToString("N")[..8];
             var tempDir = Path.Combine(Path.GetTempPath(), $"modelmeister-restore-{token}");
             Directory.CreateDirectory(tempDir);
