@@ -17,7 +17,41 @@
                Status="{Binding StatusMessage}"
                IsBusy="{Binding Busy}">
 
-    <Grid ColumnDefinitions="2*,3*">
+    <DockPanel>
+
+      <!-- Stale-diff banner: the cached diff was invalidated (policy/model/connection changed). -->
+      <Border DockPanel.Dock="Top" Margin="0,0,0,8" Padding="12,9" CornerRadius="6"
+              Background="{DynamicResource DangerBg}"
+              BorderBrush="{DynamicResource Warn}" BorderThickness="1"
+              IsVisible="{Binding DiffStale}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <Path Grid.Column="0" Data="{DynamicResource IcoWarn}" Width="15" Height="15" Stretch="Uniform"
+                Stroke="{DynamicResource Warn}" StrokeThickness="1.6" Fill="Transparent"
+                VerticalAlignment="Center" Margin="0,0,10,0" />
+          <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Foreground="{DynamicResource TextPri}"
+                     Text="The diff is out of date — a policy, model or connection change invalidated it. Run Compare again before applying." />
+          <Button Grid.Column="2" Content="Compare" Classes="primary" VerticalAlignment="Center"
+                  Margin="10,0,0,0" Command="{Binding CompareCommand}" />
+        </Grid>
+      </Border>
+
+      <!-- Suppressed-by-policy banner: destructive changes exist but were dropped by the current policy. -->
+      <Border DockPanel.Dock="Top" Margin="0,0,0,8" Padding="12,9" CornerRadius="6"
+              Background="{DynamicResource DangerBg}"
+              BorderBrush="{DynamicResource Warn}" BorderThickness="1"
+              IsVisible="{Binding HasSuppressed}">
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <Path Data="{DynamicResource IcoWarn}" Width="15" Height="15" Stretch="Uniform"
+                Stroke="{DynamicResource Warn}" StrokeThickness="1.6" Fill="Transparent"
+                VerticalAlignment="Center" />
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                     Foreground="{DynamicResource TextPri}"
+                     Text="{Binding SuppressedSummary}" />
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="2*,3*">
 
       <Border Grid.Column="0" Classes="card flush" Padding="0" Margin="0,0,8,0">
         <DockPanel>
@@ -35,6 +69,28 @@
                       Stroke="{DynamicResource TextSec}" StrokeThickness="1.7" Fill="Transparent" />
               </Button>
             </Grid>
+          </Border>
+          <!-- Color legend: maps the tree's pill colors to operations + the danger marker. -->
+          <Border DockPanel.Dock="Top" Padding="12,7" BorderBrush="{DynamicResource BorderFaint}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <Ellipse Width="7" Height="7" Fill="{DynamicResource DiffAddBrush}" />
+                <TextBlock Text="Add" Classes="dim" FontSize="11" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <Ellipse Width="7" Height="7" Fill="{DynamicResource DiffUpdateBrush}" />
+                <TextBlock Text="Update" Classes="dim" FontSize="11" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <Ellipse Width="7" Height="7" Fill="{DynamicResource DiffDeleteBrush}" />
+                <TextBlock Text="Delete" Classes="dim" FontSize="11" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <Path Data="{DynamicResource IcoWarn}" Width="11" Height="11" Stretch="Uniform"
+                      Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent" />
+                <TextBlock Text="Destructive" Classes="dim" FontSize="11" />
+              </StackPanel>
+            </StackPanel>
           </Border>
           <Border DockPanel.Dock="Top" Padding="10,8" BorderBrush="{DynamicResource BorderFaint}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -93,7 +149,7 @@
                 </Border>
               </TreeDataTemplate>
               <DataTemplate DataType="vm:ChangeRow">
-                <Grid ColumnDefinitions="Auto,*">
+                <Grid ColumnDefinitions="Auto,Auto,*">
                   <Grid.ContextMenu>
                     <ContextMenu>
                       <MenuItem Header="Enable change"
@@ -109,7 +165,12 @@
                             ToolTip.Tip="Include this change in the apply batch"
                             IsChecked="{Binding IsExcluded, Converter={x:Static svc:Eq.BoolNot}, Mode=OneWay}"
                             Click="OnIncludeToggle" />
-                  <TextBlock Grid.Column="1" Text="{Binding Description}"
+                  <Path Grid.Column="1" Data="{DynamicResource IcoWarn}" Width="12" Height="12" Stretch="Uniform"
+                        Stroke="{DynamicResource Danger}" StrokeThickness="1.6" Fill="Transparent"
+                        VerticalAlignment="Center" Margin="0,0,6,0"
+                        ToolTip.Tip="Destructive change — deletes data or drops a field. Review before applying."
+                        IsVisible="{Binding IsDangerous}" />
+                  <TextBlock Grid.Column="2" Text="{Binding Description}"
                              FontSize="12"
                              Foreground="{DynamicResource TextPri}"
                              TextDecorations="{Binding IsExcluded, Converter={x:Static svc:Eq.StrikeIfTrue}}"
@@ -224,6 +285,8 @@
         </Border>
       </Grid>
     </Grid>
+
+    </DockPanel>
 
   </c:PageShell>
 </UserControl>

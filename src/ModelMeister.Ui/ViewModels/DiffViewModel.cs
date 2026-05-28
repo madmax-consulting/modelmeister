@@ -53,6 +53,20 @@ public partial class DiffViewModel : ViewModelBase
     [ObservableProperty] private int _warnings;
     /// <summary>True when the diff produced at least one change.</summary>
     [ObservableProperty] private bool _hasChanges;
+    /// <summary>Number of destructive changes the current policy suppressed (blocked deletes + datatype changes).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SuppressedSummary))]
+    private int _suppressedCount;
+
+    /// <summary>Banner text describing the suppressed destructive changes.</summary>
+    public string SuppressedSummary =>
+        $"{SuppressedCount} destructive change{(SuppressedCount == 1 ? "" : "s")} suppressed by policy — "
+        + "the environment has deletes or datatype changes not reflected here. See Warnings below; "
+        + "enable the matching toggle on the Policy page to apply them.";
+    /// <summary>True when the policy suppressed one or more destructive changes — surfaced so "in sync" is never misleading.</summary>
+    [ObservableProperty] private bool _hasSuppressed;
+    /// <summary>True when a policy/model/connection change invalidated the cached diff and the tree on screen is out of date.</summary>
+    [ObservableProperty] private bool _diffStale;
     /// <summary>Human-readable text rendering of the diff (used by Copy/Export).</summary>
     [ObservableProperty] private string _diffText = "";
     /// <summary>Substring filter applied to <see cref="Tree"/>; matches against row Description.</summary>
@@ -129,6 +143,18 @@ public partial class DiffViewModel : ViewModelBase
             if (e.PropertyName is nameof(MainWindowViewModel.IsConnected)
                                 or nameof(MainWindowViewModel.LoadedModel))
                 CompareCommand.NotifyCanExecuteChanged();
+
+            // The hub cleared the cached change set (policy/model/connection changed) but a diff
+            // tree is still on screen. Clear it and flag the page so the user re-runs Compare rather
+            // than acting on stale rows. (A fresh Compare assigns a non-null ChangeSet, so this only
+            // fires on invalidation.)
+            if (e.PropertyName is nameof(MainWindowViewModel.ChangeSet)
+                && _main.ChangeSet is null && Tree.Count > 0)
+            {
+                ResetState();
+                DiffStale = true;
+                StatusMessage = "Diff is out of date — click Compare to refresh.";
+            }
         };
     }
 
@@ -278,10 +304,24 @@ public partial class DiffViewModel : ViewModelBase
         if (row.Change is AddEntityType addEt)
         {
             var ownerId = addEt.EntityType.EntityTypeId;
+            var cascaded = 0;
             foreach (var dep in AllRows())
             {
-                if (dep.Change is AddFieldType aft && aft.Owner.EntityTypeId == ownerId)
+                if (dep.Change is AddFieldType aft && aft.Owner.EntityTypeId == ownerId
+                    && dep.IsExcluded != row.IsExcluded)
+                {
                     SetExcluded(dep, row.IsExcluded);
+                    cascaded++;
+                }
+            }
+
+            // Tell the user the cascade happened — otherwise the silently-flipped field rows look
+            // like a bug. Fields can't be added to (or held back from) an entity that isn't being created.
+            if (cascaded > 0)
+            {
+                var verb = row.IsExcluded ? "excluded" : "re-included";
+                _log.Toast(LogLevel.Info, $"{cascaded} field add{(cascaded == 1 ? "" : "s")} {verb}",
+                    $"Fields follow their entity '{addEt.EntityType.EntityTypeId}' — they can't be added without it.");
             }
         }
 
@@ -358,6 +398,9 @@ public partial class DiffViewModel : ViewModelBase
         SelectedDeltas.Clear();
         SelectedTreeItem = null;
         HasDetails = false;
+        HasSuppressed = false;
+        SuppressedCount = 0;
+        DiffStale = false;
     }
 
     private void Populate(ModelChangeSet set)
@@ -384,6 +427,11 @@ public partial class DiffViewModel : ViewModelBase
         ApplyTreeFilter();
 
         foreach (var w in set.Warnings) WarningRows.Add(new WarningRow(w.Code, w.Message));
+
+        // Surface destructive changes the policy quietly dropped, so "in sync — no changes" can never
+        // mislead the user into thinking the environment matches code.
+        SuppressedCount = set.Warnings.Count(w => w.Code is "DeleteBlocked" or "DatatypeChangeBlocked");
+        HasSuppressed = SuppressedCount > 0;
 
         DiffText = ChangeReport.ToText(set);
     }
@@ -436,6 +484,14 @@ public partial class DiffViewModel : ViewModelBase
             || n.StartsWith("Deactivate", StringComparison.Ordinal)) return "Delete";
         return "Other";
     }
+
+    /// <summary>
+    /// True for destructive changes the user should never apply by accident: a datatype change
+    /// (drops the existing column's data) or any delete/deactivate/removal. Single source of truth
+    /// shared by the diff tree row marker and the apply-confirmation review list.
+    /// </summary>
+    public static bool IsDangerousChange(ModelChange c) =>
+        c is ChangeFieldDatatype || OperationOf(c) == "Delete";
 
     private static Avalonia.Controls.Window? MainWindowOrNull()
         => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d
@@ -516,11 +572,16 @@ public partial class ChangeRow : ObservableObject
         Operation = DiffViewModel.OperationOf(change);
         Description = change.Describe();
         Kind = change.GetType().Name;
+        // Destructive changes the user should not apply by accident: a datatype change (drops
+        // existing data) or any delete/deactivate/removal. Flagged so the tree can mark them.
+        IsDangerous = DiffViewModel.IsDangerousChange(change);
     }
     public ModelChange Change { get; }
     public string Operation { get; }
     public string Description { get; }
     public string Kind { get; }
+    /// <summary>True for destructive rows (datatype change or any delete) — surfaced with a warning marker.</summary>
+    public bool IsDangerous { get; }
     [ObservableProperty] private bool _isExcluded;
 }
 
