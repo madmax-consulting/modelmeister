@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        xmlns:conv="using:ModelMeister.Ui.Converters"
         x:Class="ModelMeister.Ui.Views.PromoteConfirmDialog"
         x:DataType="vm:PromoteConfirmViewModel"
         Title="Promote"
@@ -9,6 +10,11 @@
         CanResize="True"
         Background="{DynamicResource Surface0}"
         FontFamily="{StaticResource UiFont}">
+
+  <Window.Resources>
+    <conv:StageToBrushConverter x:Key="StageBrush" />
+    <conv:StageToTextConverter  x:Key="StageText" />
+  </Window.Resources>
 
   <Border Padding="0" Background="{DynamicResource AppBackground}">
     <StackPanel Margin="28,26,28,24" Spacing="14">
@@ -30,14 +36,28 @@
                  Foreground="{DynamicResource TextSec}" FontSize="13" LineHeight="20" />
 
       <Border Classes="cardSubtle">
-        <StackPanel Spacing="4" Margin="10,8">
-          <Grid ColumnDefinitions="100,*">
-            <TextBlock Grid.Column="0" Text="From" Classes="dim" />
-            <TextBlock Grid.Column="1" Text="{Binding SourceEnv}" Classes="mono" />
+        <StackPanel Spacing="6" Margin="10,8">
+          <Grid ColumnDefinitions="60,Auto,*">
+            <TextBlock Grid.Column="0" Text="From" Classes="dim" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="stage" Margin="0,0,8,0" VerticalAlignment="Center"
+                    IsVisible="{Binding SourceStage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                    Background="{Binding SourceStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                    BorderBrush="{Binding SourceStage, Converter={StaticResource StageBrush}}">
+              <TextBlock Text="{Binding SourceStage, Converter={StaticResource StageText}}"
+                         Foreground="{Binding SourceStage, Converter={StaticResource StageBrush}}" />
+            </Border>
+            <TextBlock Grid.Column="2" Text="{Binding SourceEnv}" Classes="mono" VerticalAlignment="Center" />
           </Grid>
-          <Grid ColumnDefinitions="100,*">
-            <TextBlock Grid.Column="0" Text="To" Classes="dim" />
-            <TextBlock Grid.Column="1" Text="{Binding TargetEnv}" Classes="mono" />
+          <Grid ColumnDefinitions="60,Auto,*">
+            <TextBlock Grid.Column="0" Text="To" Classes="dim" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="stage" Margin="0,0,8,0" VerticalAlignment="Center"
+                    IsVisible="{Binding TargetStage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                    Background="{Binding TargetStage, Converter={StaticResource StageBrush}, ConverterParameter=soft}"
+                    BorderBrush="{Binding TargetStage, Converter={StaticResource StageBrush}}">
+              <TextBlock Text="{Binding TargetStage, Converter={StaticResource StageText}}"
+                         Foreground="{Binding TargetStage, Converter={StaticResource StageBrush}}" />
+            </Border>
+            <TextBlock Grid.Column="2" Text="{Binding TargetEnv}" Classes="mono" VerticalAlignment="Center" />
           </Grid>
         </StackPanel>
       </Border>

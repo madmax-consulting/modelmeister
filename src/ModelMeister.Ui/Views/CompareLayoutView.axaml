@@ -12,6 +12,7 @@
   <UserControl.Resources>
     <conv:StageToBrushConverter x:Key="StageBrush" />
     <conv:StageToTextConverter x:Key="StageText" />
+    <conv:CompareInSyncConverter x:Key="InSync" />
   </UserControl.Resources>
 
   <c:PageShell Eyebrow="{Binding #LayoutRoot.Eyebrow}"
@@ -95,6 +96,7 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:CompareAction">
                 <Button Content="{Binding Label}"
+                        Classes.danger="{Binding Destructive}"
                         Classes.primary="{Binding Primary}"
                         Classes.ghost="{Binding !Primary}"
                         Command="{Binding Command}" />
@@ -112,7 +114,30 @@
       <!-- Row 1: body slot — the host page's DataGrid is dropped here as Content. Right padding
            keeps the rightmost DataGrid column from being clipped against the card edge. -->
       <Border Grid.Row="1" Classes="card" Margin="0,12,0,0" Padding="0,0,8,0">
-        <ContentPresenter Content="{Binding #LayoutRoot.Body}" />
+        <Grid>
+          <ContentPresenter Content="{Binding #LayoutRoot.Body}" />
+
+          <!-- Shared "in sync" affirmation: shown when both envs are picked, the compare finished,
+               and there were no differences. One uniform empty state for every compare hub. -->
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
+                      IsHitTestVisible="False">
+            <StackPanel.IsVisible>
+              <MultiBinding Converter="{StaticResource InSync}">
+                <Binding Path="LeftEnv" />
+                <Binding Path="RightEnv" />
+                <Binding Path="Busy" />
+                <Binding Path="HasRows" />
+              </MultiBinding>
+            </StackPanel.IsVisible>
+            <Path Data="{DynamicResource IcoCheck}" Width="28" Height="28" Stretch="Uniform"
+                  Stroke="{DynamicResource Success}" StrokeThickness="1.8"
+                  StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                  HorizontalAlignment="Center" />
+            <TextBlock Text="In sync" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Text="No differences between these environments." Classes="dim"
+                       HorizontalAlignment="Center" />
+          </StackPanel>
+        </Grid>
       </Border>
 
       <!-- Row 2: per-bucket bar chart — visible only when there are rows. -->

@@ -113,8 +113,9 @@ public partial class ConceptDiffCount : ObservableObject
 }
 
 /// <summary>An extra compare-page-specific action exposed via <see cref="ICompareViewModel.ExtraActions"/>.
-/// <see cref="Primary"/> renders as the accent button (otherwise ghost).</summary>
-public sealed record CompareAction(string Label, bool Primary, IAsyncRelayCommand Command);
+/// <see cref="Primary"/> renders as the accent button (otherwise ghost); <see cref="Destructive"/>
+/// renders as the red danger button so bulk promote/prune that can delete reads as dangerous on every page.</summary>
+public sealed record CompareAction(string Label, bool Primary, IAsyncRelayCommand Command, bool Destructive = false);
 
 /// <summary>CSV + Markdown export of a compare-page rows collection. Column projection is supplied by the host VM.</summary>
 public static class CompareExport
