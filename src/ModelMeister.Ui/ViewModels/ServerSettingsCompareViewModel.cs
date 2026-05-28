@@ -22,7 +22,7 @@ namespace ModelMeister.Ui.ViewModels;
 /// live connection at a time, so capture is sequential. After a per-row Apply / bulk Promote the
 /// app remains connected to whichever side was written to.
 /// </remarks>
-public partial class ServerSettingsCompareViewModel : FeaturePageViewModel, ICompareViewModel
+public partial class ServerSettingsCompareViewModel : CompareViewModelBase<ServerSettingRow>
 {
     /// <inheritdoc/>
     public override bool SupportsCompare => true;
@@ -72,34 +72,10 @@ public partial class ServerSettingsCompareViewModel : FeaturePageViewModel, ICom
         }
     }
 
-    private readonly MainWindowViewModel _main;
-    private readonly Shell _shell;
-    private readonly IEnvironmentVault _vault;
-    private readonly IAppLog _log;
-
-    public ObservableCollection<EnvironmentEntry> AvailableEnvs { get; } = [];
     /// <summary>Full row set; <see cref="Rows"/> is filtered to whatever buckets are visible.</summary>
     private readonly List<ServerSettingRow> _allRows = new();
-    public ObservableCollection<ServerSettingRow> Rows { get; } = [];
-    public ObservableCollection<ConceptDiffCount> Counts { get; } = [];
+    public override string BucketPath => "State";
 
-    public BucketToggleState Buckets { get; } = new();
-    public string BucketPath => "State";
-
-    [ObservableProperty] private EnvironmentEntry? _leftEnv;
-    [ObservableProperty] private EnvironmentEntry? _rightEnv;
-    [ObservableProperty] private bool _busy;
-    [ObservableProperty] private string _status = "Pick two environments to compare.";
-    [ObservableProperty] private string _summary = "";
-    [ObservableProperty] private bool _hasRows;
-    [ObservableProperty] private string _leftColumnHeader = "";
-    [ObservableProperty] private string _rightColumnHeader = "";
-    [ObservableProperty] private string? _leftColumnStage;
-    [ObservableProperty] private string? _rightColumnStage;
-
-    public IAsyncRelayCommand SaveCsvCommand { get; }
-    public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; }
     /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
     public RowSelectionModel Selection { get; }
 
@@ -107,38 +83,23 @@ public partial class ServerSettingsCompareViewModel : FeaturePageViewModel, ICom
     private IReadOnlyDictionary<string, string>? _rightCapture;
     private ServerSettingsDelta? _delta;
 
+    protected override string CsvFileName => "server-settings-compare.csv";
+    protected override string LogSource => "ServerSettings";
+
     public ServerSettingsCompareViewModel(MainWindowViewModel main, Shell shell, IEnvironmentVault vault, IAppLog log)
+        : base(main, shell, vault, log)
     {
-        _main = main;
-        _shell = shell;
-        _vault = vault;
-        _log = log;
-        _vault.Changed += RefreshEnvList;
-        _main.ScopeChanged += RefreshEnvList;
+        Status = "Pick two environments to compare.";
         Buckets.Changed += _ => RebuildVisibleRows();
         Selection = new RowSelectionModel(Rows);
-        RefreshEnvList();
-
-        SaveCsvCommand = CompareCommands.MakeSaveCsv(
-            () => Rows,
-            BuildExportColumns,
-            suggestedFileName: "server-settings-compare.csv",
-            log: _log,
-            logSource: "ServerSettings");
-
-        CopyMarkdownCommand = CompareCommands.MakeCopyMarkdown(
-            () => Rows,
-            BuildExportColumns,
-            log: _log,
-            logSource: "ServerSettings");
-
         ExtraActions = new[]
         {
             new CompareAction("Promote selected →", Primary: true, PromoteSelectedLeftToRightCommand),
         };
+        RefreshEnvList();
     }
 
-    private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
+    protected override IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
         new CompareExport.Column[]
         {
             new("State", r => ((ServerSettingRow)r).State),
@@ -147,57 +108,16 @@ public partial class ServerSettingsCompareViewModel : FeaturePageViewModel, ICom
             new(string.IsNullOrEmpty(RightColumnHeader) ? "Right" : RightColumnHeader, r => ((ServerSettingRow)r).RightDisplay),
         };
 
-    /// <summary>Refresh the env dropdowns from the vault. Call after the user edits the vault.</summary>
-    public void RefreshEnvList()
-    {
-        var lid = LeftEnv?.Id;
-        var rid = RightEnv?.Id;
-        AvailableEnvs.Clear();
-        foreach (var e in _main.EnvironmentsInScope())
-            AvailableEnvs.Add(e);
-        if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
-        if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
-
-        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.TypeKey; }
-        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.TypeKey; }
-    }
-
     public string ActiveLabel => _main.ConnectedEnv is null ? "" : _main.ConnectedEnv.Name;
 
-    partial void OnLeftEnvChanged(EnvironmentEntry? value)
+    /// <summary>Discard cached captures when either env changes so the next compare re-reads both sides.</summary>
+    protected override void OnEnvSelectionChanged()
     {
         _leftCapture = null;
-        LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.TypeKey;
-        TryAutoCompare();
-    }
-
-    partial void OnRightEnvChanged(EnvironmentEntry? value)
-    {
         _rightCapture = null;
-        RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.TypeKey;
-        TryAutoCompare();
     }
 
-    private void TryAutoCompare()
-    {
-        if (Busy) return;
-        if (LeftEnv is null || RightEnv is null) return;
-        if (LeftEnv.Id == RightEnv.Id)
-        {
-            Status = "Pick two different environments.";
-            Rows.Clear();
-            Counts.Clear();
-            HasRows = false;
-            Summary = "";
-            return;
-        }
-        _ = CompareAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    public async Task CompareAsync()
+    public override async Task CompareAsync()
     {
         if (Busy) return;
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }

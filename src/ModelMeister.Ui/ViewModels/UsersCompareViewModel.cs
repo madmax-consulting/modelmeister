@@ -17,37 +17,12 @@ namespace ModelMeister.Ui.ViewModels;
 /// <see cref="Shell.ListUsersAsync"/>, then renders existence + email/role/active deltas.
 /// Read-only — provisioning lives on the single-env Manage view.
 /// </summary>
-public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
+public partial class UsersCompareViewModel : CompareViewModelBase<UserCompareRow>
 {
-    readonly MainWindowViewModel _main;
-    readonly Shell _shell;
-    readonly IAppLog _log;
-    readonly IEnvironmentVault _vault;
-
-    public ObservableCollection<EnvironmentEntry> AvailableEnvs { get; } = [];
     /// <summary>Full row set — drives the bucket counts. Rows are projected into <see cref="Rows"/> through the bucket filter.</summary>
     private readonly List<UserCompareRow> _allRows = new();
-    public ObservableCollection<UserCompareRow> Rows { get; } = [];
-    public ObservableCollection<ConceptDiffCount> Counts { get; } = [];
+    public override string BucketPath => "State";
 
-    /// <summary>Bottom-chart bucket toggle. Hiding a bucket removes its rows from <see cref="Rows"/>.</summary>
-    public BucketToggleState Buckets { get; } = new();
-    public string BucketPath => "State";
-
-    [ObservableProperty] private EnvironmentEntry? _leftEnv;
-    [ObservableProperty] private EnvironmentEntry? _rightEnv;
-    [ObservableProperty] private bool _busy;
-    [ObservableProperty] private string _status = "Pick two environments to compare users.";
-    [ObservableProperty] private string _summary = "";
-    [ObservableProperty] private bool _hasRows;
-    [ObservableProperty] private string _leftColumnHeader = "";
-    [ObservableProperty] private string _rightColumnHeader = "";
-    [ObservableProperty] private string? _leftColumnStage;
-    [ObservableProperty] private string? _rightColumnStage;
-
-    public IAsyncRelayCommand SaveCsvCommand { get; }
-    public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; }
     /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
     public RowSelectionModel Selection { get; }
 
@@ -57,38 +32,23 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
     /// <summary>Total users compared (union of both envs), including identical ones we don't show.</summary>
     private int _comparedCount;
 
+    protected override string CsvFileName => "users-compare.csv";
+    protected override string LogSource => "UsersCompare";
+
     public UsersCompareViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
+        : base(main, shell, main.Vault, log)
     {
-        _main = main;
-        _shell = shell;
-        _log = log;
-        _vault = main.Vault;
-        _vault.Changed += RefreshEnvList;
-        _main.ScopeChanged += RefreshEnvList;
+        Status = "Pick two environments to compare users.";
         Buckets.Changed += _ => RebuildVisibleRows();
         Selection = new RowSelectionModel(Rows);
-        RefreshEnvList();
-
-        SaveCsvCommand = CompareCommands.MakeSaveCsv(
-            () => Rows,
-            BuildExportColumns,
-            suggestedFileName: "users-compare.csv",
-            log: _log,
-            logSource: "UsersCompare");
-
-        CopyMarkdownCommand = CompareCommands.MakeCopyMarkdown(
-            () => Rows,
-            BuildExportColumns,
-            log: _log,
-            logSource: "UsersCompare");
-
         ExtraActions = new[]
         {
             new CompareAction("Promote selected →", Primary: true, PromoteSelectedLeftToRightCommand),
         };
+        RefreshEnvList();
     }
 
-    private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
+    protected override IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
         new CompareExport.Column[]
         {
             new("State",    r => ((UserCompareRow)r).State),
@@ -98,51 +58,7 @@ public partial class UsersCompareViewModel : ViewModelBase, ICompareViewModel
             new("Detail",   r => ((UserCompareRow)r).Detail),
         };
 
-    public void RefreshEnvList()
-    {
-        var lid = LeftEnv?.Id;
-        var rid = RightEnv?.Id;
-        AvailableEnvs.Clear();
-        foreach (var e in _main.EnvironmentsInScope())
-            AvailableEnvs.Add(e);
-        if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
-        if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
-
-        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.TypeKey; }
-        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.TypeKey; }
-    }
-
-    partial void OnLeftEnvChanged(EnvironmentEntry? value)
-    {
-        LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.TypeKey;
-        TryAutoCompare();
-    }
-    partial void OnRightEnvChanged(EnvironmentEntry? value)
-    {
-        RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.TypeKey;
-        TryAutoCompare();
-    }
-
-    private void TryAutoCompare()
-    {
-        if (Busy) return;
-        if (LeftEnv is null || RightEnv is null) return;
-        if (LeftEnv.Id == RightEnv.Id)
-        {
-            Status = "Pick two different environments.";
-            Rows.Clear();
-            Counts.Clear();
-            HasRows = false;
-            Summary = "";
-            return;
-        }
-        _ = CompareAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    public async Task CompareAsync()
+    public override async Task CompareAsync()
     {
         if (Busy) return;
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }

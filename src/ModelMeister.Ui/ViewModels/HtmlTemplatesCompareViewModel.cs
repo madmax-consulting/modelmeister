@@ -17,58 +17,28 @@ namespace ModelMeister.Ui.ViewModels;
 /// differs — and promotes the source env's templates into the target. Identical templates are filtered
 /// out; sides are named environment pills rather than left/right.
 /// </summary>
-public partial class HtmlTemplatesCompareViewModel : ViewModelBase, ICompareViewModel
+public partial class HtmlTemplatesCompareViewModel : CompareViewModelBase<HtmlTemplateDiffRow>
 {
-    private readonly MainWindowViewModel _main;
-    private readonly Shell _shell;
-    private readonly IEnvironmentVault _vault;
-    private readonly IAppLog _log;
-
-    public ObservableCollection<EnvironmentEntry> AvailableEnvs { get; } = [];
-    public ObservableCollection<HtmlTemplateDiffRow> Rows { get; } = [];
-    public ObservableCollection<ConceptDiffCount> Counts { get; } = [];
-
-    [ObservableProperty] private EnvironmentEntry? _leftEnv;
-    [ObservableProperty] private EnvironmentEntry? _rightEnv;
-    [ObservableProperty] private bool _busy;
-    [ObservableProperty] private string _status = "Pick two environments to compare HTML templates.";
-    [ObservableProperty] private string _summary = "";
-    [ObservableProperty] private bool _hasRows;
-    [ObservableProperty] private string _leftColumnHeader = "";
-    [ObservableProperty] private string _rightColumnHeader = "";
-    [ObservableProperty] private string? _leftColumnStage;
-    [ObservableProperty] private string? _rightColumnStage;
-
-    public IAsyncRelayCommand SaveCsvCommand { get; }
-    public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; }
-    public BucketToggleState Buckets { get; } = new();
-    BucketToggleState? ICompareViewModel.Buckets => Buckets;
-    public string BucketPath => nameof(HtmlTemplateDiffRow.Bucket);
+    public override string BucketPath => nameof(HtmlTemplateDiffRow.Bucket);
 
     private IReadOnlyList<HtmlTemplateDto>? _leftCapture;
     private IReadOnlyList<HtmlTemplateDto>? _rightCapture;
 
+    protected override string CsvFileName => "htmltemplates-compare.csv";
+    protected override string LogSource => "CompareHtmlTemplates";
+
     public HtmlTemplatesCompareViewModel(MainWindowViewModel main, Shell shell, IEnvironmentVault vault, IAppLog log)
+        : base(main, shell, vault, log)
     {
-        _main = main;
-        _shell = shell;
-        _vault = vault;
-        _log = log;
-        _vault.Changed += RefreshEnvList;
-        _main.ScopeChanged += RefreshEnvList;
-        RefreshEnvList();
-
-        SaveCsvCommand = CompareCommands.MakeSaveCsv(() => Rows, BuildExportColumns, "htmltemplates-compare.csv", _log, "CompareHtmlTemplates");
-        CopyMarkdownCommand = CompareCommands.MakeCopyMarkdown(() => Rows, BuildExportColumns, _log, "CompareHtmlTemplates");
-
+        Status = "Pick two environments to compare HTML templates.";
         ExtraActions = new[]
         {
             new CompareAction("Promote templates →", Primary: true, PromoteCommand),
         };
+        RefreshEnvList();
     }
 
-    private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
+    protected override IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
         new CompareExport.Column[]
         {
             new("Name", r => ((HtmlTemplateDiffRow)r).Name),
@@ -78,47 +48,14 @@ public partial class HtmlTemplatesCompareViewModel : ViewModelBase, ICompareView
             new("Detail", r => ((HtmlTemplateDiffRow)r).Detail),
         };
 
-    public void RefreshEnvList()
-    {
-        var lid = LeftEnv?.Id;
-        var rid = RightEnv?.Id;
-        AvailableEnvs.Clear();
-        foreach (var e in _main.EnvironmentsInScope())
-            AvailableEnvs.Add(e);
-        if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
-        if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
-    }
-
-    partial void OnLeftEnvChanged(EnvironmentEntry? value)
+    /// <summary>Discard cached captures when either env changes so the next compare re-reads both sides.</summary>
+    protected override void OnEnvSelectionChanged()
     {
         _leftCapture = null;
-        LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.TypeKey;
-        TryAutoCompare();
-    }
-
-    partial void OnRightEnvChanged(EnvironmentEntry? value)
-    {
         _rightCapture = null;
-        RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.TypeKey;
-        TryAutoCompare();
     }
 
-    private void TryAutoCompare()
-    {
-        if (Busy || LeftEnv is null || RightEnv is null) return;
-        if (LeftEnv.Id == RightEnv.Id)
-        {
-            Status = "Pick two different environments.";
-            Rows.Clear(); Counts.Clear(); HasRows = false; Summary = "";
-            return;
-        }
-        _ = CompareAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    public async Task CompareAsync()
+    public override async Task CompareAsync()
     {
         if (Busy) return;
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }

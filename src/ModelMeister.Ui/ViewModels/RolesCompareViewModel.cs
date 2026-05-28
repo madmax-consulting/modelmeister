@@ -17,35 +17,11 @@ namespace ModelMeister.Ui.ViewModels;
 /// then renders existence + description/permission deltas. Roles are matched by <i>name</i> (ids differ
 /// per env); promotion upserts the source role + its permission bindings into the target env.
 /// </summary>
-public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
+public partial class RolesCompareViewModel : CompareViewModelBase<RoleCompareRow>
 {
-    readonly MainWindowViewModel _main;
-    readonly Shell _shell;
-    readonly IAppLog _log;
-    readonly IEnvironmentVault _vault;
-
-    public ObservableCollection<EnvironmentEntry> AvailableEnvs { get; } = [];
     private readonly List<RoleCompareRow> _allRows = new();
-    public ObservableCollection<RoleCompareRow> Rows { get; } = [];
-    public ObservableCollection<ConceptDiffCount> Counts { get; } = [];
+    public override string BucketPath => "State";
 
-    public BucketToggleState Buckets { get; } = new();
-    public string BucketPath => "State";
-
-    [ObservableProperty] private EnvironmentEntry? _leftEnv;
-    [ObservableProperty] private EnvironmentEntry? _rightEnv;
-    [ObservableProperty] private bool _busy;
-    [ObservableProperty] private string _status = "Pick two environments to compare roles.";
-    [ObservableProperty] private string _summary = "";
-    [ObservableProperty] private bool _hasRows;
-    [ObservableProperty] private string _leftColumnHeader = "";
-    [ObservableProperty] private string _rightColumnHeader = "";
-    [ObservableProperty] private string? _leftColumnStage;
-    [ObservableProperty] private string? _rightColumnStage;
-
-    public IAsyncRelayCommand SaveCsvCommand { get; }
-    public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; }
     /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
     public RowSelectionModel Selection { get; }
 
@@ -54,30 +30,23 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
     /// <summary>Total roles compared (union of both envs), including identical ones we don't show.</summary>
     private int _comparedCount;
 
+    protected override string CsvFileName => "roles-compare.csv";
+    protected override string LogSource => "RolesCompare";
+
     public RolesCompareViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
+        : base(main, shell, main.Vault, log)
     {
-        _main = main;
-        _shell = shell;
-        _log = log;
-        _vault = main.Vault;
-        _vault.Changed += RefreshEnvList;
-        _main.ScopeChanged += RefreshEnvList;
+        Status = "Pick two environments to compare roles.";
         Buckets.Changed += _ => RebuildVisibleRows();
         Selection = new RowSelectionModel(Rows);
-        RefreshEnvList();
-
-        SaveCsvCommand = CompareCommands.MakeSaveCsv(
-            () => Rows, BuildExportColumns, suggestedFileName: "roles-compare.csv", log: _log, logSource: "RolesCompare");
-        CopyMarkdownCommand = CompareCommands.MakeCopyMarkdown(
-            () => Rows, BuildExportColumns, log: _log, logSource: "RolesCompare");
-
         ExtraActions = new[]
         {
             new CompareAction("Promote selected →", Primary: true, PromoteSelectedLeftToRightCommand),
         };
+        RefreshEnvList();
     }
 
-    private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
+    protected override IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
         new CompareExport.Column[]
         {
             new("State",       r => ((RoleCompareRow)r).State),
@@ -87,51 +56,7 @@ public partial class RolesCompareViewModel : ViewModelBase, ICompareViewModel
             new("Detail",      r => ((RoleCompareRow)r).Detail),
         };
 
-    public void RefreshEnvList()
-    {
-        var lid = LeftEnv?.Id;
-        var rid = RightEnv?.Id;
-        AvailableEnvs.Clear();
-        foreach (var e in _main.EnvironmentsInScope())
-            AvailableEnvs.Add(e);
-        if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
-        if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
-
-        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.TypeKey; }
-        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.TypeKey; }
-    }
-
-    partial void OnLeftEnvChanged(EnvironmentEntry? value)
-    {
-        LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.TypeKey;
-        TryAutoCompare();
-    }
-    partial void OnRightEnvChanged(EnvironmentEntry? value)
-    {
-        RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.TypeKey;
-        TryAutoCompare();
-    }
-
-    private void TryAutoCompare()
-    {
-        if (Busy) return;
-        if (LeftEnv is null || RightEnv is null) return;
-        if (LeftEnv.Id == RightEnv.Id)
-        {
-            Status = "Pick two different environments.";
-            Rows.Clear();
-            Counts.Clear();
-            HasRows = false;
-            Summary = "";
-            return;
-        }
-        _ = CompareAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    public async Task CompareAsync()
+    public override async Task CompareAsync()
     {
         if (Busy) return;
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }

@@ -18,78 +18,33 @@ namespace ModelMeister.Ui.ViewModels;
 /// resulting <see cref="EnvironmentDiff"/>: existence deltas, definition changes, and per-CVL
 /// value deltas — each as a one-property-per-row entry with the actual left/right values.
 /// </summary>
-public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
+public partial class CvlCompareViewModel : CompareViewModelBase<CvlCompareRow>
 {
-    readonly MainWindowViewModel _main;
-    readonly Shell _shell;
-    readonly IAppLog _log;
-    readonly IEnvironmentVault _vault;
-
-    public ObservableCollection<EnvironmentEntry> AvailableEnvs { get; } = [];
-    public ObservableCollection<CvlCompareRow> Rows { get; } = [];
-    /// <summary>Per-bucket counts shown as small bars at the bottom (presence vs value vs definition).</summary>
-    public ObservableCollection<ConceptDiffCount> Counts { get; } = [];
-
-    [ObservableProperty] private EnvironmentEntry? _leftEnv;
-    [ObservableProperty] private EnvironmentEntry? _rightEnv;
-    [ObservableProperty] private bool _busy;
-    [ObservableProperty] private string _status = "Pick two environments to compare CVLs.";
-    [ObservableProperty] private string _summary = "";
-    [ObservableProperty] private bool _hasRows;
-    /// <summary>Header label for the left-value column = left env name.</summary>
-    [ObservableProperty] private string _leftColumnHeader = "";
-    /// <summary>Header label for the right-value column = right env name.</summary>
-    [ObservableProperty] private string _rightColumnHeader = "";
-    /// <summary>Type key of the left env (for the pill in the value-column header).</summary>
-    [ObservableProperty] private string? _leftColumnStage;
-    /// <summary>Type key of the right env (for the pill in the value-column header).</summary>
-    [ObservableProperty] private string? _rightColumnStage;
-
-    public IAsyncRelayCommand SaveCsvCommand { get; }
-    public IAsyncRelayCommand CopyMarkdownCommand { get; }
-    public IReadOnlyList<CompareAction> ExtraActions { get; }
     /// <summary>Checkbox-selection model over <see cref="Rows"/>; backs the bulk Promote command.</summary>
     public RowSelectionModel Selection { get; }
-    /// <summary>Bucket-bar toggle state: clicking a bar in the bottom chart hides that Bucket's rows.</summary>
-    public BucketToggleState Buckets { get; } = new();
-    public string BucketPath => nameof(CvlCompareRow.Bucket);
+    public override string BucketPath => nameof(CvlCompareRow.Bucket);
 
     // Cached LiveModel snapshots so per-row promote can look up source CVLs / values and run the
     // parent-CVL-existence pre-check without going back to the wire.
     private LiveModel? _leftSnapshot;
     private LiveModel? _rightSnapshot;
 
+    protected override string CsvFileName => "cvl-compare.csv";
+    protected override string LogSource => "CvlCompare";
+
     public CvlCompareViewModel(MainWindowViewModel main, Shell shell, IAppLog log)
+        : base(main, shell, main.Vault, log)
     {
-        _main = main;
-        _shell = shell;
-        _log = log;
-        _vault = main.Vault;
-        _vault.Changed += RefreshEnvList;
-        _main.ScopeChanged += RefreshEnvList;
+        Status = "Pick two environments to compare CVLs.";
         Selection = new RowSelectionModel(Rows);
-        RefreshEnvList();
-
-        SaveCsvCommand = CompareCommands.MakeSaveCsv(
-            () => Rows,
-            BuildExportColumns,
-            suggestedFileName: "cvl-compare.csv",
-            log: _log,
-            logSource: "CvlCompare");
-
-        CopyMarkdownCommand = CompareCommands.MakeCopyMarkdown(
-            () => Rows,
-            BuildExportColumns,
-            log: _log,
-            logSource: "CvlCompare");
-
         ExtraActions = new[]
         {
             new CompareAction("Promote selected →", Primary: true, PromoteSelectedLeftToRightCommand),
         };
+        RefreshEnvList();
     }
 
-    private IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
+    protected override IReadOnlyList<CompareExport.Column> BuildExportColumns() =>
         new CompareExport.Column[]
         {
             new("Scope",    r => ((CvlCompareRow)r).Bucket),
@@ -100,52 +55,7 @@ public partial class CvlCompareViewModel : ViewModelBase, ICompareViewModel
             new(string.IsNullOrEmpty(RightColumnHeader) ? "Right" : RightColumnHeader, r => ((CvlCompareRow)r).RightValue),
         };
 
-    public void RefreshEnvList()
-    {
-        var lid = LeftEnv?.Id;
-        var rid = RightEnv?.Id;
-        AvailableEnvs.Clear();
-        foreach (var e in _main.EnvironmentsInScope())
-            AvailableEnvs.Add(e);
-        if (lid is { } li) LeftEnv = AvailableEnvs.FirstOrDefault(e => e.Id == li);
-        if (rid is { } ri) RightEnv = AvailableEnvs.FirstOrDefault(e => e.Id == ri);
-
-        if (LeftEnv is not null) { LeftColumnHeader = LeftEnv.Name; LeftColumnStage = LeftEnv.TypeKey; }
-        if (RightEnv is not null) { RightColumnHeader = RightEnv.Name; RightColumnStage = RightEnv.TypeKey; }
-    }
-
-    partial void OnLeftEnvChanged(EnvironmentEntry? value)
-    {
-        LeftColumnHeader = value?.Name ?? "";
-        LeftColumnStage = value?.TypeKey;
-        TryAutoCompare();
-    }
-
-    partial void OnRightEnvChanged(EnvironmentEntry? value)
-    {
-        RightColumnHeader = value?.Name ?? "";
-        RightColumnStage = value?.TypeKey;
-        TryAutoCompare();
-    }
-
-    private void TryAutoCompare()
-    {
-        if (Busy) return;
-        if (LeftEnv is null || RightEnv is null) return;
-        if (LeftEnv.Id == RightEnv.Id)
-        {
-            Status = "Pick two different environments.";
-            Rows.Clear();
-            Counts.Clear();
-            HasRows = false;
-            Summary = "";
-            return;
-        }
-        _ = CompareAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    public async Task CompareAsync()
+    public override async Task CompareAsync()
     {
         if (Busy) return;
         if (LeftEnv is null || RightEnv is null) { Status = "Pick both environments first."; return; }
