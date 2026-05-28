@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ModelMeister.Inriver.Diff;
+using ModelMeister.Inriver.Mapping;
 using ModelMeister.Inriver.Snapshot;
 using ModelMeister.Model;
 using ModelMeister.Model.Loading;
@@ -77,16 +78,15 @@ public static class ChangeDetails
         Add(deltas, "Index", lf.Index, f.Index ?? 0);
         if (f.TrackChanges is { } trk) Add(deltas, "TrackChanges", lf.TrackChanges, trk);
         if (f.ExcludeFromDefaultView is { } excl) Add(deltas, "ExcludeFromDefaultView", lf.ExcludeFromDefaultView, excl);
-        Add(deltas, "DefaultValue", lf.DefaultValue ?? "", f.DefaultValue?.ToString() ?? "");
         Add(deltas, "Cvl", lf.CvlId ?? "", f.Cvl?.Name ?? "");
 
-        if (f.RawDefaultExpression is not null)
-        {
-            lf.Settings.TryGetValue("DefaultValueExpression", out var liveExpr);
-            var codeExpr = f.RawDefaultExpression.RenderTopLevel();
-            if ((liveExpr ?? "") != codeExpr)
-                deltas.Add(new PropertyDelta("DefaultExpression", liveExpr ?? "", codeExpr));
-        }
+        // Default value and default expression share one inriver slot (FieldType.DefaultValue, an
+        // expression being a =-prefixed string). Show a single row, only when it actually differs
+        // under whitespace-tolerant expression equality — mirrors ModelDiffer.
+        var codeDefault = FieldTypeMapper.CodeDefaultValue(f);
+        var liveDefault = FieldTypeMapper.LiveDefaultValue(lf);
+        if (codeDefault is not null && !FieldTypeMapper.DefaultValuesEqual(codeDefault, liveDefault))
+            deltas.Add(new PropertyDelta("DefaultValue", liveDefault ?? "", codeDefault));
 
         // Drop deltas for properties the policy ignores, so the details pane matches the diff.
         return deltas.Where(d => !policy.IgnoresProperty(d.Property)).ToList();
@@ -221,11 +221,11 @@ public static class ChangeDetails
             Set("Category", ResolveCategoryId(f.Category)),
             Set("Index", f.Index ?? 0),
             Set("Cvl", f.Cvl?.Name ?? ""),
-            Set("DefaultValue", f.DefaultValue?.ToString() ?? ""),
         };
+        // Single inriver slot: literal default or rendered =expression.
+        if (FieldTypeMapper.CodeDefaultValue(f) is { } def) deltas.Add(Set("DefaultValue", def));
         if (f.TrackChanges is { } trk) deltas.Add(Set("TrackChanges", trk));
         if (f.ExcludeFromDefaultView is { } excl) deltas.Add(Set("ExcludeFromDefaultView", excl));
-        if (f.RawDefaultExpression is not null) deltas.Add(Set("DefaultExpression", f.RawDefaultExpression.RenderTopLevel()));
         if (lf.SourceLocation is { } src) deltas.Add(Set("Source", src));
         return deltas;
     }

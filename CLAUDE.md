@@ -47,6 +47,8 @@ For nullable code-side properties (`ExcludeFromDefaultView`, `Index`, `DefaultVa
 
 `TrackChanges` is the exception: it **defaults to `true`** (the code model is authoritative). `ModelLoader` stamps `true` when a field leaves it unset; opt out with an explicit `TrackChanges = false`. The scaffolder emits `TrackChanges = false` only when the source has it off. Display **names** default by humanizing the property/class name (`ProductList` → "Product List") via `NameHumanizer`.
 
+**`DefaultValue` and `DefaultExpression` are the *same* inriver slot** — `FieldType.DefaultValue`, where an expression is just a `=`-prefixed string (inriver does **not** use a `Settings` key for it; the legacy `DefaultExpressionSettingKey` is read-only fallback). So the code-side default collapses to one string via `FieldTypeMapper.CodeDefaultValue` (rendered `=expr`, else literal, else null=read-through), and `ModelDiffer`/`ChangeDetails`/`ToInriver` all compare/emit that single value. Expression equality is **whitespace-tolerant** (`FieldTypeMapper.DefaultValuesEqual` normalizes whitespace outside single-quoted literals) because the renderer emits `", "` while inriver stores `","` — a raw string compare would phantom-diff every expression field on scaffold→load→diff.
+
 Idempotency tests at `tests/ModelMeister.Inriver.Tests/IdempotencyDiffTests.cs` pin this — break it and they fail loudly.
 
 ### Field bindings via type parameters

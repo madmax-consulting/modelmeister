@@ -282,11 +282,15 @@ public static class ModelDiffer
         if (!policy.IgnoresProperty("TrackChanges") && ff.TrackChanges is { } codeTrack && codeTrack != lf.TrackChanges) return true;
         if (!policy.IgnoresProperty("ExcludeFromDefaultView") && ff.ExcludeFromDefaultView is { } codeExcl && codeExcl != lf.ExcludeFromDefaultView) return true;
 
-        if (!policy.IgnoresProperty("DefaultValue") && ff.DefaultValue is not null)
+        // Default value AND default expression are the same inriver slot (FieldType.DefaultValue —
+        // an expression is just a =-prefixed string). Collapse the code side to that single string
+        // and compare with whitespace-tolerant expression equality. Read-through: a null code default
+        // (neither DefaultValue nor DefaultExpression set) leaves inriver's value alone.
+        if (!policy.IgnoresProperty("DefaultValue") && !policy.IgnoresProperty("DefaultExpression")
+            && FieldTypeMapper.CodeDefaultValue(ff) is { } codeDefault
+            && !FieldTypeMapper.DefaultValuesEqual(codeDefault, FieldTypeMapper.LiveDefaultValue(lf)))
         {
-            var codeDefault = ff.DefaultValue.ToString() ?? string.Empty;
-            var liveDefault = lf.DefaultValue ?? string.Empty;
-            if (!string.Equals(codeDefault, liveDefault, StringComparison.Ordinal)) return true;
+            return true;
         }
 
         // CVL re-bind: a code-side CVL CLR-type maps to a CvlId via the model-wide lookup.
@@ -301,13 +305,7 @@ public static class ModelDiffer
                 return true;
         }
 
-        // Expression text comparison (string-equal; semantic compare would parse both, deferred for parser delivery).
-        if (!policy.IgnoresProperty("DefaultExpression") && ff.RawDefaultExpression is not null)
-        {
-            var codeText = ff.RawDefaultExpression.RenderTopLevel();
-            lf.Settings.TryGetValue(FieldTypeMapper.DefaultExpressionSettingKey, out var liveText);
-            if ((liveText ?? string.Empty) != codeText) return true;
-        }
+        // (DefaultExpression is folded into the DefaultValue comparison above — same inriver slot.)
 
         return false;
     }

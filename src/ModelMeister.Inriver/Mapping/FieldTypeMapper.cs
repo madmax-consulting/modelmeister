@@ -1,6 +1,8 @@
+using System.Text;
 using IriverFieldType = inRiver.Remoting.Objects.FieldType;
 using IriverUnit = inRiver.Remoting.Objects.Unit;
 using ModelMeister.Inriver.Snapshot;
+using ModelMeister.Model;
 using ModelMeister.Model.Loading;
 using ModelMeister.Model.Primitives;
 
@@ -9,8 +11,60 @@ namespace ModelMeister.Inriver.Mapping;
 /// <summary>Bi-directional mapping between inriver field types and the code-side / snapshot representations.</summary>
 public static class FieldTypeMapper
 {
-    /// <summary>Inriver Settings key under which a field's default expression text is stored.</summary>
+    /// <summary>
+    /// Legacy Settings key some tooling used for a field's default expression. inriver itself stores
+    /// the default — literal <em>or</em> expression — in the single <c>FieldType.DefaultValue</c>
+    /// string (an expression is a <c>=</c>-prefixed value). We read this key only as a fallback.
+    /// </summary>
     public const string DefaultExpressionSettingKey = "DefaultValueExpression";
+
+    /// <summary>
+    /// The code-side default collapsed to the single string inriver stores in <c>DefaultValue</c>:
+    /// the rendered <c>=</c>-prefixed expression when one is set, else the literal default, else
+    /// <c>null</c> (unset — read-through "leave inriver's value alone").
+    /// </summary>
+    public static string? CodeDefaultValue(Field ff)
+        => ff.RawDefaultExpression is { } expr ? expr.RenderTopLevel()
+         : ff.DefaultValue?.ToString();
+
+    /// <summary>
+    /// The live default as the single inriver string. Prefers <c>DefaultValue</c> (where inriver
+    /// actually stores both literals and expressions); falls back to the legacy Settings key.
+    /// </summary>
+    public static string? LiveDefaultValue(LiveFieldType lf)
+        => !string.IsNullOrEmpty(lf.DefaultValue) ? lf.DefaultValue
+         : lf.Settings.TryGetValue(DefaultExpressionSettingKey, out var s) && !string.IsNullOrWhiteSpace(s) ? s
+         : null;
+
+    /// <summary>
+    /// Compares two inriver default strings. Expressions (either side <c>=</c>-prefixed) are compared
+    /// after collapsing whitespace outside single-quoted literals, so the renderer's <c>", "</c>
+    /// spacing matches inriver's <c>","</c> canonical form instead of producing a phantom diff.
+    /// </summary>
+    public static bool DefaultValuesEqual(string? code, string? live)
+    {
+        var c = code ?? string.Empty;
+        var l = live ?? string.Empty;
+        if (LooksLikeExpression(c) || LooksLikeExpression(l))
+            return NormalizeExpression(c) == NormalizeExpression(l);
+        return string.Equals(c, l, StringComparison.Ordinal);
+    }
+
+    private static bool LooksLikeExpression(string s) => s.TrimStart().StartsWith('=');
+
+    /// <summary>Drops insignificant whitespace outside single-quoted string literals.</summary>
+    private static string NormalizeExpression(string expr)
+    {
+        var sb = new StringBuilder(expr.Length);
+        var inString = false;
+        foreach (var ch in expr)
+        {
+            if (ch == '\'') { inString = !inString; sb.Append(ch); }
+            else if (!inString && char.IsWhiteSpace(ch)) { /* drop */ }
+            else sb.Append(ch);
+        }
+        return sb.ToString();
+    }
 
     /// <summary>Inriver DTO -> snapshot DTO. Empty id strings round-trip as null.</summary>
     public static LiveFieldType ToLive(IriverFieldType f)
@@ -72,11 +126,10 @@ public static class FieldTypeMapper
     {
         var ff = lf.Field;
 
+        // inriver stores the default expression in DefaultValue (see DefaultValue assignment below),
+        // not in Settings, so don't carry a stale legacy key across.
         var settings = new Dictionary<string, string>(ff.Settings, StringComparer.Ordinal);
-        if (ff.RawDefaultExpression is not null)
-        {
-            settings[DefaultExpressionSettingKey] = ff.RawDefaultExpression.RenderTopLevel();
-        }
+        settings.Remove(DefaultExpressionSettingKey);
 
         // Field.Cvl / Field.Category are read off the BASE Field property; derived ctors stamp them.
         var cvlId = ResolveCvlId(ff.Cvl, cvlIdByClrType);
@@ -122,7 +175,8 @@ public static class FieldTypeMapper
             Index = ff.Index ?? live?.Index ?? 0,
             CategoryId = ResolveCategoryId(ff.Category, categoryIdByClrType) ?? live?.CategoryId ?? string.Empty,
             CVLId = cvlId,
-            DefaultValue = ff.DefaultValue?.ToString() ?? live?.DefaultValue,
+            // Literal default or rendered =expression; read-through to live when the code leaves it unset.
+            DefaultValue = CodeDefaultValue(ff) ?? live?.DefaultValue,
             Settings = settings,
             Units = units,
         };

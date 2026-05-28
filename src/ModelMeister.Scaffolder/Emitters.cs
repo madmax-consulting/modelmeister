@@ -204,10 +204,10 @@ public static class CvlEmitter
 
     private static string RenderValuesBlock(List<JsonCvlValue> values, bool isLocaleString, bool emitValues)
     {
-        // Caller opted into runtime-defined values (e.g. CvlFromFile) — inherit Cvl.GetValues().
-        if (!emitValues) return string.Empty;
-
-        if (values.Count == 0)
+        // Values intentionally skipped (--no-cvl-values, for a smaller/faster project) or genuinely
+        // empty. Either way we must still override — the base Cvl.Values/GetValues throws
+        // NotImplementedException, so an unoverridden subclass fails to load. Emit an empty set.
+        if (!emitValues || values.Count == 0)
             return "    protected override IEnumerable<CvlValue> Values => Array.Empty<CvlValue>();\n";
 
         var entries = values

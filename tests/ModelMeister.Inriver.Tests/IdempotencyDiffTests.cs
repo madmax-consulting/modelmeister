@@ -1,7 +1,9 @@
 using Shouldly;
 using ModelMeister.Inriver.Diff;
+using ModelMeister.Inriver.Mapping;
 using ModelMeister.Inriver.Snapshot;
 using ModelMeister.Model;
+using ModelMeister.Model.Expressions;
 using ModelMeister.Model.Loading;
 using ModelMeister.Model.Primitives;
 using Xunit;
@@ -220,6 +222,82 @@ public class IdempotencyDiffTests
 
         var policy = MergePolicy.Default with { OverwriteNamesAndDescriptions = true };
         ModelDiffer.Diff(code, live, policy).Of<UpdateFieldType>().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void DefaultExpression_against_live_DefaultValue_is_idempotent_despite_comma_spacing()
+    {
+        // Real-world: inriver returns a default EXPRESSION in FieldType.DefaultValue (a =-prefixed
+        // string, comma-tight), while the code model carries it as DefaultExpression rendered with
+        // ", " spacing. The two are the same expression and must NOT diff.
+        var code = ExpressionFieldModel();
+
+        var liveFt = new LiveFieldType
+        {
+            Id = "ProductMaterialNumber",
+            EntityTypeId = "Product",
+            Name = new LocaleString("Material Number"),
+            DataType = Datatype.String,
+            ExpressionSupport = true,
+            // inriver's native form: NO space after the comma, stored in DefaultValue (not Settings).
+            DefaultValue = "=CONCATENATE(FIELDVALUE('ProductS4MaterialNumber'),FIELDVALUE('ProductVariantId'))",
+        };
+        var live = MakeLive("Product", liveFt);
+
+        ModelDiffer.Diff(code, live).Of<UpdateFieldType>().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void DefaultExpression_that_genuinely_differs_produces_UpdateFieldType()
+    {
+        var code = ExpressionFieldModel();
+
+        var liveFt = new LiveFieldType
+        {
+            Id = "ProductMaterialNumber",
+            EntityTypeId = "Product",
+            Name = new LocaleString("Material Number"),
+            DataType = Datatype.String,
+            ExpressionSupport = true,
+            DefaultValue = "=CONCATENATE(FIELDVALUE('Something','Else'))",
+        };
+        var live = MakeLive("Product", liveFt);
+
+        ModelDiffer.Diff(code, live).Of<UpdateFieldType>().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void ToInriver_writes_default_expression_into_DefaultValue_not_Settings()
+    {
+        var owner = ExpressionFieldModel().EntityTypes.Single();
+        var lf = owner.Fields.Single();
+
+        var dto = FieldTypeMapper.ToInriver(lf, owner);
+
+        dto.DefaultValue.ShouldBe("=CONCATENATE(FIELDVALUE('ProductS4MaterialNumber'), FIELDVALUE('ProductVariantId'))");
+        dto.Settings.ShouldNotContainKey(FieldTypeMapper.DefaultExpressionSettingKey);
+    }
+
+    /// <summary>A Product with one expression-backed field, mirroring the user's MaterialNumber case.</summary>
+    private static LoadedModel ExpressionFieldModel()
+    {
+        var field = new Field<string>
+        {
+            SupportsExpression = true,
+            DefaultExpression = Ex.Concatenate(
+                Ex.FieldValue<string>("ProductS4MaterialNumber"),
+                Ex.FieldValue<string>("ProductVariantId")),
+        };
+        var lf = new LoadedField
+        {
+            Field = field,
+            Id = "ProductMaterialNumber",
+            EntityTypeId = "Product",
+            PropertyName = "MaterialNumber",
+            Name = new LocaleString("Material Number"),
+            DataType = Datatype.String,
+        };
+        return new LoadedModel { EntityTypes = new[] { MakeEntity("Product", lf) } };
     }
 
     // ---------- helpers ----------

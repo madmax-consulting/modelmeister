@@ -58,7 +58,7 @@ public class CvlEmitterTests
     }
 
     [Fact]
-    public void Emit_values_false_omits_values_block()
+    public void Emit_values_false_omits_value_entries_but_stays_loadable()
     {
         var cvl = new JsonCvl { Id = "ItemSeries", DataType = "String" };
         var values = new List<JsonCvlValue>
@@ -68,7 +68,10 @@ public class CvlEmitterTests
 
         var src = CvlEmitter.Emit(cvl, values, "Acme.PimModel", emitValues: false);
 
-        src.ShouldNotContain("CvlValue");
-        src.ShouldNotContain("protected override IEnumerable");
+        // No actual value entries emitted...
+        src.ShouldNotContain("new CvlValue(");
+        // ...but the class must still override Values, otherwise the base throws
+        // NotImplementedException at load time (Cvl.Values / Cvl.GetValues).
+        src.ShouldContain("protected override IEnumerable<CvlValue> Values => Array.Empty<CvlValue>();");
     }
 }
