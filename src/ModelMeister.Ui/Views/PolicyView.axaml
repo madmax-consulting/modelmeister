@@ -49,6 +49,27 @@
               <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
                          Text="Permit renaming an existing CVL value's key (migrate references). Most setups do not need this." />
             </Grid>
+
+            <Grid ColumnDefinitions="Auto,*">
+              <CheckBox Grid.Column="0" Content="Apply field index/sort order"
+                        IsChecked="{Binding ApplyFieldIndexChanges, Mode=TwoWay}" />
+              <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                         Text="Surface and apply field-type sort-order (Index) changes on update. Off by default — index differences are ignored." />
+            </Grid>
+
+            <Grid ColumnDefinitions="Auto,*">
+              <CheckBox Grid.Column="0" Content="Apply category index/sort order"
+                        IsChecked="{Binding ApplyCategoryIndexChanges, Mode=TwoWay}" />
+              <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                         Text="Surface and apply category sort-order (Index) changes on update. Off by default — index differences are ignored." />
+            </Grid>
+
+            <Grid ColumnDefinitions="Auto,*">
+              <CheckBox Grid.Column="0" Content="Apply link index/sort order"
+                        IsChecked="{Binding ApplyLinkTypeIndexChanges, Mode=TwoWay}" />
+              <TextBlock Grid.Column="1" Classes="dim" VerticalAlignment="Center" Margin="14,0,0,0"
+                         Text="Surface and apply link-type sort-order (Index) changes on update. Off by default — index differences are ignored." />
+            </Grid>
           </StackPanel>
         </Border>
 

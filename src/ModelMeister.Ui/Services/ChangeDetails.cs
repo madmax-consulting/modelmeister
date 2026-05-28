@@ -31,8 +31,8 @@ public static class ChangeDetails
     {
         UpdateFieldType u    => FieldDeltas(u, live, policy ?? MergePolicy.Default),
         UpdateEntityType u   => EntityDeltas(u, live),
-        UpdateLinkType u     => LinkDeltas(u, live),
-        UpdateCategory u     => CategoryDeltas(u, live),
+        UpdateLinkType u     => LinkDeltas(u, live, policy ?? MergePolicy.Default),
+        UpdateCategory u     => CategoryDeltas(u, live, policy ?? MergePolicy.Default),
         UpdateFieldset u     => FieldsetDeltas(u, live),
         UpdateCvl u          => CvlDeltas(u, live),
         ChangeFieldDatatype d => [new PropertyDelta("DataType", d.FromType.ToString(), d.ToType.ToString())],
@@ -75,7 +75,7 @@ public static class ChangeDetails
         Add(deltas, "IsDisplayDescription", lf.IsDisplayDescription, f.IsDisplayDescription);
         Add(deltas, "SupportsExpression", lf.ExpressionSupport, f.SupportsExpression);
         Add(deltas, "Category", lf.CategoryId ?? "", ResolveCategoryId(f.Category));
-        Add(deltas, "Index", lf.Index, f.Index ?? 0);
+        if (!policy.IgnoreFieldIndexSortingOnUpdate) Add(deltas, "Index", lf.Index, f.Index ?? 0);
         if (f.TrackChanges is { } trk) Add(deltas, "TrackChanges", lf.TrackChanges, trk);
         if (f.ExcludeFromDefaultView is { } excl) Add(deltas, "ExcludeFromDefaultView", lf.ExcludeFromDefaultView, excl);
         Add(deltas, "Cvl", lf.CvlId ?? "", f.Cvl?.Name ?? "");
@@ -109,7 +109,7 @@ public static class ChangeDetails
         return deltas;
     }
 
-    private static List<PropertyDelta> LinkDeltas(UpdateLinkType u, LiveModel live)
+    private static List<PropertyDelta> LinkDeltas(UpdateLinkType u, LiveModel live, MergePolicy policy)
     {
         var deltas = new List<PropertyDelta>();
         var ll = live.LinkTypes.FirstOrDefault(x => x.Id == u.LinkType.LinkTypeId);
@@ -119,19 +119,19 @@ public static class ChangeDetails
         Add(deltas, "SourceEntityType", ll.SourceEntityTypeId, l.SourceEntityTypeId);
         Add(deltas, "TargetEntityType", ll.TargetEntityTypeId, l.TargetEntityTypeId);
         Add(deltas, "LinkEntityType", ll.LinkEntityTypeId ?? "", l.LinkEntityTypeId ?? "");
-        Add(deltas, "Index", ll.Index, l.Index);
+        if (!policy.IgnoreLinkTypeIndexSortingOnUpdate) Add(deltas, "Index", ll.Index, l.Index);
         Add(deltas, "SourceName", ll.SourceName, l.SourceName);
         Add(deltas, "TargetName", ll.TargetName, l.TargetName);
         return deltas;
     }
 
-    private static List<PropertyDelta> CategoryDeltas(UpdateCategory u, LiveModel live)
+    private static List<PropertyDelta> CategoryDeltas(UpdateCategory u, LiveModel live, MergePolicy policy)
     {
         var deltas = new List<PropertyDelta>();
         var lc = live.Categories.FirstOrDefault(x => x.Id == u.Category.CategoryId);
         if (lc is null) return deltas;
         Add(deltas, "Name", lc.Name, u.Category.Name);
-        Add(deltas, "Index", lc.Index, u.Category.Index);
+        if (!policy.IgnoreCategoryIndexSortingOnUpdate) Add(deltas, "Index", lc.Index, u.Category.Index);
         return deltas;
     }
 

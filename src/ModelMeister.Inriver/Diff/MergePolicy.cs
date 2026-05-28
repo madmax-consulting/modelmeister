@@ -30,8 +30,14 @@ public sealed record MergePolicy
     /// <summary>When true, code-side CVL value labels and parent keys overwrite live values.</summary>
     public bool OverwriteCvlValues { get; init; }
 
-    /// <summary>When true (the default), the per-item Index/SortOrder is ignored on update.</summary>
-    public bool IgnoreIndexSortingOnUpdate { get; init; } = true;
+    /// <summary>When true (the default), a field type's Index/SortOrder difference is ignored on update.</summary>
+    public bool IgnoreFieldIndexSortingOnUpdate { get; init; } = true;
+
+    /// <summary>When true (the default), a category's Index/SortOrder difference is ignored on update.</summary>
+    public bool IgnoreCategoryIndexSortingOnUpdate { get; init; } = true;
+
+    /// <summary>When true (the default), a link type's Index/SortOrder difference is ignored on update.</summary>
+    public bool IgnoreLinkTypeIndexSortingOnUpdate { get; init; } = true;
 
     /// <summary>When true, items that exist on the live side but not in code are deleted/deactivated.</summary>
     public bool AllowDeletes { get; init; }

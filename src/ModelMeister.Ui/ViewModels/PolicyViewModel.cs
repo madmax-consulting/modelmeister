@@ -39,6 +39,13 @@ public partial class PolicyViewModel : ViewModelBase
     /// <summary>Allow renaming a CVL value's key (migrate references).</summary>
     [ObservableProperty] private bool _allowCvlValueRename;
 
+    /// <summary>Apply field-type Index/sort-order changes on update (off → the default, which ignores them).</summary>
+    [ObservableProperty] private bool _applyFieldIndexChanges;
+    /// <summary>Apply category Index/sort-order changes on update (off → ignored).</summary>
+    [ObservableProperty] private bool _applyCategoryIndexChanges;
+    /// <summary>Apply link-type Index/sort-order changes on update (off → ignored).</summary>
+    [ObservableProperty] private bool _applyLinkTypeIndexChanges;
+
     /// <summary>Per-property "ignore differences" toggles (one per <see cref="KnownFieldProperties"/>).</summary>
     public IReadOnlyList<FieldPropertyIgnoreToggle> IgnorableProperties { get; }
 
@@ -60,6 +67,9 @@ public partial class PolicyViewModel : ViewModelBase
         _allowDeletes = s.AllowDeletes;
         _allowDatatypeChange = s.AllowDatatypeChange;
         _allowCvlValueRename = s.AllowCvlValueRename;
+        _applyFieldIndexChanges = s.ApplyFieldIndexChanges;
+        _applyCategoryIndexChanges = s.ApplyCategoryIndexChanges;
+        _applyLinkTypeIndexChanges = s.ApplyLinkTypeIndexChanges;
 
         IgnorableProperties = KnownFieldProperties
             .Select(p => new FieldPropertyIgnoreToggle(
@@ -80,7 +90,7 @@ public partial class PolicyViewModel : ViewModelBase
     {
         var props = string.Join(",", IgnorableProperties.Where(p => p.Ignored).Select(p => p.Property));
         var ids = string.Join(",", FieldIdRules.Select(r => $"{r.Kind}:{r.Value}"));
-        return $"{OverwriteNamesAndDescriptions}|{OverwriteCvlValues}|{AllowDeletes}|{AllowDatatypeChange}|{AllowCvlValueRename}|{props}|{ids}";
+        return $"{OverwriteNamesAndDescriptions}|{OverwriteCvlValues}|{AllowDeletes}|{AllowDatatypeChange}|{AllowCvlValueRename}|{ApplyFieldIndexChanges}|{ApplyCategoryIndexChanges}|{ApplyLinkTypeIndexChanges}|{props}|{ids}";
     }
 
     /// <summary>The current toggle + ignore-rule state captured as a <see cref="MergePolicy"/>.</summary>
@@ -91,6 +101,10 @@ public partial class PolicyViewModel : ViewModelBase
         AllowDeletes = AllowDeletes,
         AllowDatatypeChange = AllowDatatypeChange,
         AllowCvlValueRename = AllowCvlValueRename,
+        // UI is positive ("apply"); the policy is negative ("ignore"). Off (default) → ignore on update.
+        IgnoreFieldIndexSortingOnUpdate = !ApplyFieldIndexChanges,
+        IgnoreCategoryIndexSortingOnUpdate = !ApplyCategoryIndexChanges,
+        IgnoreLinkTypeIndexSortingOnUpdate = !ApplyLinkTypeIndexChanges,
         IgnoredFieldProperties = IgnorableProperties.Where(p => p.Ignored).Select(p => p.Property).ToArray(),
         IgnoredFieldIdPatterns = FieldIdRules
             .Where(r => !string.IsNullOrWhiteSpace(r.Value))
@@ -110,6 +124,9 @@ public partial class PolicyViewModel : ViewModelBase
                 (AllowDeletes, "deletes"),
                 (AllowDatatypeChange, "datatype"),
                 (AllowCvlValueRename, "CVL rename"),
+                (ApplyFieldIndexChanges, "field index"),
+                (ApplyCategoryIndexChanges, "category index"),
+                (ApplyLinkTypeIndexChanges, "link index"),
             };
             var on = flags.Where(f => f.Item1).Select(f => f.Item2).ToList();
 
@@ -161,6 +178,9 @@ public partial class PolicyViewModel : ViewModelBase
     partial void OnAllowDeletesChanged(bool value)                  { _settings.Current.AllowDeletes = value;                  PersistAndNotify(); }
     partial void OnAllowDatatypeChangeChanged(bool value)           { _settings.Current.AllowDatatypeChange = value;           PersistAndNotify(); }
     partial void OnAllowCvlValueRenameChanged(bool value)           { _settings.Current.AllowCvlValueRename = value;           PersistAndNotify(); }
+    partial void OnApplyFieldIndexChangesChanged(bool value)        { _settings.Current.ApplyFieldIndexChanges = value;        PersistAndNotify(); }
+    partial void OnApplyCategoryIndexChangesChanged(bool value)     { _settings.Current.ApplyCategoryIndexChanges = value;     PersistAndNotify(); }
+    partial void OnApplyLinkTypeIndexChangesChanged(bool value)     { _settings.Current.ApplyLinkTypeIndexChanges = value;     PersistAndNotify(); }
 
     private void PersistAndNotify()
     {

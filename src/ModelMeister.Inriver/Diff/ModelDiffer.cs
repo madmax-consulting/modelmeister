@@ -83,7 +83,7 @@ public static class ModelDiffer
 
     private static bool CategoryDiffers(LoadedCategory c, LiveCategory l, MergePolicy policy) =>
         (policy.OverwriteNamesAndDescriptions && !LsEquals(c.Name, l.Name))
-        || (!policy.IgnoreIndexSortingOnUpdate && c.Index != l.Index);
+        || (!policy.IgnoreCategoryIndexSortingOnUpdate && c.Index != l.Index);
 
     // ---------- CVLs ----------
     private static void DiffCvls(LoadedModel code, LiveModel live, List<ModelChange> changes, MergePolicy policy)
@@ -278,7 +278,7 @@ public static class ModelDiffer
             if (codeCategoryId != (lf.CategoryId ?? string.Empty)) return true;
         }
 
-        if (!policy.IgnoresProperty("Index") && !policy.IgnoreIndexSortingOnUpdate && ff.Index is { } codeIndex && codeIndex != lf.Index) return true;
+        if (!policy.IgnoresProperty("Index") && !policy.IgnoreFieldIndexSortingOnUpdate && ff.Index is { } codeIndex && codeIndex != lf.Index) return true;
         if (!policy.IgnoresProperty("TrackChanges") && ff.TrackChanges is { } codeTrack && codeTrack != lf.TrackChanges) return true;
         if (!policy.IgnoresProperty("ExcludeFromDefaultView") && ff.ExcludeFromDefaultView is { } codeExcl && codeExcl != lf.ExcludeFromDefaultView) return true;
 
@@ -430,7 +430,7 @@ public static class ModelDiffer
             && (!LsEquals(LinkTypeMapper.EffectiveSourceName(l), lv.SourceName)
                 || !LsEquals(LinkTypeMapper.EffectiveTargetName(l), lv.TargetName)))
             return true;
-        return !policy.IgnoreIndexSortingOnUpdate && l.Index != lv.Index;
+        return !policy.IgnoreLinkTypeIndexSortingOnUpdate && l.Index != lv.Index;
     }
 
     // ---------- Roles ----------

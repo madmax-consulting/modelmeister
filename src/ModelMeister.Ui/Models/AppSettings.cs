@@ -31,6 +31,15 @@ public sealed class AppSettings
     /// <summary>Merge policy toggle: allow CVL value rename (key migrations).</summary>
     public bool AllowCvlValueRename { get; set; }
 
+    /// <summary>Merge policy toggle: apply field-type Index/sort-order changes on update (off by default → ignored).</summary>
+    public bool ApplyFieldIndexChanges { get; set; }
+
+    /// <summary>Merge policy toggle: apply category Index/sort-order changes on update (off by default → ignored).</summary>
+    public bool ApplyCategoryIndexChanges { get; set; }
+
+    /// <summary>Merge policy toggle: apply link-type Index/sort-order changes on update (off by default → ignored).</summary>
+    public bool ApplyLinkTypeIndexChanges { get; set; }
+
     /// <summary>MRU list of model csproj/dll paths, newest first. Capped at 10.</summary>
     public List<string> RecentModelPaths { get; set; } = [];
 
