@@ -168,6 +168,15 @@ Policy → Compare → Apply**, with a **History** page for receipts/backups, a 
 bundling scaffold/merge/Excel/snapshot utilities, plus dedicated pages for **Compare envs**,
 **CVL workbench**, **Users**, and **Extensions**.
 
+Live safety signals run throughout: the **Model** page can overlay live per-entity-type instance
+counts and the environment's own icons next to each type; **Compare** can re-check whether the
+environment drifted since the snapshot was captured; and the **Apply** confirmation weighs every
+destructive change against how many live instances it touches ("clears that value on 48,231 SKU
+instances") and warns when the snapshot has gone stale before you commit. The **Tools** page also
+exports/imports the whole model as inriver-native XML (lift-and-shift between environments, with an
+automatic pre-import backup) and offers one-click environment maintenance (rebuild the quick-search
+index, clear the image cache).
+
 Environments hold **two credentials** when the operator wants them: the Remoting API key
 (required for model diff/apply) and an optional REST API key (unlocks user creation and the
 modern extensions endpoints). Both are stored encrypted per-user (DPAPI) at

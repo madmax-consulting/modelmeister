@@ -80,6 +80,11 @@ source-file + line, click-through opens the file via `IFileOpener`.
 
 Recents are tracked in `AppSettings.RecentModelPaths` and dedup'd by absolute path.
 
+Selecting the **Entity types** concept chip opens a rich grid (name + field count). When connected,
+**Load live counts & icons** overlays each type's live instance total plus New(7d)/Updated(7d) from
+`GetAllEntityTypeStatistics`, and the environment's own glyphs from `GetAllEntityIcons` — so you see
+data volumes and familiar icons while editing. Both halves degrade silently if unavailable.
+
 ### Policy
 
 Five toggles, each persisted to `AppSettings` and echoed through `PolicyViewModel.CurrentPolicy`
@@ -114,6 +119,11 @@ the Apply page sees the reduced set. Skips persist until the diff is recomputed.
 
 Text or JSON renderings of the current diff are available via Copy and Export.
 
+**Re-check env** (in the change-tree header) asks `GetEnvironmentLatestChanges` whether the
+environment's model moved since this snapshot's `CapturedUtc`, without re-capturing the whole
+snapshot. A match toasts "Snapshot is current"; drift raises an amber banner naming the changed
+areas with a "Compare again" button — so you can confirm a diff is still live before reaching Apply.
+
 ### Apply
 
 Pulls `EffectiveChanges()` from Compare and offers two actions:
@@ -122,6 +132,17 @@ Pulls `EffectiveChanges()` from Compare and offers two actions:
 |------------|----------------------------------------------------------------------------------------------------------------------------------------|
 | Dry-run    | Runs the applier with `dryRun: true`. No writes, no backup. Receipt is captured for review.                                            |
 | Apply      | Opens `ConfirmApplyDialog` (counts + the policy echo). On accept, captures a backup snapshot, applies, writes a receipt under `.modelmeister/`. |
+
+`ConfirmApplyDialog` is a safety gate, not just a tally. It lists every change for review, and adds
+two context cards driven by live reads captured during Compare:
+
+- **Live data at risk** (`BlastRadius`) — weighs each destructive change (entity-type delete, field
+  delete, datatype change) against `GetAllEntityTypeStatistics`, e.g. "Delete field Sku.Weight —
+  clears that value on 1,200 Sku instance(s)", with a headline total. Any data at risk forces the
+  red danger accent.
+- **Snapshot may be stale** — a pre-apply `GetEnvironmentLatestChanges` check; if the env drifted
+  since Compare, an amber banner names the changed areas and nudges a re-Compare. It warns, never
+  blocks (you may be the one who caused the drift).
 
 A progress bar tracks Completed / Succeeded / Failed in real time (the applier reports each
 entry via `IProgress<ChangeReceiptEntry>`). Entries can be filtered All / Failed / Succeeded.
@@ -156,6 +177,8 @@ job — pick the one that matches what you want to do:
 | Merge two JSON exports | `Shell.MergeJsonAsync(a, b, policy)`               |
 | Snapshot env to JSON   | `Shell.SaveSnapshotAsync(snapshot, path)`          |
 | Export to Excel        | `Shell.SaveSnapshotAsExcelAsync` / `SaveJsonAsExcelAsync` / `SaveLoadedModelAsExcelAsync` — pick env, JSON file, or C# model project as source; opens the xlsx after writing. |
+| Model XML              | `Shell.ExportModelXmlAsync` / `ImportModelXmlAsync` — export the whole model as inriver-native XML (the platform's own lift-and-shift format), or import one into the connected env. Import confirms first and captures a JSON backup *before* the wholesale merge, then invalidates any cached diff. |
+| Maintenance            | `Shell.RebuildQuickSearchIndexAsync` / `ClearImageCacheAsync` — safe, idempotent env housekeeping in one click. |
 | Probe connection       | `Shell.CaptureSnapshotAsync` followed by counts.   |
 
 ### Compare envs
