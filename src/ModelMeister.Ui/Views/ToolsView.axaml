@@ -359,7 +359,106 @@
           </ScrollViewer>
         </TabItem>
 
-        <!-- ============== Tab 5 · Export to Excel ============== -->
+        <!-- ============== Tab 5 · Native model XML (lift & shift) ============== -->
+        <TabItem>
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Data="{DynamicResource IcoModel}" Width="14" Height="14" Stretch="Uniform"
+                    Stroke="{Binding $parent[TabItem].Foreground}" StrokeThickness="1.5"
+                    StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+              <TextBlock Text="Model XML" />
+            </StackPanel>
+          </TabItem.Header>
+
+          <ScrollViewer Padding="22">
+            <StackPanel Spacing="14" MaxWidth="900">
+              <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Border Width="36" Height="36" CornerRadius="9" Background="{DynamicResource AccentGlowFill}"
+                        BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1">
+                  <Path Data="{DynamicResource IcoModel}" Width="18" Height="18" Stretch="Uniform"
+                        Stroke="{DynamicResource Accent}" StrokeThickness="1.5"
+                        StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Spacing="2">
+                  <TextBlock Text="inriver-native model XML" FontSize="15" FontWeight="SemiBold" />
+                  <TextBlock Text="The platform's own lift-and-shift format — the most faithful way to move an entire model between environments."
+                             Classes="dim" TextWrapping="Wrap" />
+                </StackPanel>
+              </StackPanel>
+
+              <Border Classes="cardSubtle">
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                  <Ellipse Width="8" Height="8" Fill="{DynamicResource Success}" />
+                  <TextBlock Text="Both actions require an active connection. See Environments → Connect." Classes="dim" />
+                </StackPanel>
+              </Border>
+
+              <!-- Export -->
+              <Border Classes="cardSubtle">
+                <StackPanel Spacing="10">
+                  <TextBlock Text="EXPORT THIS ENVIRONMENT'S MODEL" Classes="h3" />
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="OUTPUT FILE" Classes="label" />
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBox Text="{Binding ModelXmlExportPath, Mode=TwoWay}" Classes="mono" Watermark="path\to\model.xml" />
+                      <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseModelXmlExportOutCommand}" Margin="8,0,0,0" />
+                    </Grid>
+                  </StackPanel>
+                  <CheckBox Content="Include CVL values (larger file, fully portable)"
+                            IsChecked="{Binding ModelXmlIncludeCvlValues, Mode=TwoWay}" />
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Command="{Binding ModelXmlExportCommand}" Classes="primary">
+                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Path Data="{DynamicResource IcoPlay}" Width="11" Height="11" Stretch="Uniform" Fill="{DynamicResource AccentButtonForeground}" />
+                        <TextBlock Text="Export model XML" />
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                  <TextBox Text="{Binding ModelXmlExportResultText, Mode=OneWay}" IsReadOnly="True"
+                           Classes="mono" AcceptsReturn="True" TextWrapping="Wrap" Height="80"
+                           IsVisible="{Binding ModelXmlExportResultText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+              </Border>
+
+              <!-- Import -->
+              <Border Classes="cardSubtle">
+                <StackPanel Spacing="10">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Data="{DynamicResource IcoWarn}" Width="13" Height="13" Stretch="Uniform"
+                          Stroke="{DynamicResource Warn}" StrokeThickness="1.7" Fill="Transparent" />
+                    <TextBlock Text="IMPORT A MODEL INTO THIS ENVIRONMENT" Classes="h3" />
+                  </StackPanel>
+                  <TextBlock Text="Merges the document's whole model into the connected environment. A JSON backup is captured first so you can roll back from the Apply page. Cannot be dry-run."
+                             Classes="dim" TextWrapping="Wrap" />
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="SOURCE FILE" Classes="label" />
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBox Text="{Binding ModelXmlImportPath, Mode=TwoWay}" Classes="mono" Watermark="path\to\model.xml" />
+                      <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseModelXmlImportInCommand}" Margin="8,0,0,0" />
+                    </Grid>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Command="{Binding ModelXmlImportCommand}" Classes="danger">
+                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Path Data="{DynamicResource IcoApply}" Width="12" Height="12" Stretch="Uniform" Fill="{DynamicResource AccentButtonForeground}" />
+                        <TextBlock Text="Back up &amp; import" />
+                      </StackPanel>
+                    </Button>
+                    <Button Content="Reveal backup" Classes="ghost"
+                            Command="{Binding RevealModelXmlBackupCommand}"
+                            IsVisible="{Binding ModelXmlLastBackupPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                  </StackPanel>
+                  <TextBox Text="{Binding ModelXmlImportResultText, Mode=OneWay}" IsReadOnly="True"
+                           Classes="mono" AcceptsReturn="True" TextWrapping="Wrap" Height="90"
+                           IsVisible="{Binding ModelXmlImportResultText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <!-- ============== Tab 6 · Export to Excel ============== -->
         <TabItem>
           <TabItem.Header>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">

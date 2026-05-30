@@ -36,6 +36,8 @@ public partial class ToolsViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExcelScaffoldCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExcelExportCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ModelXmlExportCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ModelXmlImportCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     private bool _busy;
 
@@ -99,6 +101,22 @@ public partial class ToolsViewModel : ViewModelBase
     [ObservableProperty] private string? _exportOutputPath;
     /// <summary>Result summary for the export action.</summary>
     [ObservableProperty] private string _exportResultText = "";
+
+    // ----- Native inriver model XML (full-model lift & shift) -----
+    /// <summary>Destination .xml path for a native model export.</summary>
+    [ObservableProperty] private string? _modelXmlExportPath;
+    /// <summary>Embed CVL value items in the exported XML (larger, fully portable).</summary>
+    [ObservableProperty] private bool _modelXmlIncludeCvlValues = true;
+    /// <summary>Result summary for the model-XML export action.</summary>
+    [ObservableProperty] private string _modelXmlExportResultText = "";
+    /// <summary>Source .xml path for a native model import.</summary>
+    [ObservableProperty] private string? _modelXmlImportPath;
+    /// <summary>Result summary for the model-XML import action.</summary>
+    [ObservableProperty] private string _modelXmlImportResultText = "";
+    /// <summary>Path to the pre-import backup snapshot from the last import (drives "Reveal backup").</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RevealModelXmlBackupCommand))]
+    private string? _modelXmlLastBackupPath;
 
     // ----- Excel export (any source → workbook). Per-page PageActions still own slice exports;
     // this tab is for "the whole model, from env/JSON/code project, into a filterable workbook". -----
@@ -365,6 +383,114 @@ public partial class ToolsViewModel : ViewModelBase
         {
             Busy = false;
         }
+    }
+
+    [RelayCommand] private async Task BrowseModelXmlExportOutAsync() => ModelXmlExportPath = await PickSaveAsync("model XML", "model.xml", "xml");
+    [RelayCommand] private async Task BrowseModelXmlImportInAsync()  => ModelXmlImportPath = await PickFileAsync("inriver model XML", "*.xml");
+
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    private void RevealModelXmlBackup()
+    {
+        if (!string.IsNullOrEmpty(ModelXmlLastBackupPath)) _fileOpener.RevealInExplorer(ModelXmlLastBackupPath!);
+    }
+
+    /// <summary>Export the connected env's whole model as inriver-native XML — the faithful format for
+    /// lifting a model into another environment.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    private async Task ModelXmlExportAsync()
+    {
+        if (string.IsNullOrEmpty(ModelXmlExportPath))
+        {
+            StatusMessage = "Pick an output .xml path.";
+            return;
+        }
+        if (!_main.IsConnected)
+        {
+            StatusMessage = "Connect to an environment first.";
+            return;
+        }
+
+        ModelXmlExportResultText = "";
+        Busy = true;
+        _cts = new CancellationTokenSource();
+        try
+        {
+            _log.Info("Model XML", $"Exporting model XML → {ModelXmlExportPath}");
+            var result = await _shell.ExportModelXmlAsync(ModelXmlExportPath!, ModelXmlIncludeCvlValues, _cts.Token).ConfigureAwait(true);
+            ModelXmlExportResultText =
+                $"Exported inriver model XML ({result.CharCount:N0} characters, " +
+                $"CVL values {(result.IncludedCvlValues ? "included" : "excluded")}).\nSaved to {result.Path}.";
+            StatusMessage = "Model XML export complete.";
+            _log.Success("Model XML", $"Model XML exported to {result.Path}");
+            _log.Toast(LogLevel.Success, "Model XML exported", result.Path,
+                onClick: () => _fileOpener.RevealInExplorer(result.Path));
+        }
+        catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
+        catch (Exception ex) { StatusMessage = "Model XML export failed: " + ex.Message; _log.Error("Model XML", ex.Message, ex); }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Import an inriver-native model XML into the connected env. Confirms first and captures a
+    /// pre-import JSON backup so the wholesale merge is reversible via Restore-from-backup.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    private async Task ModelXmlImportAsync()
+    {
+        if (string.IsNullOrEmpty(ModelXmlImportPath) || !File.Exists(ModelXmlImportPath))
+        {
+            StatusMessage = "Pick an inriver model XML file.";
+            return;
+        }
+        if (!_main.IsConnected)
+        {
+            StatusMessage = "Connect to an environment first.";
+            return;
+        }
+
+        var envUrl = _main.ConnectedEnv?.Url ?? "the connected environment";
+        var confirmed = await DialogHost.ConfirmAsync(
+            "Import model XML",
+            $"This merges the model in\n{Path.GetFileName(ModelXmlImportPath)}\ninto {envUrl}, adding and updating "
+            + "entity types, fields, CVLs and more across the whole model. It cannot be dry-run.\n\n"
+            + "A JSON backup of the current model is captured first so you can roll back from the Apply page.",
+            confirmLabel: "Back up & import",
+            cancelLabel: "Cancel");
+        if (!confirmed) { StatusMessage = "Import cancelled."; return; }
+
+        ModelXmlImportResultText = "";
+        ModelXmlLastBackupPath = null;
+        Busy = true;
+        _cts = new CancellationTokenSource();
+        try
+        {
+            var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            var importDir = Path.GetDirectoryName(ModelXmlImportPath) ?? Environment.CurrentDirectory;
+            var backupPath = Path.Combine(importDir, $"pre-xml-import-{stamp}.model.json");
+
+            StatusMessage = "Backing up current model, then importing…";
+            _log.Info("Model XML", $"Importing model XML from {ModelXmlImportPath} (backup → {backupPath})");
+            var (ok, savedBackup) = await _shell.ImportModelXmlAsync(ModelXmlImportPath!, backupPath, _cts.Token).ConfigureAwait(true);
+            ModelXmlLastBackupPath = savedBackup;
+
+            ModelXmlImportResultText = ok
+                ? $"Model XML imported into {envUrl}.\nPre-import backup: {savedBackup}\nRun Compare to review the result."
+                : $"inriver reported the import did not succeed.\nPre-import backup: {savedBackup}";
+            StatusMessage = ok ? "Model XML import complete." : "Model XML import returned failure.";
+            if (ok)
+            {
+                _log.Success("Model XML", $"Model XML imported into {envUrl}");
+                _log.Toast(LogLevel.Success, "Model XML imported", "Run Compare to review changes.");
+                // The env model just changed wholesale; any cached diff/snapshot is now meaningless.
+                _main.InvalidateChangeSet("Model XML imported");
+            }
+            else
+            {
+                _log.Warn("Model XML", "Import returned a failure flag.");
+                _log.Toast(LogLevel.Warn, "Model XML import failed", "inriver returned failure — see Tools.");
+            }
+        }
+        catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
+        catch (Exception ex) { StatusMessage = "Model XML import failed: " + ex.Message; _log.Error("Model XML", ex.Message, ex); }
+        finally { Busy = false; }
     }
 
     /// <summary>Scaffold a typed model project from an Excel workbook.</summary>

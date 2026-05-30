@@ -200,6 +200,46 @@ public sealed class Shell
     public string GetBackupsDir(string envUrl, string modelDir)
         => Path.Combine(modelDir, ".modelmeister", "backups", Paths.SafeUrlSegment(envUrl));
 
+    // ---------------- Native inriver model XML ----------------
+
+    /// <summary>Outcome of a model-XML export: where it was written and how big it is.</summary>
+    public sealed record ModelXmlExportResult(string Path, int CharCount, bool IncludedCvlValues);
+
+    /// <summary>
+    /// Export the connected env's whole model as inriver-native XML and write it to <paramref name="path"/>.
+    /// This is the faithful "lift and shift" format inriver itself uses to move a model between envs.
+    /// </summary>
+    public Task<ModelXmlExportResult> ExportModelXmlAsync(string path, bool includeCvlValues, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() =>
+        {
+            var xml = new ModelMeister.Inriver.ModelXml.ModelXmlService(client).Export(includeCvlValues);
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(path, xml);
+            return new ModelXmlExportResult(path, xml.Length, includeCvlValues);
+        }, ct);
+    }
+
+    /// <summary>
+    /// Import an inriver-native model XML file into the connected env. Captures a JSON snapshot backup
+    /// of the current model <em>first</em> (so the wholesale merge is reversible via the normal
+    /// restore-from-backup path) and returns both the import success flag and the backup path.
+    /// </summary>
+    public async Task<(bool Ok, string BackupPath)> ImportModelXmlAsync(string xmlPath, string backupPath, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+
+        // Back up the live model before a wholesale merge — the import has no dry-run.
+        var live = await CaptureSnapshotAsync(ct).ConfigureAwait(false);
+        await SaveSnapshotAsync(live, backupPath, ct).ConfigureAwait(false);
+
+        var xml = await File.ReadAllTextAsync(xmlPath, ct).ConfigureAwait(false);
+        var ok = await new ModelMeister.Inriver.ModelXml.ModelXmlService(client).ImportAsync(xml, ct).ConfigureAwait(false);
+        return (ok, backupPath);
+    }
+
     // ---------------- Excel I/O ----------------
 
     /// <summary>Save a captured snapshot to an Excel workbook for human editing.</summary>
