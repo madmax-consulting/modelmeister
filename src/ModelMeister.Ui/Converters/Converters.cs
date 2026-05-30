@@ -40,7 +40,7 @@ public sealed class KindIsGenericConverter : IValueConverter
     public static readonly KindIsGenericConverter Instance = new();
     private static readonly HashSet<string> Specialized = new(StringComparer.Ordinal)
     {
-        "Fields", "Cvls", "LinkTypes", "Roles",
+        "EntityTypes", "Fields", "Cvls", "LinkTypes", "Roles",
     };
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value is string s && !Specialized.Contains(s);

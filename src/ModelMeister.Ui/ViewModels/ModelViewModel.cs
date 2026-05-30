@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -39,7 +41,12 @@ public partial class ModelViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LoadCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseCommand))]
+    [NotifyCanExecuteChangedFor(nameof(LoadLiveContextCommand))]
     private bool _busy;
+    /// <summary>True once live env context (instance counts + icons) has been overlaid onto the entity-type rows.</summary>
+    [ObservableProperty] private bool _hasLiveContext;
+    /// <summary>One-line summary of the live context overlay (instance totals + capture time).</summary>
+    [ObservableProperty] private string _liveContextStatus = "";
     /// <summary>Short status message at the bottom of the page.</summary>
     [ObservableProperty] private string _statusMessage = "Pick a model project to begin.";
     /// <summary>True once a model has loaded successfully (drives the empty-state vs results UI).</summary>
@@ -56,6 +63,8 @@ public partial class ModelViewModel : ViewModelBase
     /// <summary>MRU of model paths shown as quick-open chips.</summary>
     public ObservableCollection<string> RecentModelPaths { get; } = [];
 
+    /// <summary>Entity-type rows for the Entity types concept table (field count + optional live counts/icon).</summary>
+    public ObservableCollection<EntityTypeRow> EntityTypeRows { get; } = [];
     /// <summary>Field rows for the Fields concept table (rich, per-property columns).</summary>
     public ObservableCollection<FieldRow> FieldRows { get; } = [];
     /// <summary>CVL rows (CVL id, data type, value count) for the CVLs concept table.</summary>
@@ -108,7 +117,20 @@ public partial class ModelViewModel : ViewModelBase
 
         if (!string.IsNullOrEmpty(settings.Current.LastModelPath) && File.Exists(settings.Current.LastModelPath))
             ModelPath = settings.Current.LastModelPath;
+
+        // Live-context capture needs an active connection; keep the button's enabled state honest.
+        _main.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(MainWindowViewModel.IsConnected))
+            {
+                OnPropertyChanged(nameof(IsConnected));
+                LoadLiveContextCommand.NotifyCanExecuteChanged();
+            }
+        };
     }
+
+    /// <summary>True when an environment is connected — gates the "Load live counts" affordance.</summary>
+    public bool IsConnected => _main.IsConnected;
 
     /// <summary>True when at least one of <see cref="SelectedCodeFilter"/> / <see cref="SelectedSeverityFilter"/> is set.
     /// Drives the visibility of the "Clear filters" button + its separator in the strip.</summary>
@@ -232,6 +254,70 @@ public partial class ModelViewModel : ViewModelBase
     [RelayCommand] private Task CopyIssueCode()    => Services.ClipboardHelpers.CopyAsync(SelectedIssue?.Code);
     [RelayCommand] private Task CopyIssueSource()  => Services.ClipboardHelpers.CopyAsync(SelectedIssue?.Source);
 
+    private bool CanLoadLiveContext() => !Busy && HasModel && _main.IsConnected;
+
+    /// <summary>Overlay live env context (per-entity-type instance counts + icons) onto the entity-type
+    /// rows, so the operator sees data volumes and the familiar glyphs while editing the model.</summary>
+    [RelayCommand(CanExecute = nameof(CanLoadLiveContext))]
+    private async Task LoadLiveContextAsync()
+    {
+        if (_main.LoadedModel is not { } model) return;
+        Busy = true;
+        try
+        {
+            StatusMessage = "Capturing live entity counts and icons…";
+            var (stats, icons) = await _shell.CaptureModelLiveContextAsync().ConfigureAwait(true);
+
+            EntityTypeRows.Clear();
+            foreach (var e in model.EntityTypes)
+            {
+                var stat = stats.ForType(e.EntityTypeId);
+                EntityTypeRows.Add(new EntityTypeRow(
+                    e.EntityTypeId, EntityTypeName(e), e.Fields.Count,
+                    stat?.Total, stat?.NewLastWeek, stat?.UpdatedLastWeek,
+                    DecodeIcon(icons, e.EntityTypeId)));
+            }
+
+            HasLiveContext = true;
+            LiveContextStatus =
+                $"{stats.TotalEntities.ToString("N0", CultureInfo.InvariantCulture)} live instances across "
+                + $"{stats.Types.Count} type(s) · {icons.Count} icon(s)";
+            StatusMessage = "Live entity counts loaded.";
+            _log.Success("Model", $"Live context: {stats.TotalEntities:N0} instances, {icons.Count} icons.");
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Live counts unavailable: {ex.Message}";
+            _log.Warn("Model", $"Live context failed: {ex.Message}");
+            _log.Toast(LogLevel.Warn, "Live counts unavailable", ex.Message);
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private static string EntityTypeName(LoadedEntityType e)
+    {
+        var n = e.Name?.DefaultValue;
+        return string.IsNullOrWhiteSpace(n) ? e.EntityTypeId : n;
+    }
+
+    private static Bitmap? DecodeIcon(IReadOnlyDictionary<string, byte[]> icons, string entityTypeId)
+    {
+        if (!icons.TryGetValue(entityTypeId, out var bytes) || bytes.Length == 0) return null;
+        try
+        {
+            using var ms = new MemoryStream(bytes);
+            return new Bitmap(ms);
+        }
+        catch
+        {
+            // Icons are decoration; an unreadable blob is simply absent.
+            return null;
+        }
+    }
+
     /// <summary>Toggle the concept items table: re-clicking the active chip closes it.</summary>
     [RelayCommand]
     private void SelectConcept(ConceptCount? c)
@@ -277,6 +363,9 @@ public partial class ModelViewModel : ViewModelBase
         Issues.Clear();
         CodeHistogram.Clear();
         Counts.Clear();
+        EntityTypeRows.Clear();
+        HasLiveContext = false;
+        LiveContextStatus = "";
         FieldRows.Clear();
         ModelCvlRows.Clear();
         LinkTypeRows.Clear();
@@ -289,6 +378,11 @@ public partial class ModelViewModel : ViewModelBase
 
     private void PopulateCounts(LoadedModel m)
     {
+        foreach (var e in m.EntityTypes)
+            EntityTypeRows.Add(new EntityTypeRow(
+                e.EntityTypeId, EntityTypeName(e), e.Fields.Count,
+                LiveTotal: null, NewLastWeek: null, UpdatedLastWeek: null, Icon: null));
+
         foreach (var e in m.EntityTypes)
             foreach (var f in e.Fields)
                 FieldRows.Add(new FieldRow(
@@ -413,6 +507,28 @@ public sealed class ConceptCount
 
 /// <summary>One row in a <see cref="ConceptCount"/>'s items table. Headers come from the owning <see cref="ConceptCount"/>.</summary>
 public sealed record ConceptItem(string Primary, string Secondary);
+
+/// <summary>One entity-type row. Field count comes from the loaded model; the live columns and icon are
+/// null until "Load live counts" overlays them from the connected environment.</summary>
+public sealed record EntityTypeRow(
+    string EntityTypeId,
+    string Name,
+    int FieldCount,
+    int? LiveTotal,
+    int? NewLastWeek,
+    int? UpdatedLastWeek,
+    Bitmap? Icon)
+{
+    /// <summary>True once an icon was decoded for this type.</summary>
+    public bool HasIcon => Icon is not null;
+    private static string Fmt(int? n) => n?.ToString("N0", CultureInfo.InvariantCulture) ?? "—";
+    /// <summary>Total live instances, grouped thousands, or "—" before live context is loaded.</summary>
+    public string LiveTotalDisplay => Fmt(LiveTotal);
+    /// <summary>New instances in the last 7 days, or "—".</summary>
+    public string NewDisplay => Fmt(NewLastWeek);
+    /// <summary>Instances updated in the last 7 days, or "—".</summary>
+    public string UpdatedDisplay => Fmt(UpdatedLastWeek);
+}
 
 /// <summary>One field row in the Fields concept table — all columns the user asked for.</summary>
 public sealed record FieldRow(

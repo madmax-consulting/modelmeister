@@ -77,6 +77,22 @@ public sealed class Shell
         return Task.Run(() => new ModelMeister.Inriver.Statistics.EntityStatisticsService(client).Capture(), ct);
     }
 
+    /// <summary>Live context for the model browser: per-type instance counts plus entity icons, captured
+    /// together off the UI thread. Either half degrades to empty if unavailable.</summary>
+    public Task<(ModelMeister.Inriver.Statistics.EntityStatistics Stats, IReadOnlyDictionary<string, byte[]> Icons)>
+        CaptureModelLiveContextAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() =>
+        {
+            var stats = new ModelMeister.Inriver.Statistics.EntityStatisticsService(client).Capture();
+            IReadOnlyDictionary<string, byte[]> icons;
+            try { icons = new ModelMeister.Inriver.Statistics.EntityIconsService(client).Capture(); }
+            catch { icons = new Dictionary<string, byte[]>(); }
+            return (stats, icons);
+        }, ct);
+    }
+
     /// <summary>
     /// Ask the connected env what changed in its model since <paramref name="sinceUtc"/> — typically the
     /// captured snapshot's timestamp. Lets the UI warn that a diff has gone stale (a teammate edited the

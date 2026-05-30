@@ -52,7 +52,7 @@ public class RemotingSurfaceCoverageTests
         "SetConnectorSetting","DeleteConnectorSetting","WriteConnectorEvent","GetConnectorEvents",
         "SetConnectorStarted","GetLatestConnectorEvents","GetAllUIPhrases","GetAllUIPhrasesForLanguage",
         "AddUIPhrase","DeleteUIPhrase","UpdateUIPhrase","GetAllUILanguages","GetSmallIconForEntityType",
-        "GetLargeIconForEntityType","GetAllEntityIcons","SendMail",
+        "GetLargeIconForEntityType","SendMail",
         // Singular personal getters — superseded by GetAllPersonalWorkAreaFoldersForUser. The personal
         // write surface (Add/Delete/Update/Move) is used by PersonalWorkAreaScope and scanned below.
         "GetPersonalWorkAreaRootFolder","GetPersonalWorkAreaFolder","GetSharedWorkAreaFolder",
@@ -118,7 +118,7 @@ public class RemotingSurfaceCoverageTests
             {
                 "GetAllEntityTypes","GetEntityType","AddEntityType","UpdateEntityType","DeleteEntityType",
                 "GetAllEntityTypeStatistics","GetEnvironmentLatestChanges",
-                "ExportModelAsXmlString","ImportModelFromXmlString",
+                "ExportModelAsXmlString","ImportModelFromXmlString","GetAllEntityIcons",
                 "GetAllFieldTypes","GetFieldType","AddFieldType","UpdateFieldType","DeleteFieldType",
                 "GetAllCVLs","GetCVL","AddCVL","UpdateCVL","DeleteCVL",
                 "GetCVLValuesForCVL","AddCVLValue","UpdateCVLValue","DeleteCVLValue","GetAllCVLValues",
