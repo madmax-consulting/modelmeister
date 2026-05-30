@@ -291,12 +291,22 @@ public partial class ApplyViewModel : ViewModelBase
                 DiffViewModel.OperationOf(c), c.Describe(), DiffViewModel.IsDangerousChange(c)))
             .ToList();
 
+        // Weigh the destructive changes against live instance counts so the user sees how much real
+        // data is at stake before confirming. Empty/unavailable stats degrade to no blast-radius card.
+        IReadOnlyList<BlastRadiusEntry> blastRadius = [];
+        if (_main.EntityStats is { } stats)
+        {
+            var set = new ModelChangeSet { Changes = applying.ToList() };
+            blastRadius = BlastRadius.Assess(set, _main.LiveSnapshot!, stats);
+        }
+
         var confirmed = await DialogHost.ConfirmApplyAsync(
             _main.LiveSnapshot!.EnvironmentUrl,
             applying.Count,
             PolicySummary,
             _main.ConnectedStage,
-            review);
+            review,
+            blastRadius);
         if (!confirmed) _log.Info("Apply", "User cancelled at confirmation.");
         return confirmed;
     }

@@ -176,6 +176,18 @@ public partial class DiffViewModel : ViewModelBase
             var live = await _shell.CaptureSnapshotAsync().ConfigureAwait(true);
             _main.LiveSnapshot = live;
 
+            // Capture per-entity-type instance counts alongside the snapshot so Apply can weigh blast
+            // radius. Best-effort: older inriver builds or a transient hiccup must not fail the compare.
+            try
+            {
+                _main.EntityStats = await _shell.CaptureEntityStatisticsAsync().ConfigureAwait(true);
+            }
+            catch (Exception statsEx)
+            {
+                _main.EntityStats = null;
+                _log.Warn("Compare", $"Entity statistics unavailable: {statsEx.Message}");
+            }
+
             StatusMessage = "Computing diff…";
             var changes = _shell.ComputeDiff(_main.LoadedModel!, live, CurrentPolicy);
             _main.ChangeSet = changes;

@@ -1,14 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using CommunityToolkit.Mvvm.Input;
+using ModelMeister.Inriver.Diff;
 using ModelMeister.Ui.Services;
 
 namespace ModelMeister.Ui.ViewModels;
 
 /// <summary>One reviewable change line shown in the apply-confirmation dialog.</summary>
 public sealed record ApplyReviewItem(string Operation, string Description, bool IsDangerous);
+
+/// <summary>One "live data at risk" line shown in the apply-confirmation dialog's blast-radius card.</summary>
+public sealed record ApplyRiskItem(string Description, int EntityCount);
 
 /// <summary>
 /// View-model behind the apply-confirmation dialog. Clicking Apply confirms — the previous
@@ -22,7 +27,8 @@ public partial class ConfirmApplyViewModel : ViewModelBase
         int changeCount,
         string policySummary = "",
         string? typeKey = null,
-        IReadOnlyList<ApplyReviewItem>? changes = null)
+        IReadOnlyList<ApplyReviewItem>? changes = null,
+        IReadOnlyList<BlastRadiusEntry>? blastRadius = null)
     {
         EnvironmentUrl = envUrl;
         ChangeCount = changeCount;
@@ -32,6 +38,11 @@ public partial class ConfirmApplyViewModel : ViewModelBase
         Changes = new ObservableCollection<ApplyReviewItem>(changes ?? []);
         HasChanges = Changes.Count > 0;
         IsDestructive = Changes.Any(c => c.IsDangerous);
+
+        var risk = blastRadius ?? [];
+        DataAtRisk = new ObservableCollection<ApplyRiskItem>(risk.Select(e => new ApplyRiskItem(e.Describe(), e.EntityCount)));
+        HasDataAtRisk = DataAtRisk.Count > 0;
+        InstancesAtRisk = risk.Sum(e => e.EntityCount);
     }
 
     /// <summary>The individual changes that will be applied, for at-a-glance review before committing.</summary>
@@ -43,11 +54,25 @@ public partial class ConfirmApplyViewModel : ViewModelBase
     /// <summary>True when any change is destructive (delete or datatype change). Drives the red/amber styling.</summary>
     public bool IsDestructive { get; }
 
+    /// <summary>Destructive changes weighed against live instance counts — what real data this apply puts at risk.</summary>
+    public ObservableCollection<ApplyRiskItem> DataAtRisk { get; }
+
+    /// <summary>True when at least one change touches a populated entity type (live data at stake).</summary>
+    public bool HasDataAtRisk { get; }
+
+    /// <summary>Sum of live instances touched by destructive changes (a type counted once per change — intended emphasis).</summary>
+    public int InstancesAtRisk { get; }
+
+    /// <summary>Headline for the blast-radius card, e.g. "2 destructive change(s) touch 48,231 live instance(s)".</summary>
+    public string DataAtRiskHeadline =>
+        $"{DataAtRisk.Count} destructive change{(DataAtRisk.Count == 1 ? "" : "s")} "
+        + $"touch {InstancesAtRisk.ToString("N0", CultureInfo.InvariantCulture)} live instance(s)";
+
     /// <summary>Headline shown in the dialog: escalated only when the batch is destructive or the env is protected.</summary>
     public string Headline => IsDestructive || IsProtected ? "DESTRUCTIVE ACTION" : "APPLY CHANGES";
 
     /// <summary>True when the dialog should use the danger (red) accent rather than the neutral accent.</summary>
-    public bool UseDangerAccent => IsDestructive || IsProtected;
+    public bool UseDangerAccent => IsDestructive || IsProtected || HasDataAtRisk;
 
     /// <summary>URL of the target environment, displayed prominently in the dialog.</summary>
     public string EnvironmentUrl { get; }

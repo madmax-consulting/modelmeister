@@ -60,6 +60,34 @@
         <Run Text=" change(s) to the connected environment. This cannot be undone automatically — a backup snapshot will be captured first." />
       </TextBlock>
 
+      <!-- Blast radius: how much LIVE data the destructive changes touch. Only shown when an apply
+           would alter populated entity types — the difference between a safe edit and a data-loss event. -->
+      <Border IsVisible="{Binding HasDataAtRisk}"
+              CornerRadius="10" Padding="14,12" Background="{DynamicResource Surface1}"
+              BorderBrush="{DynamicResource Danger}" BorderThickness="1.5">
+        <StackPanel Spacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Path Data="{DynamicResource IcoWarn}" Width="14" Height="14" Stretch="Uniform"
+                  Stroke="{DynamicResource Danger}" StrokeThickness="1.7" Fill="Transparent" />
+            <TextBlock Text="LIVE DATA AT RISK" Classes="eyebrow"
+                       Foreground="{DynamicResource Danger}" Margin="0" />
+          </StackPanel>
+          <TextBlock Text="{Binding DataAtRiskHeadline}" FontWeight="SemiBold" FontSize="13"
+                     Foreground="{DynamicResource TextPri}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding DataAtRisk}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ApplyRiskItem">
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1">
+                  <TextBlock Text="•" Foreground="{DynamicResource Danger}" />
+                  <TextBlock Text="{Binding Description}" FontSize="12"
+                             Foreground="{DynamicResource TextSec}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
       <Border Classes="cardSubtle">
         <StackPanel Spacing="4">
           <TextBlock Text="TARGET" Classes="h3" />

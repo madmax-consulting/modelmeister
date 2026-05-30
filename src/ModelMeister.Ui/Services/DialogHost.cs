@@ -25,9 +25,10 @@ internal static class DialogHost
         int changeCount,
         string policySummary = "",
         string? typeKey = null,
-        IReadOnlyList<ApplyReviewItem>? changes = null)
+        IReadOnlyList<ApplyReviewItem>? changes = null,
+        IReadOnlyList<ModelMeister.Inriver.Diff.BlastRadiusEntry>? blastRadius = null)
     {
-        var vm = new ConfirmApplyViewModel(envUrl, changeCount, policySummary, typeKey, changes);
+        var vm = new ConfirmApplyViewModel(envUrl, changeCount, policySummary, typeKey, changes, blastRadius);
         return ShowDialogAsync<ConfirmApplyDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true));
     }
 

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ModelMeister.Inriver.Diff;
 using ModelMeister.Ui.ViewModels;
 using Shouldly;
 using Xunit;
@@ -48,5 +49,33 @@ public class ConfirmApplyViewModelTests
         var vm = new ConfirmApplyViewModel("https://env", 0);
         vm.HasChanges.ShouldBeFalse();
         vm.Changes.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Blast_radius_surfaces_as_data_at_risk()
+    {
+        var risk = new List<BlastRadiusEntry>
+        {
+            new(BlastRadiusKind.EntityTypeDelete, "Product", "Product", 48231, "Product"),
+            new(BlastRadiusKind.FieldDelete, "Sku", "Sku", 1200, "SkuWeight"),
+        };
+        var vm = new ConfirmApplyViewModel("https://env", 2,
+            changes: new List<ApplyReviewItem> { Delete("- EntityType Product") },
+            blastRadius: risk);
+
+        vm.HasDataAtRisk.ShouldBeTrue();
+        vm.UseDangerAccent.ShouldBeTrue();
+        vm.DataAtRisk.Count.ShouldBe(2);
+        vm.InstancesAtRisk.ShouldBe(49431);
+        vm.DataAtRiskHeadline.ShouldContain("49,431");
+    }
+
+    [Fact]
+    public void No_blast_radius_means_no_data_at_risk_card()
+    {
+        var vm = new ConfirmApplyViewModel("https://env", 1, changes: new List<ApplyReviewItem> { Add("+ FieldType A") });
+        vm.HasDataAtRisk.ShouldBeFalse();
+        vm.DataAtRisk.ShouldBeEmpty();
+        vm.InstancesAtRisk.ShouldBe(0);
     }
 }

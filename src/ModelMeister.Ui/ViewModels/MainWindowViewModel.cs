@@ -324,6 +324,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private LiveModel? _liveSnapshot;
     /// <summary>The most recently computed diff between code and snapshot.</summary>
     [ObservableProperty] private ModelChangeSet? _changeSet;
+    /// <summary>Live per-entity-type instance counts captured alongside the last Compare. Volatile —
+    /// used to weigh an apply's blast radius. Null when statistics are unavailable or stale.</summary>
+    [ObservableProperty] private ModelMeister.Inriver.Statistics.EntityStatistics? _entityStats;
 
     /// <summary>True while a restore-from-backup is in flight. Guards against double-click re-entry.</summary>
     [ObservableProperty] private bool _isRestoring;
@@ -923,6 +926,13 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     partial void OnChangeSetChanged(ModelChangeSet? value) => RecomputeSteps();
+
+    // Entity statistics are tied to a specific live snapshot; drop them when the snapshot clears so a
+    // later apply never weighs blast radius against counts from a different (or disconnected) env.
+    partial void OnLiveSnapshotChanged(LiveModel? value)
+    {
+        if (value is null) EntityStats = null;
+    }
     partial void OnIsConnectedChanged(bool value) => RecomputeSteps();
     partial void OnIsRailExpandedChanged(bool value) => OnPropertyChanged(nameof(ShowHomeHeader));
 
