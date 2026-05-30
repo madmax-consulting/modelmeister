@@ -185,30 +185,16 @@ public partial class DiffViewModel : ViewModelBase
             var live = await _shell.CaptureSnapshotAsync().ConfigureAwait(true);
             _main.LiveSnapshot = live;
 
-            // Capture per-entity-type instance counts alongside the snapshot so Apply can weigh blast
-            // radius. Best-effort: older inriver builds or a transient hiccup must not fail the compare.
-            try
-            {
-                _main.EntityStats = await _shell.CaptureEntityStatisticsAsync().ConfigureAwait(true);
-            }
-            catch (Exception statsEx)
-            {
-                _main.EntityStats = null;
-                _log.Warn("Compare", $"Entity statistics unavailable: {statsEx.Message}");
-            }
-
-            // Capture the env's identifying context (customer/env/stack) so the apply gate can confirm
-            // the operator is targeting the intended environment. Best-effort.
-            try
-            {
-                var ctx = await _shell.CaptureEnvironmentContextAsync().ConfigureAwait(true);
-                _main.EnvironmentContextLabel = ctx.Label();
-            }
-            catch (Exception ctxEx)
-            {
-                _main.EnvironmentContextLabel = "";
-                _log.Warn("Compare", $"Environment context unavailable: {ctxEx.Message}");
-            }
+            // Capture apply-gate context alongside the snapshot — per-entity-type instance counts (for
+            // blast radius) and the env's identity (customer/env/stack, for the wrong-env guard). Both
+            // are independent best-effort reads; kick them off concurrently so they don't stack latency
+            // on every Compare, and never let either fail the compare itself.
+            var statsTask = _shell.CaptureEntityStatisticsAsync();
+            var ctxTask = _shell.CaptureEnvironmentContextAsync();
+            try { _main.EntityStats = await statsTask.ConfigureAwait(true); }
+            catch (Exception statsEx) { _main.EntityStats = null; _log.Warn("Compare", $"Entity statistics unavailable: {statsEx.Message}"); }
+            try { _main.EnvironmentContextLabel = (await ctxTask.ConfigureAwait(true)).Label(); }
+            catch (Exception ctxEx) { _main.EnvironmentContextLabel = ""; _log.Warn("Compare", $"Environment context unavailable: {ctxEx.Message}"); }
 
             StatusMessage = "Computing diff…";
             var changes = _shell.ComputeDiff(_main.LoadedModel!, live, CurrentPolicy);
