@@ -111,6 +111,27 @@ public class BlastRadiusTests
     }
 
     [Fact]
+    public void Field_delete_whose_owner_is_not_in_the_live_model_is_skipped()
+    {
+        // A field id we can't resolve to a live entity type can't be weighed — better silent than wrong.
+        var changes = ChangeSet(new DeleteFieldType("GhostField"));
+        var live = Live(new LiveEntityType { Id = "Product", Name = new LocaleString("Product") });
+
+        BlastRadius.Assess(changes, live, Stats(("Product", 5000))).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Datatype_change_on_an_empty_type_is_not_flagged()
+    {
+        var owner = new LoadedEntityType { ClrType = typeof(object), EntityTypeId = "Draft", Name = new LocaleString("Draft") };
+        var field = new LoadedField { Field = new Model.Field<int>(), Id = "DraftCount", EntityTypeId = "Draft", PropertyName = "Count", Name = new LocaleString("Count"), DataType = Datatype.Integer };
+        var changes = ChangeSet(new ChangeFieldDatatype(field, owner, Datatype.String, Datatype.Integer));
+        var live = Live(new LiveEntityType { Id = "Draft", Name = new LocaleString("Draft") });
+
+        BlastRadius.Assess(changes, live, Stats(("Draft", 0))).ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Stats_lookup_is_case_insensitive_and_defaults_to_zero()
     {
         var stats = Stats(("Product", 7));
