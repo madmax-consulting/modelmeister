@@ -182,10 +182,55 @@ static Command BuildModel()
         .WithSeeAlso(
             ("model diff", "preview the change set without writing"));
 
+    // ---- model export-xml
+    var exportXml = new Command("export-xml", "Export a live env's whole model as inriver-native XML (lift-and-shift).");
+    var exConn = new ConnectionOptions();
+    var exOut = new Option<string>("--out", "Output .xml path") { IsRequired = true };
+    var exCvl = new Option<bool>("--include-cvl-values", () => true, "Embed CVL value items in the XML");
+    exConn.AddTo(exportXml);
+    exportXml.AddOption(exOut);
+    exportXml.AddOption(exCvl);
+    exportXml.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await ModelXmlCommand.ExportAsync(
+            ctx.ParseResult.GetValueForOption(exConn.Url)!,
+            exConn.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(exOut)!,
+            ctx.ParseResult.GetValueForOption(exCvl),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    exportXml
+        .WithExamples(("Lift a whole model out of an env", "modelmeister model export-xml --url $URL --out model.xml"))
+        .WithSeeAlso(("model import-xml", "shift it into another env"));
+
+    // ---- model import-xml
+    var importXml = new Command("import-xml", "Import an inriver-native model XML into a live env (backs up first).");
+    var imConn = new ConnectionOptions();
+    var imIn = new Option<string>("--in", "Source .xml path") { IsRequired = true };
+    var imYes = new Option<bool>("--yes", () => false, "Confirm the wholesale merge (required — there is no dry-run)");
+    var imNoBackup = new Option<bool>("--no-backup", () => false, "Skip the pre-import JSON model backup");
+    imConn.AddTo(importXml);
+    foreach (var o in new Option[] { imIn, imYes, imNoBackup }) importXml.AddOption(o);
+    importXml.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await ModelXmlCommand.ImportAsync(
+            ctx.ParseResult.GetValueForOption(imConn.Url)!,
+            imConn.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(imIn)!,
+            ctx.ParseResult.GetValueForOption(imYes),
+            ctx.ParseResult.GetValueForOption(imNoBackup),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    importXml
+        .WithExamples(("Shift a model into an env (backs up first)", "modelmeister model import-xml --url $URL --in model.xml --yes"))
+        .WithSeeAlso(("model export-xml", "produce the XML from a source env"));
+
     cmd.AddCommand(validate);
     cmd.AddCommand(describe);
     cmd.AddCommand(diff);
     cmd.AddCommand(apply);
+    cmd.AddCommand(exportXml);
+    cmd.AddCommand(importXml);
     return cmd;
 
     static Option<string> ModelOpt() =>
@@ -264,7 +309,52 @@ static Command BuildEnv()
              "modelmeister env compare --left-url $TEST --right-url $PROD"))
         .WithSeeAlso(("model diff", "compare code to env (not env to env)"));
 
+    // ---- env stats
+    var stats = new Command("stats", "Print per-entity-type instance counts (data volume at a glance).");
+    var stConn = new ConnectionOptions();
+    var stJson = new Option<bool>("--json", "Emit machine-readable JSON output");
+    stConn.AddTo(stats);
+    stats.AddOption(stJson);
+    stats.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await StatsCommand.RunAsync(
+            ctx.ParseResult.GetValueForOption(stConn.Url)!,
+            stConn.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(stJson),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    stats
+        .WithExamples(
+            ("How many instances exist per type", "modelmeister env stats --url $URL"),
+            ("CI/monitoring: machine-readable", "modelmeister env stats --url $URL --json --no-color"));
+
+    // ---- env changes
+    var changes = new Command("changes", "Report whether the env's model changed since a snapshot or timestamp.");
+    var chConn = new ConnectionOptions();
+    var chSince = new Option<string?>("--since", "ISO-8601 timestamp to check changes since (UTC)");
+    var chSnap = new Option<string?>("--snapshot", "JSON snapshot whose capture time is the 'since' instant");
+    var chFail = new Option<bool>("--fail-on-changes", () => false, "Exit 1 if the env changed (CI guard against drift)");
+    chConn.AddTo(changes);
+    foreach (var o in new Option[] { chSince, chSnap, chFail }) changes.AddOption(o);
+    changes.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await ChangesCommand.RunAsync(
+            ctx.ParseResult.GetValueForOption(chConn.Url)!,
+            chConn.ToAuth(ctx),
+            ctx.ParseResult.GetValueForOption(chSince),
+            ctx.ParseResult.GetValueForOption(chSnap),
+            ctx.ParseResult.GetValueForOption(chFail),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    changes
+        .WithExamples(
+            ("Did prod drift since our snapshot?", "modelmeister env changes --url $URL --snapshot approved.json"),
+            ("CI gate against drift", "modelmeister env changes --url $URL --snapshot approved.json --fail-on-changes"))
+        .WithSeeAlso(("env snapshot", "capture the snapshot to compare against"));
+
     cmd.AddCommand(status);
+    cmd.AddCommand(stats);
+    cmd.AddCommand(changes);
     cmd.AddCommand(snapshot);
     cmd.AddCommand(compare);
     return cmd;
@@ -825,6 +915,14 @@ static Command BuildWorkflows()
                 modelmeister env snapshot --url $URL --out snap.json
                 modelmeister env compare  --left-json snap.json --right-url $URL2
                 modelmeister env compare  --left-url $TEST --right-url $PROD
+
+              Data volume and drift
+                modelmeister env stats   --url $URL
+                modelmeister env changes --url $URL --snapshot approved.json --fail-on-changes
+
+              Whole-model lift-and-shift (inriver-native XML)
+                modelmeister model export-xml --url $TEST --out model.xml
+                modelmeister model import-xml --url $PROD --in model.xml --yes
 
               Excel handoff (subject-matter experts edit offline)
                 modelmeister excel export --url $URL --out model.xlsx

@@ -136,9 +136,12 @@ Reference details for every concept, attribute, and convention live in
 | `describe`    | Print a summary of a model                                 | no                  |
 | `merge`       | Merge two JSON exports with a conflict policy              | no                  |
 | `status`      | Connection ping + concept counts                           | yes (read)          |
+| `stats`       | Per-entity-type instance counts (`--json` for CI)          | yes (read)          |
+| `changes`     | Did the env's model drift since a snapshot/timestamp?      | yes (read)          |
 | `diff`        | Show what `apply` would change                             | yes (read)          |
 | `apply`       | Push changes, with backup + receipt                        | yes (read + write)  |
 | `export`      | Snapshot a live model to JSON                              | yes (read)          |
+| `export-xml` / `import-xml` | Lift-and-shift the whole model as inriver-native XML | yes (read / write) |
 | `excel`       | Export / import an Excel workbook for the full model       | optional            |
 | `cvl`         | Per-CVL workbook + cross-env CVL value sync                | optional            |
 | `compare-envs`| Diff two environments (snapshot ↔ live or live ↔ live)     | yes (read)          |
