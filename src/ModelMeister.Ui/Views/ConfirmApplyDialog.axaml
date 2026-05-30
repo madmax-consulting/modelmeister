@@ -60,6 +60,25 @@
         <Run Text=" change(s) to the connected environment. This cannot be undone automatically — a backup snapshot will be captured first." />
       </TextBlock>
 
+      <!-- Drift: the live env changed since the snapshot was captured, so this diff may be incomplete.
+           Amber (not red) — it's a "look before you leap", not a hard stop; the user may have caused it. -->
+      <Border IsVisible="{Binding HasDrift}"
+              CornerRadius="10" Padding="14,12" Background="{DynamicResource Surface1}"
+              BorderBrush="{DynamicResource Warn}" BorderThickness="1.5">
+        <StackPanel Spacing="6">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Path Data="{DynamicResource IcoWarn}" Width="14" Height="14" Stretch="Uniform"
+                  Stroke="{DynamicResource Warn}" StrokeThickness="1.7" Fill="Transparent" />
+            <TextBlock Text="SNAPSHOT MAY BE STALE" Classes="eyebrow"
+                       Foreground="{DynamicResource Warn}" Margin="0" />
+          </StackPanel>
+          <TextBlock Text="{Binding DriftWarning}" FontSize="12.5"
+                     Foreground="{DynamicResource TextSec}" TextWrapping="Wrap" />
+          <TextBlock Text="Cancel and re-run Compare to be certain your diff reflects the current environment."
+                     FontSize="12" Foreground="{DynamicResource TextSec}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
       <!-- Blast radius: how much LIVE data the destructive changes touch. Only shown when an apply
            would alter populated entity types — the difference between a safe edit and a data-loss event. -->
       <Border IsVisible="{Binding HasDataAtRisk}"

@@ -77,6 +77,18 @@ public sealed class Shell
         return Task.Run(() => new ModelMeister.Inriver.Statistics.EntityStatisticsService(client).Capture(), ct);
     }
 
+    /// <summary>
+    /// Ask the connected env what changed in its model since <paramref name="sinceUtc"/> — typically the
+    /// captured snapshot's timestamp. Lets the UI warn that a diff has gone stale (a teammate edited the
+    /// model) before the operator applies against it.
+    /// </summary>
+    public Task<ModelMeister.Inriver.Snapshot.EnvironmentChanges> CheckEnvironmentChangesSinceAsync(
+        DateTime sinceUtc, CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new ModelMeister.Inriver.Snapshot.EnvironmentChangesService(client).Since(sinceUtc), ct);
+    }
+
     /// <summary>Apply (or dry-run) a change set against the currently connected env.</summary>
     public Task<ChangeReceipt> ApplyAsync(
         ModelChangeSet changes,

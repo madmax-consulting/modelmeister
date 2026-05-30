@@ -300,13 +300,37 @@ public partial class ApplyViewModel : ViewModelBase
             blastRadius = BlastRadius.Assess(set, _main.LiveSnapshot!, stats);
         }
 
+        // Has the live env moved since we captured the snapshot this diff is built on? If so, the diff
+        // may be incomplete — warn (don't block; the user may be the one who caused the drift).
+        // Best-effort: a check failure must never stop a legitimate apply.
+        string? driftWarning = null;
+        try
+        {
+            StatusMessage = "Checking the environment hasn't changed since Compare…";
+            var drift = await _shell.CheckEnvironmentChangesSinceAsync(_main.LiveSnapshot!.CapturedUtc).ConfigureAwait(true);
+            if (drift.AnyChanges)
+            {
+                driftWarning = drift.Summary();
+                _log.Warn("Apply", $"Environment drift detected before apply: {driftWarning}");
+            }
+        }
+        catch (Exception driftEx)
+        {
+            _log.Warn("Apply", $"Drift check unavailable: {driftEx.Message}");
+        }
+        finally
+        {
+            StatusMessage = "Run Compare first, then choose Dry-run or Apply.";
+        }
+
         var confirmed = await DialogHost.ConfirmApplyAsync(
             _main.LiveSnapshot!.EnvironmentUrl,
             applying.Count,
             PolicySummary,
             _main.ConnectedStage,
             review,
-            blastRadius);
+            blastRadius,
+            driftWarning);
         if (!confirmed) _log.Info("Apply", "User cancelled at confirmation.");
         return confirmed;
     }

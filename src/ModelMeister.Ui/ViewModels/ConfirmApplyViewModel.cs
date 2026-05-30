@@ -28,7 +28,8 @@ public partial class ConfirmApplyViewModel : ViewModelBase
         string policySummary = "",
         string? typeKey = null,
         IReadOnlyList<ApplyReviewItem>? changes = null,
-        IReadOnlyList<BlastRadiusEntry>? blastRadius = null)
+        IReadOnlyList<BlastRadiusEntry>? blastRadius = null,
+        string? driftWarning = null)
     {
         EnvironmentUrl = envUrl;
         ChangeCount = changeCount;
@@ -43,7 +44,17 @@ public partial class ConfirmApplyViewModel : ViewModelBase
         DataAtRisk = new ObservableCollection<ApplyRiskItem>(risk.Select(e => new ApplyRiskItem(e.Describe(), e.EntityCount)));
         HasDataAtRisk = DataAtRisk.Count > 0;
         InstancesAtRisk = risk.Sum(e => e.EntityCount);
+
+        DriftWarning = driftWarning ?? "";
+        HasDrift = !string.IsNullOrEmpty(DriftWarning);
     }
+
+    /// <summary>When the live env changed since the snapshot was captured, the human-readable warning;
+    /// empty when the snapshot is still current. The diff may be incomplete — the user decides.</summary>
+    public string DriftWarning { get; }
+
+    /// <summary>True when the environment drifted since the snapshot — drives the amber "snapshot is stale" banner.</summary>
+    public bool HasDrift { get; }
 
     /// <summary>The individual changes that will be applied, for at-a-glance review before committing.</summary>
     public ObservableCollection<ApplyReviewItem> Changes { get; }

@@ -32,7 +32,7 @@ public class RemotingSurfaceCoverageTests
         "GetCategoriesForEntityType","GetLinkTypesForEntityType","GetFieldSetsForEntityType",
         "GetFieldTypesForFieldSet","GetFieldSetsForFieldType","GetFieldTypesForEntityTypeAndCategory",
         "GetCVLCount","GetCVLValue","GetCVLValueByKey","GetCVLValueForLanguage","DeleteAllCVLValuesForCVL",
-        "GetEnvironmentLatestChanges","GetAllSegments",
+        "GetAllSegments",
         // Completeness apply uses Add/Delete Definition, Add Group, Add BusinessRule,
         // SetCompletenessBusinessRuleSettings and DeleteAllCompletenessGroupsForDefinition (see
         // ChangeApplier). The remaining completeness methods — granular updates, actions, criteria
@@ -118,7 +118,7 @@ public class RemotingSurfaceCoverageTests
             foreach (var name in new[]
             {
                 "GetAllEntityTypes","GetEntityType","AddEntityType","UpdateEntityType","DeleteEntityType",
-                "GetAllEntityTypeStatistics",
+                "GetAllEntityTypeStatistics","GetEnvironmentLatestChanges",
                 "GetAllFieldTypes","GetFieldType","AddFieldType","UpdateFieldType","DeleteFieldType",
                 "GetAllCVLs","GetCVL","AddCVL","UpdateCVL","DeleteCVL",
                 "GetCVLValuesForCVL","AddCVLValue","UpdateCVLValue","DeleteCVLValue","GetAllCVLValues",

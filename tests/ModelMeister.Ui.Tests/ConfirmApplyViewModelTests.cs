@@ -78,4 +78,22 @@ public class ConfirmApplyViewModelTests
         vm.DataAtRisk.ShouldBeEmpty();
         vm.InstancesAtRisk.ShouldBe(0);
     }
+
+    [Fact]
+    public void Drift_warning_surfaces_when_present()
+    {
+        var vm = new ConfirmApplyViewModel("https://env", 1,
+            changes: new List<ApplyReviewItem> { Add("+ FieldType A") },
+            driftWarning: "Entity types changed since the snapshot was captured.");
+        vm.HasDrift.ShouldBeTrue();
+        vm.DriftWarning.ShouldContain("Entity types");
+    }
+
+    [Fact]
+    public void No_drift_warning_by_default()
+    {
+        var vm = new ConfirmApplyViewModel("https://env", 1, changes: new List<ApplyReviewItem> { Add("+ FieldType A") });
+        vm.HasDrift.ShouldBeFalse();
+        vm.DriftWarning.ShouldBe("");
+    }
 }
