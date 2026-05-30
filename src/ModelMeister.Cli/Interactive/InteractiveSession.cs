@@ -87,6 +87,7 @@ public sealed class InteractiveSession
                 .Title("Action?")
                 .AddChoices(
                     "Status",
+                    "Entity statistics",
                     "View diff",
                     "Apply changes (dry run)",
                     "Apply changes",
@@ -128,6 +129,10 @@ public sealed class InteractiveSession
         {
             case "Status":
                 await StatusCommand.RunAsync(url, auth, ct).ConfigureAwait(false);
+                break;
+
+            case "Entity statistics":
+                await StatsCommand.RunAsync(url, auth, json: false, ct).ConfigureAwait(false);
                 break;
 
             case "View diff":
