@@ -237,6 +237,9 @@ public partial class DiffViewModel : ViewModelBase
         {
             var live = await _shell.LoadSnapshotJsonAsync(snapshotJsonPath).ConfigureAwait(true);
             _main.LiveSnapshot = live;
+            // An offline JSON snapshot carries no live instance counts; drop any stats from a prior
+            // live compare so the apply blast-radius never weighs against a different env's volumes.
+            _main.EntityStats = null;
 
             var changes = _shell.ComputeDiff(_main.LoadedModel, live, CurrentPolicy);
             _main.ChangeSet = changes;
