@@ -21,7 +21,7 @@ public class RemotingSurfaceCoverageTests
         "DeleteCVLValue","DeleteRestrictedFieldPermissionByFieldTypeId","DeleteAllFiles",
 
         // Channels / Print / Connect / Syndication / Plan-and-release surface — not part of model mgmt.
-        "GetAllEntityTypeStatistics","ExportModelAsXmlString","ImportModelFromXmlString",
+        "ExportModelAsXmlString","ImportModelFromXmlString",
         "DeleteAllEntityTypes","DeleteAllCategories","DeleteAllCVLs","DeleteAllCVLValues",
         "DeleteAllLinkTypes","DeleteAllFieldTypes","DeleteAllFieldSets","DeleteAllFieldViews",
         "DeleteAllCompletenessDefinitions","DeleteAllCompletenessGroups","DeleteAllCompletenessBusinessRule",
@@ -118,6 +118,7 @@ public class RemotingSurfaceCoverageTests
             foreach (var name in new[]
             {
                 "GetAllEntityTypes","GetEntityType","AddEntityType","UpdateEntityType","DeleteEntityType",
+                "GetAllEntityTypeStatistics",
                 "GetAllFieldTypes","GetFieldType","AddFieldType","UpdateFieldType","DeleteFieldType",
                 "GetAllCVLs","GetCVL","AddCVL","UpdateCVL","DeleteCVL",
                 "GetCVLValuesForCVL","AddCVLValue","UpdateCVLValue","DeleteCVLValue","GetAllCVLValues",

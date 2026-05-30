@@ -66,6 +66,17 @@ public sealed class Shell
     public ModelChangeSet ComputeDiff(LoadedModel code, LiveModel live, MergePolicy policy)
         => ModelDiffer.Diff(code, live, policy);
 
+    /// <summary>
+    /// Capture per-entity-type instance counts from the connected env. Volatile runtime data — kept
+    /// separate from the model snapshot. Used to show "how much data is at stake" before a destructive
+    /// apply and as live context in the model browser.
+    /// </summary>
+    public Task<ModelMeister.Inriver.Statistics.EntityStatistics> CaptureEntityStatisticsAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new ModelMeister.Inriver.Statistics.EntityStatisticsService(client).Capture(), ct);
+    }
+
     /// <summary>Apply (or dry-run) a change set against the currently connected env.</summary>
     public Task<ChangeReceipt> ApplyAsync(
         ModelChangeSet changes,
