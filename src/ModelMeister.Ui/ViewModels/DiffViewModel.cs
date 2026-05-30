@@ -33,6 +33,7 @@ public partial class DiffViewModel : ViewModelBase
     /// <summary>True while a snapshot is being captured / diff being computed.</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CompareCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RecheckEnvironmentCommand))]
     private bool _busy;
     /// <summary>Short status message at the bottom of the page.</summary>
     [ObservableProperty] private string _statusMessage = "Load a model and connect to an environment, then click Compare.";
@@ -67,6 +68,10 @@ public partial class DiffViewModel : ViewModelBase
     [ObservableProperty] private bool _hasSuppressed;
     /// <summary>True when a policy/model/connection change invalidated the cached diff and the tree on screen is out of date.</summary>
     [ObservableProperty] private bool _diffStale;
+    /// <summary>True when a drift re-check found the live env changed since this snapshot was captured.</summary>
+    [ObservableProperty] private bool _envDrifted;
+    /// <summary>Human-readable summary of what drifted in the live env since the snapshot (e.g. "Entity types changed…").</summary>
+    [ObservableProperty] private string _envDriftSummary = "";
     /// <summary>Human-readable text rendering of the diff (used by Copy/Export).</summary>
     [ObservableProperty] private string _diffText = "";
     /// <summary>Substring filter applied to <see cref="Tree"/>; matches against row Description.</summary>
@@ -143,6 +148,10 @@ public partial class DiffViewModel : ViewModelBase
             if (e.PropertyName is nameof(MainWindowViewModel.IsConnected)
                                 or nameof(MainWindowViewModel.LoadedModel))
                 CompareCommand.NotifyCanExecuteChanged();
+
+            if (e.PropertyName is nameof(MainWindowViewModel.IsConnected)
+                                or nameof(MainWindowViewModel.LiveSnapshot))
+                RecheckEnvironmentCommand.NotifyCanExecuteChanged();
 
             // The hub cleared the cached change set (policy/model/connection changed) but a diff
             // tree is still on screen. Clear it and flag the page so the user re-runs Compare rather
@@ -250,6 +259,45 @@ public partial class DiffViewModel : ViewModelBase
     }
 
     [RelayCommand] private void GoApply() => _main.GoTo(NavTarget.Apply);
+
+    private bool CanRecheckEnvironment() => !Busy && _main.IsConnected && _main.LiveSnapshot is not null;
+
+    /// <summary>Ask the env whether its model changed since this snapshot was captured. Lets the user
+    /// confirm the diff is still current before applying, without re-capturing the whole snapshot.</summary>
+    [RelayCommand(CanExecute = nameof(CanRecheckEnvironment))]
+    private async Task RecheckEnvironmentAsync()
+    {
+        if (_main.LiveSnapshot is not { } snapshot) return;
+        Busy = true;
+        try
+        {
+            StatusMessage = "Checking the environment for changes…";
+            var drift = await _shell.CheckEnvironmentChangesSinceAsync(snapshot.CapturedUtc).ConfigureAwait(true);
+            EnvDrifted = drift.AnyChanges;
+            EnvDriftSummary = drift.Summary();
+            if (drift.AnyChanges)
+            {
+                StatusMessage = "Environment changed since this snapshot — re-run Compare.";
+                _log.Warn("Compare", $"Drift: {drift.Summary()}");
+                _log.Toast(LogLevel.Warn, "Environment changed", drift.Summary());
+            }
+            else
+            {
+                StatusMessage = "Environment unchanged since this snapshot — your diff is current.";
+                _log.Success("Compare", "No drift — snapshot is current.");
+                _log.Toast(LogLevel.Success, "Snapshot is current", "No model changes since Compare.");
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Drift check failed: {ex.Message}";
+            _log.Warn("Compare", $"Drift check unavailable: {ex.Message}");
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
 
     [RelayCommand]
     private void ExpandAll() => SetAllExpanded(true);
@@ -413,6 +461,9 @@ public partial class DiffViewModel : ViewModelBase
         HasSuppressed = false;
         SuppressedCount = 0;
         DiffStale = false;
+        // A fresh compare just captured the snapshot — clear any prior drift verdict.
+        EnvDrifted = false;
+        EnvDriftSummary = "";
     }
 
     private void Populate(ModelChangeSet set)
