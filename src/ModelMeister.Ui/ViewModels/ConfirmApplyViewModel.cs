@@ -29,12 +29,15 @@ public partial class ConfirmApplyViewModel : ViewModelBase
         string? typeKey = null,
         IReadOnlyList<ApplyReviewItem>? changes = null,
         IReadOnlyList<BlastRadiusEntry>? blastRadius = null,
-        string? driftWarning = null)
+        string? driftWarning = null,
+        string? environmentContext = null)
     {
         EnvironmentUrl = envUrl;
         ChangeCount = changeCount;
         PolicySummary = policySummary;
         Stage = typeKey;
+        EnvironmentContext = environmentContext ?? "";
+        HasEnvironmentContext = !string.IsNullOrEmpty(EnvironmentContext);
         IsProtected = EnvironmentTypeRegistry.Current?.IsProtected(typeKey) ?? false;
         Changes = new ObservableCollection<ApplyReviewItem>(changes ?? []);
         HasChanges = Changes.Count > 0;
@@ -87,6 +90,12 @@ public partial class ConfirmApplyViewModel : ViewModelBase
 
     /// <summary>URL of the target environment, displayed prominently in the dialog.</summary>
     public string EnvironmentUrl { get; }
+
+    /// <summary>Identifying context of the target env (customer · env · stack); empty when unavailable.</summary>
+    public string EnvironmentContext { get; }
+
+    /// <summary>True when <see cref="EnvironmentContext"/> is non-empty — drives the context line under the URL.</summary>
+    public bool HasEnvironmentContext { get; }
 
     /// <summary>Number of changes that will be applied if the user confirms.</summary>
     public int ChangeCount { get; }

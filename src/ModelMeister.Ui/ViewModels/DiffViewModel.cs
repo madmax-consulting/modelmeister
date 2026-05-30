@@ -197,6 +197,19 @@ public partial class DiffViewModel : ViewModelBase
                 _log.Warn("Compare", $"Entity statistics unavailable: {statsEx.Message}");
             }
 
+            // Capture the env's identifying context (customer/env/stack) so the apply gate can confirm
+            // the operator is targeting the intended environment. Best-effort.
+            try
+            {
+                var ctx = await _shell.CaptureEnvironmentContextAsync().ConfigureAwait(true);
+                _main.EnvironmentContextLabel = ctx.Label();
+            }
+            catch (Exception ctxEx)
+            {
+                _main.EnvironmentContextLabel = "";
+                _log.Warn("Compare", $"Environment context unavailable: {ctxEx.Message}");
+            }
+
             StatusMessage = "Computing diff…";
             var changes = _shell.ComputeDiff(_main.LoadedModel!, live, CurrentPolicy);
             _main.ChangeSet = changes;

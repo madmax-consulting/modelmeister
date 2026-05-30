@@ -96,4 +96,22 @@ public class ConfirmApplyViewModelTests
         vm.HasDrift.ShouldBeFalse();
         vm.DriftWarning.ShouldBe("");
     }
+
+    [Fact]
+    public void Environment_context_surfaces_when_supplied()
+    {
+        var vm = new ConfirmApplyViewModel("https://env", 1,
+            changes: new List<ApplyReviewItem> { Add("+ FieldType A") },
+            environmentContext: "acme · prod · euw");
+        vm.HasEnvironmentContext.ShouldBeTrue();
+        vm.EnvironmentContext.ShouldBe("acme · prod · euw");
+    }
+
+    [Fact]
+    public void No_environment_context_by_default()
+    {
+        var vm = new ConfirmApplyViewModel("https://env", 1, changes: new List<ApplyReviewItem> { Add("+ FieldType A") });
+        vm.HasEnvironmentContext.ShouldBeFalse();
+        vm.EnvironmentContext.ShouldBe("");
+    }
 }

@@ -71,7 +71,7 @@ public class RemotingSurfaceCoverageTests
         "DeleteConnectorStates","DeleteAllConnectorStates","DeleteAllHtmlTemplates","GetHtmlTemplate",
         // GetAllHtmlTemplates / Add / Update / Delete are used by HtmlTemplateService — scanned below.
         "GetHtmlTemplatesByTypes",
-        "GetAllSyndications","RunSyndicate","GetEnvironmentContextAsync",
+        "GetAllSyndications","RunSyndicate",
         // IUserService: user mgmt, settings — orthogonal to model mgmt.
         "GetUser","GetUserByUsername","GetAllUsers","SetUserSetting","DeleteUserSetting",
         "DeleteAllUserSettings","GetAllUserSettings","GetUserSetting","GetRolesForUser","GetPermissionsForUser",
@@ -119,7 +119,7 @@ public class RemotingSurfaceCoverageTests
                 "GetAllEntityTypes","GetEntityType","AddEntityType","UpdateEntityType","DeleteEntityType",
                 "GetAllEntityTypeStatistics","GetEnvironmentLatestChanges",
                 "ExportModelAsXmlString","ImportModelFromXmlString","GetAllEntityIcons",
-                "RebuildQuickSearchIndex","ClearImageCache",
+                "RebuildQuickSearchIndex","ClearImageCache","GetEnvironmentContextAsync",
                 "GetAllFieldTypes","GetFieldType","AddFieldType","UpdateFieldType","DeleteFieldType",
                 "GetAllCVLs","GetCVL","AddCVL","UpdateCVL","DeleteCVL",
                 "GetCVLValuesForCVL","AddCVLValue","UpdateCVLValue","DeleteCVLValue","GetAllCVLValues",

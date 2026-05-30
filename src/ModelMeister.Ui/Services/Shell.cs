@@ -77,6 +77,14 @@ public sealed class Shell
         return Task.Run(() => new ModelMeister.Inriver.Statistics.EntityStatisticsService(client).Capture(), ct);
     }
 
+    /// <summary>Capture the connected environment's identifying context (customer / env / stack) — shown
+    /// at the apply gate so the operator confirms they're mutating the right environment.</summary>
+    public Task<ModelMeister.Inriver.Snapshot.EnvironmentContextInfo> CaptureEnvironmentContextAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return Task.Run(() => new ModelMeister.Inriver.Snapshot.EnvironmentContextService(client).Capture(), ct);
+    }
+
     /// <summary>Live context for the model browser: per-type instance counts plus entity icons, captured
     /// together off the UI thread. Either half degrades to empty if unavailable.</summary>
     public Task<(ModelMeister.Inriver.Statistics.EntityStatistics Stats, IReadOnlyDictionary<string, byte[]> Icons)>

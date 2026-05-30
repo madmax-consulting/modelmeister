@@ -327,6 +327,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Live per-entity-type instance counts captured alongside the last Compare. Volatile —
     /// used to weigh an apply's blast radius. Null when statistics are unavailable or stale.</summary>
     [ObservableProperty] private ModelMeister.Inriver.Statistics.EntityStatistics? _entityStats;
+    /// <summary>Identifying context (customer · env · stack) of the connected env, captured at Compare.
+    /// Shown at the apply gate so the operator confirms the target. Empty when unavailable.</summary>
+    [ObservableProperty] private string _environmentContextLabel = "";
 
     /// <summary>True while a restore-from-backup is in flight. Guards against double-click re-entry.</summary>
     [ObservableProperty] private bool _isRestoring;
@@ -931,7 +934,11 @@ public partial class MainWindowViewModel : ViewModelBase
     // later apply never weighs blast radius against counts from a different (or disconnected) env.
     partial void OnLiveSnapshotChanged(LiveModel? value)
     {
-        if (value is null) EntityStats = null;
+        if (value is null)
+        {
+            EntityStats = null;
+            EnvironmentContextLabel = "";
+        }
     }
     partial void OnIsConnectedChanged(bool value) => RecomputeSteps();
     partial void OnIsRailExpandedChanged(bool value) => OnPropertyChanged(nameof(ShowHomeHeader));

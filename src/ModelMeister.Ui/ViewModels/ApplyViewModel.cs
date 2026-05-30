@@ -330,7 +330,8 @@ public partial class ApplyViewModel : ViewModelBase
             _main.ConnectedStage,
             review,
             blastRadius,
-            driftWarning);
+            driftWarning,
+            _main.EnvironmentContextLabel);
         if (!confirmed) _log.Info("Apply", "User cancelled at confirmation.");
         return confirmed;
     }
