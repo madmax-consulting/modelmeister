@@ -256,6 +256,22 @@ public sealed class Shell
         return (ok, backupPath);
     }
 
+    // ---------------- Environment maintenance ----------------
+
+    /// <summary>Rebuild the connected env's quick-search index so search reflects the current model/data.</summary>
+    public Task RebuildQuickSearchIndexAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new ModelMeister.Inriver.Maintenance.MaintenanceService(client).RebuildQuickSearchIndexAsync(ct);
+    }
+
+    /// <summary>Clear the connected env's rendered-image cache (thumbnails repopulate on demand).</summary>
+    public Task ClearImageCacheAsync(CancellationToken ct = default)
+    {
+        var client = _connection.Client ?? throw new InvalidOperationException("Not connected.");
+        return new ModelMeister.Inriver.Maintenance.MaintenanceService(client).ClearImageCacheAsync(ct);
+    }
+
     // ---------------- Excel I/O ----------------
 
     /// <summary>Save a captured snapshot to an Excel workbook for human editing.</summary>

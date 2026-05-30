@@ -458,7 +458,72 @@
           </ScrollViewer>
         </TabItem>
 
-        <!-- ============== Tab 6 · Export to Excel ============== -->
+        <!-- ============== Tab · Environment maintenance ============== -->
+        <TabItem>
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Data="{DynamicResource IcoRefresh}" Width="14" Height="14" Stretch="Uniform"
+                    Stroke="{Binding $parent[TabItem].Foreground}" StrokeThickness="1.5"
+                    StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+              <TextBlock Text="Maintenance" />
+            </StackPanel>
+          </TabItem.Header>
+
+          <ScrollViewer Padding="22">
+            <StackPanel Spacing="14" MaxWidth="900">
+              <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Border Width="36" Height="36" CornerRadius="9" Background="{DynamicResource AccentGlowFill}"
+                        BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1">
+                  <Path Data="{DynamicResource IcoRefresh}" Width="18" Height="18" Stretch="Uniform"
+                        Stroke="{DynamicResource Accent}" StrokeThickness="1.5"
+                        StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Environment maintenance" FontSize="15" FontWeight="SemiBold" />
+                  <TextBlock Text="Safe, idempotent housekeeping for the connected environment — one click instead of the admin UI."
+                             Classes="dim" TextWrapping="Wrap" />
+                </StackPanel>
+              </StackPanel>
+
+              <Border Classes="cardSubtle">
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                  <Ellipse Width="8" Height="8" Fill="{DynamicResource Success}" />
+                  <TextBlock Text="Requires an active connection. Neither action destroys data." Classes="dim" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="cardSubtle">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                  <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Rebuild quick-search index" FontWeight="SemiBold" />
+                    <TextBlock Text="Recompute the search index so it reflects the current model and data. Useful after a model apply or bulk import."
+                               Classes="dim" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <Button Grid.Row="0" Grid.Column="1" Content="Rebuild index" VerticalAlignment="Center"
+                          Margin="12,0,0,0" Command="{Binding RebuildSearchIndexCommand}" />
+                </Grid>
+              </Border>
+
+              <Border Classes="cardSubtle">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Clear image cache" FontWeight="SemiBold" />
+                    <TextBlock Text="Drop rendered thumbnails for the whole environment; they repopulate on demand. Useful after image-config changes."
+                               Classes="dim" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="Clear cache" VerticalAlignment="Center"
+                          Margin="12,0,0,0" Command="{Binding ClearImageCacheCommand}" />
+                </Grid>
+              </Border>
+
+              <TextBlock Text="{Binding MaintenanceResultText}" Classes="dim" TextWrapping="Wrap"
+                         IsVisible="{Binding MaintenanceResultText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <!-- ============== Tab · Export to Excel ============== -->
         <TabItem>
           <TabItem.Header>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">

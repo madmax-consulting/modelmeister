@@ -47,7 +47,7 @@ public class RemotingSurfaceCoverageTests
         // IUtilityService: server settings, files, connectors, notifications, etc.
         "SetServerSetting","GetServerSetting","GetServerSettings","DeleteServerSetting","GetAllServerSettings",
         "DeleteLanguage","AddFile","AddFileFromUrl","DeleteFile","GetFile","GetAllImageConfigurations",
-        "ClearImageCache","GetBaseAssetUrlAsync","AddResourceFile","UpdateResourceFile","GetResourceFile",
+        "GetBaseAssetUrlAsync","AddResourceFile","UpdateResourceFile","GetResourceFile",
         "DeleteResourceFile","GetFileMetaData","GetAllConnectors","AddConnector","GetConnector","DeleteConnector",
         "SetConnectorSetting","DeleteConnectorSetting","WriteConnectorEvent","GetConnectorEvents",
         "SetConnectorStarted","GetLatestConnectorEvents","GetAllUIPhrases","GetAllUIPhrasesForLanguage",
@@ -71,7 +71,7 @@ public class RemotingSurfaceCoverageTests
         "DeleteConnectorStates","DeleteAllConnectorStates","DeleteAllHtmlTemplates","GetHtmlTemplate",
         // GetAllHtmlTemplates / Add / Update / Delete are used by HtmlTemplateService — scanned below.
         "GetHtmlTemplatesByTypes",
-        "GetAllSyndications","RunSyndicate","RebuildQuickSearchIndex","GetEnvironmentContextAsync",
+        "GetAllSyndications","RunSyndicate","GetEnvironmentContextAsync",
         // IUserService: user mgmt, settings — orthogonal to model mgmt.
         "GetUser","GetUserByUsername","GetAllUsers","SetUserSetting","DeleteUserSetting",
         "DeleteAllUserSettings","GetAllUserSettings","GetUserSetting","GetRolesForUser","GetPermissionsForUser",
@@ -119,6 +119,7 @@ public class RemotingSurfaceCoverageTests
                 "GetAllEntityTypes","GetEntityType","AddEntityType","UpdateEntityType","DeleteEntityType",
                 "GetAllEntityTypeStatistics","GetEnvironmentLatestChanges",
                 "ExportModelAsXmlString","ImportModelFromXmlString","GetAllEntityIcons",
+                "RebuildQuickSearchIndex","ClearImageCache",
                 "GetAllFieldTypes","GetFieldType","AddFieldType","UpdateFieldType","DeleteFieldType",
                 "GetAllCVLs","GetCVL","AddCVL","UpdateCVL","DeleteCVL",
                 "GetCVLValuesForCVL","AddCVLValue","UpdateCVLValue","DeleteCVLValue","GetAllCVLValues",

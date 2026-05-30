@@ -38,6 +38,8 @@ public partial class ToolsViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(ExcelExportCommand))]
     [NotifyCanExecuteChangedFor(nameof(ModelXmlExportCommand))]
     [NotifyCanExecuteChangedFor(nameof(ModelXmlImportCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RebuildSearchIndexCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearImageCacheCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     private bool _busy;
 
@@ -101,6 +103,10 @@ public partial class ToolsViewModel : ViewModelBase
     [ObservableProperty] private string? _exportOutputPath;
     /// <summary>Result summary for the export action.</summary>
     [ObservableProperty] private string _exportResultText = "";
+
+    // ----- Environment maintenance -----
+    /// <summary>Result/status line for the last maintenance action.</summary>
+    [ObservableProperty] private string _maintenanceResultText = "";
 
     // ----- Native inriver model XML (full-model lift & shift) -----
     /// <summary>Destination .xml path for a native model export.</summary>
@@ -490,6 +496,50 @@ public partial class ToolsViewModel : ViewModelBase
         }
         catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
         catch (Exception ex) { StatusMessage = "Model XML import failed: " + ex.Message; _log.Error("Model XML", ex.Message, ex); }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Rebuild the connected env's quick-search index. Safe + idempotent; recomputes derived state.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    private async Task RebuildSearchIndexAsync()
+    {
+        if (!_main.IsConnected) { StatusMessage = "Connect to an environment first."; return; }
+        Busy = true;
+        _cts = new CancellationTokenSource();
+        try
+        {
+            StatusMessage = "Rebuilding quick-search index…";
+            _log.Info("Maintenance", "Rebuilding quick-search index");
+            await _shell.RebuildQuickSearchIndexAsync(_cts.Token).ConfigureAwait(true);
+            MaintenanceResultText = $"Quick-search index rebuild requested at {DateTime.Now:HH:mm:ss}.";
+            StatusMessage = "Quick-search index rebuild requested.";
+            _log.Success("Maintenance", "Quick-search index rebuild requested.");
+            _log.Toast(LogLevel.Success, "Search index", "Rebuild requested.");
+        }
+        catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
+        catch (Exception ex) { StatusMessage = "Rebuild failed: " + ex.Message; MaintenanceResultText = ex.Message; _log.Error("Maintenance", ex.Message, ex); }
+        finally { Busy = false; }
+    }
+
+    /// <summary>Clear the connected env's rendered-image cache. Safe; thumbnails repopulate on demand.</summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    private async Task ClearImageCacheAsync()
+    {
+        if (!_main.IsConnected) { StatusMessage = "Connect to an environment first."; return; }
+        Busy = true;
+        _cts = new CancellationTokenSource();
+        try
+        {
+            StatusMessage = "Clearing image cache…";
+            _log.Info("Maintenance", "Clearing image cache");
+            await _shell.ClearImageCacheAsync(_cts.Token).ConfigureAwait(true);
+            MaintenanceResultText = $"Image cache cleared at {DateTime.Now:HH:mm:ss}.";
+            StatusMessage = "Image cache cleared.";
+            _log.Success("Maintenance", "Image cache cleared.");
+            _log.Toast(LogLevel.Success, "Image cache", "Cleared.");
+        }
+        catch (OperationCanceledException) { StatusMessage = "Cancelled."; }
+        catch (Exception ex) { StatusMessage = "Clear cache failed: " + ex.Message; MaintenanceResultText = ex.Message; _log.Error("Maintenance", ex.Message, ex); }
         finally { Busy = false; }
     }
 
