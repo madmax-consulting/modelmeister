@@ -14,7 +14,7 @@ public class RemotingSurfaceCoverageTests
     {
         // Singular getters — superseded by GetAll* + in-memory lookups in the snapshot reader.
         // (GetAllFieldTypes is used by the work-area query builder's QueryMetadataService — scanned below.)
-        "GetEntityType","GetLinkType","GetCategory","GetCVL","GetCVLValuesForCVL","GetFieldSet","GetFieldType",
+        "GetEntityType","GetLinkType","GetCategory","GetCVL","GetFieldSet","GetFieldType",
         // Permission concept management — pre-existing in inriver; we manage only role-permission bindings.
         "AddPermission","DeletePermission","GetPermission","UpdatePermission",
         // Per-key/convenience overloads — we use the int-id path.
@@ -53,9 +53,10 @@ public class RemotingSurfaceCoverageTests
         "SetConnectorStarted","GetLatestConnectorEvents","GetAllUIPhrases","GetAllUIPhrasesForLanguage",
         "AddUIPhrase","DeleteUIPhrase","UpdateUIPhrase","GetAllUILanguages","GetSmallIconForEntityType",
         "GetLargeIconForEntityType","SendMail",
-        // Singular personal getters — superseded by GetAllPersonalWorkAreaFoldersForUser. The personal
-        // write surface (Add/Delete/Update/Move) is used by PersonalWorkAreaScope and scanned below.
-        "GetPersonalWorkAreaRootFolder","GetPersonalWorkAreaFolder","GetSharedWorkAreaFolder",
+        // Singular personal root getter — superseded by GetAllPersonalWorkAreaFoldersForUser. The personal
+        // write surface (Add/Delete/Update/Move) and the per-folder getters that hydrate a folder's saved
+        // query (GetShared/PersonalWorkAreaFolder) are used by the scopes and scanned below.
+        "GetPersonalWorkAreaRootFolder",
         // Shared work-area folder reads/writes used by WorkAreaService are covered (scanned) below;
         // entity-membership is deliberately out of scope (folders are versioned without their entity lists).
         "AddEntitiesToWorkAreaFolder",
@@ -136,11 +137,11 @@ public class RemotingSurfaceCoverageTests
                 "AddCompletenessDefinition","DeleteCompletenessDefinition","DeleteAllCompletenessGroupsForDefinition",
                 "AddCompletenessGroup","AddCompletenessBusinessRule","SetCompletenessBusinessRuleSettings",
                 // Shared work-area folders (WorkAreaService) + HTML templates (HtmlTemplateService).
-                "GetAllSharedWorkAreaFolders","AddSharedWorkAreaFolder","DeleteSharedWorkAreaFolder",
+                "GetAllSharedWorkAreaFolders","GetSharedWorkAreaFolder","AddSharedWorkAreaFolder","DeleteSharedWorkAreaFolder",
                 "UpdateSharedWorkAreaFolderName","MoveSharedWorkAreaFolder","UpdateSharedWorkAreaQuery",
                 "UpdateSharedWorkAreaSyndication","UpdateSharedWorkAreaFolderIndex",
                 // Personal work-area folders (PersonalWorkAreaScope).
-                "GetAllPersonalWorkAreaFoldersForUser","AddPersonalWorkAreaFolder","DeletePersonalWorkAreaFolder",
+                "GetAllPersonalWorkAreaFoldersForUser","GetPersonalWorkAreaFolder","AddPersonalWorkAreaFolder","DeletePersonalWorkAreaFolder",
                 "UpdatePersonalWorkAreaFolderName","MovePersonalWorkAreaFolder","UpdatePersonalWorkAreaFolderIndex",
                 "UpdatePersonalWorkAreaQuery",
                 "GetAllHtmlTemplates","AddHtmlTemplate","UpdateHtmlTemplate","DeleteHtmlTemplate",

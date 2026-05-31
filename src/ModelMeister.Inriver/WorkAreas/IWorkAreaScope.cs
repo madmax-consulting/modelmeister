@@ -21,6 +21,12 @@ internal interface IWorkAreaScope
     bool SupportsSyndication { get; }
 
     IReadOnlyList<IriverWorkAreaFolder> GetAll(RemoteManager m);
+
+    /// <summary>Read a single folder by id, hydrating its saved <c>ComplexQuery</c>. The list endpoint
+    /// (<see cref="GetAll"/>) can return query folders without their query populated, so the service falls
+    /// back to this per-folder read to recover the real saved search. Returns <c>null</c> when not found.</summary>
+    IriverWorkAreaFolder? GetOne(RemoteManager m, Guid id);
+
     IriverWorkAreaFolder Add(RemoteManager m, IriverWorkAreaFolder folder);
     IriverWorkAreaFolder Rename(RemoteManager m, Guid id, string name);
     IriverWorkAreaFolder Move(RemoteManager m, Guid id, Guid newParentId, int newIndex);

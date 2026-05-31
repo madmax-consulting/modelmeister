@@ -22,6 +22,9 @@ internal sealed class PersonalWorkAreaScope : IWorkAreaScope
     public IReadOnlyList<IriverWorkAreaFolder> GetAll(RemoteManager m) =>
         m.UtilityService.GetAllPersonalWorkAreaFoldersForUser(_username, includeEntities: false) ?? [];
 
+    public IriverWorkAreaFolder? GetOne(RemoteManager m, Guid id) =>
+        m.UtilityService.GetPersonalWorkAreaFolder(id);
+
     public IriverWorkAreaFolder Add(RemoteManager m, IriverWorkAreaFolder folder)
     {
         folder.Username = _username; // personal folders carry their owner

@@ -13,7 +13,7 @@ using ModelMeister.Inriver.WorkAreas.Query;
 namespace ModelMeister.Ui.ViewModels;
 
 /// <summary>How the value editor for a criterion row is presented, derived from the field's inriver data type.</summary>
-public enum ValueKind { Text, Bool, Date, Number }
+public enum ValueKind { Text, Bool, Date, Number, Cvl }
 
 /// <summary>
 /// Backs the GUI query builder dialog. Loads a folder's saved search into an editable, recursive group tree
@@ -469,22 +469,88 @@ public partial class CriterionRowViewModel : ObservableObject
         OnPropertyChanged(nameof(BoolValue));
         OnPropertyChanged(nameof(NumberValue));
         OnPropertyChanged(nameof(DateValue));
+        OnPropertyChanged(nameof(CvlValueText));
+        OnPropertyChanged(nameof(ResolvedCvlDisplay));
     }
 
     partial void OnFieldTypeIdChanged(string value) => ResolveValueKind();
 
     internal void AttachMetadata(QueryMetadata meta) { _meta = meta; ResolveValueKind(); }
 
+    /// <summary>The CVL values this field can take, for the model-driven value dropdown. Empty unless the
+    /// field is a CVL field with captured values.</summary>
+    public IReadOnlyList<CvlValueOption> CvlOptions { get; private set; } = [];
+
+    /// <summary>Autocomplete suggestions for the CVL value box — each is "Display · Key" so the user can match
+    /// on either the friendly name or the stored key.</summary>
+    public IReadOnlyList<string> CvlSearchStrings { get; private set; } = [];
+
+    /// <summary>True when the value should be picked from the model-driven CVL dropdown (a CVL field that has
+    /// captured values). When false the row falls back to a free-text box (incl. CVL fields with no values).</summary>
+    public bool UseCvlPicker => ValueKind == ValueKind.Cvl && CvlOptions.Count > 0;
+
+    /// <summary>True when the plain free-text editor should show: a text field, or a CVL field whose values
+    /// couldn't be read (so the admin can still type a key by hand).</summary>
+    public bool UseTextEditor => ValueKind == ValueKind.Text || (ValueKind == ValueKind.Cvl && CvlOptions.Count == 0);
+
+    /// <summary>Two-way bridge for the CVL autocomplete box (which works in display text). The getter renders
+    /// the stored key as "Display · Key"; the setter accepts the display text, the key, or the friendly name and
+    /// stores the underlying key — falling back to the raw text so a cross-environment key can still be typed.</summary>
+    public string CvlValueText
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Value)) return "";
+            var match = CvlOptions.FirstOrDefault(o => string.Equals(o.Key, Value, StringComparison.OrdinalIgnoreCase));
+            return match?.Search ?? Value;
+        }
+        set
+        {
+            var text = value?.Trim() ?? "";
+            var match = CvlOptions.FirstOrDefault(o =>
+                string.Equals(o.Search, text, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(o.Key, text, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(o.Display, text, StringComparison.OrdinalIgnoreCase));
+            Value = match?.Key ?? text;
+        }
+    }
+
+    /// <summary>Friendly name of the currently-selected CVL key, shown as a hint beside the picker (empty when
+    /// the value isn't a CVL key, is unknown, or already equals its own display).</summary>
+    public string ResolvedCvlDisplay
+    {
+        get
+        {
+            if (ValueKind != ValueKind.Cvl || string.IsNullOrEmpty(Value)) return "";
+            var match = CvlOptions.FirstOrDefault(o => string.Equals(o.Key, Value, StringComparison.OrdinalIgnoreCase));
+            return match is null || string.Equals(match.Display, match.Key, StringComparison.Ordinal) ? "" : match.Display;
+        }
+    }
+
     private void ResolveValueKind()
     {
         var dt = _meta?.DataTypeOf(FieldTypeId);
-        ValueKind = dt switch
-        {
-            "Boolean" => ValueKind.Bool,
-            "DateTime" => ValueKind.Date,
-            "Integer" or "Double" => ValueKind.Number,
-            _ => ValueKind.Text,
-        };
+        var isCvl = _meta?.IsCvlField(FieldTypeId) == true
+            || string.Equals(dt, "CVL", StringComparison.OrdinalIgnoreCase);
+
+        CvlOptions = isCvl && _meta is not null ? _meta.CvlValuesFor(FieldTypeId) : [];
+        CvlSearchStrings = CvlOptions.Select(o => o.Search).ToList();
+        OnPropertyChanged(nameof(CvlOptions));
+        OnPropertyChanged(nameof(CvlSearchStrings));
+
+        ValueKind = isCvl
+            ? ValueKind.Cvl
+            : dt switch
+            {
+                "Boolean" => ValueKind.Bool,
+                "DateTime" => ValueKind.Date,
+                "Integer" or "Double" => ValueKind.Number,
+                _ => ValueKind.Text,
+            };
+        OnPropertyChanged(nameof(UseCvlPicker));
+        OnPropertyChanged(nameof(UseTextEditor));
+        OnPropertyChanged(nameof(CvlValueText));
+        OnPropertyChanged(nameof(ResolvedCvlDisplay));
     }
 
     public CriterionModel ToModel() => new()

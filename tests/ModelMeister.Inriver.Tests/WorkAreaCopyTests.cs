@@ -285,6 +285,38 @@ public class WorkAreaCopyTests
         personal.Folders[newRoot].Name.ShouldBe("Shared Root");
     }
 
+    // ---------------- Query hydration (list endpoint can omit a folder's ComplexQuery) ----------------
+
+    [Fact]
+    public void List_hydrates_query_when_list_endpoint_omits_it()
+    {
+        // inriver's GetAll*WorkAreaFolders can return query folders WITHOUT their ComplexQuery populated.
+        // The service must back-fill from the per-folder GetOne so the saved search isn't lost everywhere
+        // downstream (detail pane, builder, copy, promote, Excel, backup).
+        var plain = Guid.NewGuid();
+        var queryFolder = Guid.NewGuid();
+        var store = new FakeWorkAreaScope(syndication: true) { ListOmitsQuery = true };
+        store.Seed(Folder(plain, "Plain", null, index: 0));
+        store.Seed(Folder(queryFolder, "Saved search", null, index: 1, isQuery: true, query: MakeQuery("Product", "Name")));
+
+        var dtos = NewService(store).List();
+
+        dtos.Single(d => d.Id == queryFolder).QueryJson.ShouldNotBeNullOrEmpty();
+        // Only the query folder that came back without a query triggers the per-folder read; the plain folder doesn't.
+        store.GetOneCalls.ShouldBe(1);
+    }
+
+    [Fact]
+    public void List_does_not_hydrate_when_query_already_present()
+    {
+        var store = new FakeWorkAreaScope(syndication: true); // GetAll already carries the query
+        store.Seed(Folder(Guid.NewGuid(), "Saved search", null, index: 0, isQuery: true, query: MakeQuery("Item", "Name")));
+
+        _ = NewService(store).List();
+
+        store.GetOneCalls.ShouldBe(0);
+    }
+
     // ---------------- Move-to-root guard ----------------
 
     [Fact]
@@ -348,6 +380,11 @@ public class WorkAreaCopyTests
         public int MoveCount { get; private set; }
         public int SetSyndicationCount { get; private set; }
         public int SetQueryCount { get; private set; }
+        public int GetOneCalls { get; private set; }
+
+        /// <summary>Simulate inriver's list endpoint returning query folders without their <c>ComplexQuery</c>:
+        /// when set, <see cref="GetAll"/> returns clones with a null Query while <see cref="GetOne"/> hydrates.</summary>
+        public bool ListOmitsQuery { get; init; }
 
         public string? OwnerUsername { get; }
         public bool SupportsSyndication => _syndication;
@@ -355,7 +392,20 @@ public class WorkAreaCopyTests
         /// <summary>Pre-populate the store without bumping any write counter.</summary>
         public void Seed(IriverWorkAreaFolder folder) => Folders[folder.Id] = folder;
 
-        public IReadOnlyList<IriverWorkAreaFolder> GetAll(RemoteManager m) => Folders.Values.ToList();
+        public IReadOnlyList<IriverWorkAreaFolder> GetAll(RemoteManager m) =>
+            ListOmitsQuery
+                ? Folders.Values.Select(f => new IriverWorkAreaFolder
+                {
+                    Id = f.Id, Name = f.Name, ParentId = f.ParentId, Index = f.Index,
+                    IsQuery = f.IsQuery, IsSyndication = f.IsSyndication, Username = f.Username, Query = null,
+                }).ToList()
+                : Folders.Values.ToList();
+
+        public IriverWorkAreaFolder? GetOne(RemoteManager m, Guid id)
+        {
+            GetOneCalls++;
+            return Folders.TryGetValue(id, out var f) ? f : null;
+        }
 
         public IriverWorkAreaFolder Add(RemoteManager m, IriverWorkAreaFolder folder)
         {

@@ -13,6 +13,9 @@ internal sealed class SharedWorkAreaScope : IWorkAreaScope
     public IReadOnlyList<IriverWorkAreaFolder> GetAll(RemoteManager m) =>
         m.UtilityService.GetAllSharedWorkAreaFolders(includeEntities: false) ?? [];
 
+    public IriverWorkAreaFolder? GetOne(RemoteManager m, Guid id) =>
+        m.UtilityService.GetSharedWorkAreaFolder(id);
+
     public IriverWorkAreaFolder Add(RemoteManager m, IriverWorkAreaFolder folder) =>
         m.UtilityService.AddSharedWorkAreaFolder(folder);
 

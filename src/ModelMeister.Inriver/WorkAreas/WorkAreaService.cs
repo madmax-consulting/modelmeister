@@ -65,9 +65,24 @@ public sealed class WorkAreaService
     /// <summary>List all shared work-area folders as flat DTOs (each carries its computed tree path).</summary>
     public IReadOnlyList<WorkAreaFolderDto> List() => ToDtos(GetRawFolders());
 
-    /// <summary>Raw folders straight from inriver — keeps the live <c>ComplexQuery</c> for faithful promote.</summary>
+    /// <summary>Raw folders straight from inriver — keeps the live <c>ComplexQuery</c> for faithful promote.
+    /// <para>The list endpoint can return query folders <b>without</b> their <c>ComplexQuery</c> hydrated, so
+    /// any query folder that comes back with a null query is back-filled from the per-folder read
+    /// (<see cref="IWorkAreaScope.GetOne"/>). This makes the saved search available everywhere downstream —
+    /// the detail pane, the builder (so editing never silently wipes an unseen query), copy/duplicate,
+    /// cross-env promote, Excel export and backup. Folders that already carry their query cost nothing.</para></summary>
     public IReadOnlyList<IriverWorkAreaFolder> GetRawFolders() =>
-        _client.Read(m => _scope.GetAll(m));
+        _client.Read(m =>
+        {
+            var folders = _scope.GetAll(m) ?? [];
+            foreach (var f in folders)
+            {
+                if (!f.IsQuery || f.Query is not null) continue;
+                var full = _scope.GetOne(m, f.Id);
+                if (full?.Query is not null) f.Query = full.Query;
+            }
+            return folders;
+        });
 
     private List<WorkAreaFolderDto> ToDtos(IReadOnlyList<IriverWorkAreaFolder> folders)
     {

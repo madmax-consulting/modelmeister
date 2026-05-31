@@ -139,6 +139,7 @@ public partial class WorkAreaViewModel : FeaturePageViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     [NotifyPropertyChangedFor(nameof(SelectedQueryPretty))]
+    [NotifyPropertyChangedFor(nameof(SelectedQuerySummary))]
     [NotifyPropertyChangedFor(nameof(HasQuery))]
     [NotifyPropertyChangedFor(nameof(SelectedBreadcrumb))]
     [NotifyCanExecuteChangedFor(nameof(NewSubfolderCommand))]
@@ -205,6 +206,19 @@ public partial class WorkAreaViewModel : FeaturePageViewModel
 
     /// <summary>Pretty-printed (re-indented) query JSON for the detail pane.</summary>
     public string SelectedQueryPretty => HasQuery ? PrettyJson(Selected!.QueryJson!) : "";
+
+    /// <summary>A one-line, human-readable description of the selected folder's saved search (e.g.
+    /// "Product where ProductName contains 'widget'; linked OutBound to Item"). Pure / env-free — gives the
+    /// admin the gist of the query without reading the JSON. Empty when there is no query.</summary>
+    public string SelectedQuerySummary
+    {
+        get
+        {
+            if (!HasQuery) return "";
+            var model = QueryMapper.ToModel(WorkAreaService.DeserializeQuery(Selected!.QueryJson));
+            return QuerySummary.Describe(model);
+        }
+    }
 
     /// <summary>Breadcrumb from the root down to <see cref="Selected"/> (inclusive). Empty when nothing is selected.</summary>
     public IReadOnlyList<WorkAreaNode> SelectedBreadcrumb

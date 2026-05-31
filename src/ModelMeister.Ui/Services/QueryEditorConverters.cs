@@ -20,4 +20,7 @@ public static class QueryValueKindIs
 
     public static readonly IValueConverter Number =
         new FuncValueConverter<ValueKind, bool>(k => k == ValueKind.Number);
+
+    public static readonly IValueConverter Cvl =
+        new FuncValueConverter<ValueKind, bool>(k => k == ValueKind.Cvl);
 }

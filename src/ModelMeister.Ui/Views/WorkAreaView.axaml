@@ -516,6 +516,15 @@
                       </Button>
                     </Grid>
                   </Border>
+                  <!-- Human-readable gist of the saved search (pure projection, no env needed). -->
+                  <Border DockPanel.Dock="Top" Margin="0,10,0,10" Padding="12,10"
+                          Background="{DynamicResource Surface1}" CornerRadius="8">
+                    <StackPanel Spacing="3">
+                      <TextBlock Text="WHAT IT MATCHES" Classes="eyebrow" />
+                      <TextBlock Text="{Binding SelectedQuerySummary}" TextWrapping="Wrap" FontSize="13" />
+                    </StackPanel>
+                  </Border>
+                  <TextBlock DockPanel.Dock="Top" Text="DEFINITION (JSON)" Classes="eyebrow" Margin="0,0,0,2" />
                   <TextBox Text="{Binding SelectedQueryPretty, Mode=OneWay}" IsReadOnly="True"
                            Classes="mono"
                            Background="{DynamicResource DiffTextBackground}"
