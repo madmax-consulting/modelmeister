@@ -82,6 +82,105 @@ public class QueryModelTests
     }
 
     [Fact]
+    public void Nested_subquery_round_trips_byte_stable()
+    {
+        // Closes the previously-uncovered regression: a nested DataQuery.SubQuery must survive
+        // ComplexQuery -> model -> ComplexQuery and JSON -> model -> JSON without being flattened.
+        var original = new ComplexQuery
+        {
+            EntityTypeId = "Product",
+            DataQuery = new IrQuery
+            {
+                Join = Join.And,
+                Criteria = [new Criteria { FieldTypeId = "ProductName", Operator = Operator.Contains, Value = "widget" }],
+                SubQuery = new IrQuery
+                {
+                    Join = Join.Or,
+                    Criteria =
+                    [
+                        new Criteria { FieldTypeId = "Status", Operator = Operator.Equal, Value = "Active" },
+                        new Criteria { FieldTypeId = "Status", Operator = Operator.Equal, Value = "Pending" },
+                    ],
+                },
+            },
+        };
+
+        // ComplexQuery -> model -> ComplexQuery preserves the nested group.
+        var model = QueryMapper.ToModel(original);
+        model.DataQuery!.SubQuery.ShouldNotBeNull();
+        model.DataQuery.SubQuery!.Join.ShouldBe(QJoin.Or);
+        model.DataQuery.SubQuery.Criteria.Select(c => c.Value).ShouldBe(new[] { "Active", "Pending" });
+
+        var back = QueryMapper.ToComplexQuery(model, original);
+        WorkAreaService.SerializeQuery(back).ShouldBe(WorkAreaService.SerializeQuery(original));
+
+        // JSON -> model -> JSON is byte-stable.
+        var json = WorkAreaService.SerializeQuery(original);
+        var rebuiltJson = WorkAreaService.SerializeQuery(
+            QueryMapper.ToComplexQuery(QueryMapper.ToModel(WorkAreaService.DeserializeQuery(json)), WorkAreaService.DeserializeQuery(json)));
+        rebuiltJson.ShouldBe(json);
+    }
+
+    [Fact]
+    public void Validator_warns_on_value_required_operator_with_no_value()
+    {
+        var model = new QueryModel
+        {
+            DataQuery = new CriteriaGroup
+            {
+                Join = QJoin.And,
+                Criteria = [new CriterionModel { FieldTypeId = "ProductName", Operator = QOperator.Equal, Value = null }],
+            },
+        };
+
+        // Structural checks run even without a catalog.
+        var warnings = QueryValidator.Validate(model, QueryMetadata.Empty);
+        warnings.ShouldContain(w => w.Contains("ProductName") && w.Contains("Equal"));
+    }
+
+    [Fact]
+    public void Validator_warns_on_bool_operator_against_non_bool_field()
+    {
+        var meta = new QueryMetadata(
+            EntityTypeIds: ["Product"],
+            FieldTypeIdsByEntityType: new Dictionary<string, IReadOnlyList<string>> { ["Product"] = ["ProductName"] },
+            AllFieldTypeIds: ["ProductName"],
+            LinkTypeIds: [],
+            FieldDataTypeById: new Dictionary<string, string> { ["ProductName"] = "String" });
+
+        var model = new QueryModel
+        {
+            DataQuery = new CriteriaGroup
+            {
+                Join = QJoin.And,
+                Criteria = [new CriterionModel { FieldTypeId = "ProductName", Operator = QOperator.IsTrue }],
+            },
+        };
+
+        var warnings = QueryValidator.Validate(model, meta);
+        warnings.ShouldContain(w => w.Contains("ProductName") && w.Contains("IsTrue"));
+    }
+
+    [Fact]
+    public void Summary_describes_a_nested_query()
+    {
+        var model = QueryMapper.ToModel(new ComplexQuery
+        {
+            EntityTypeId = "Product",
+            DataQuery = new IrQuery
+            {
+                Join = Join.And,
+                Criteria = [new Criteria { FieldTypeId = "ProductName", Operator = Operator.Contains, Value = "widget" }],
+            },
+        });
+
+        var summary = QuerySummary.Describe(model);
+        summary.ShouldContain("Product");
+        summary.ShouldContain("ProductName");
+        summary.ShouldContain("widget");
+    }
+
+    [Fact]
     public void Preserves_completeness_and_specification_on_edit()
     {
         var q = SampleQuery();

@@ -117,6 +117,190 @@ public static class WorkAreasCommand
         }
     }
 
+    /// <summary>Duplicate a folder in place (under its own parent). Deep when <paramref name="deep"/>.
+    /// Resolves the source by path within the chosen scope (shared, or --user).</summary>
+    public static async Task<int> DuplicateAsync(
+        string url, InriverAuth auth, string path, bool deep, string? personalUser, CancellationToken ct)
+    {
+        using var client = new InriverClient(url);
+        var rc = await auth.ConnectAsync(client).ConfigureAwait(false);
+        if (rc != ExitCodes.Success) return rc;
+        try
+        {
+            var svc = Svc(client, personalUser);
+            var folders = svc.List();
+            if (!TryResolve(folders, path, out var src))
+            {
+                AnsiConsole.MarkupLine($"[red]No work-area folder at path[/] {path.EscapeMarkup()} [grey]({ScopeLabel(personalUser)}).[/]");
+                return ExitCodes.UsageError;
+            }
+
+            var newIndex = EndIndexUnder(folders, src.ParentId);
+            var newId = deep
+                ? await svc.CopySubtreeAsync(src.Id, src.ParentId, newIndex, null, ct).ConfigureAwait(false)
+                : await svc.CopyFolderAsync(src.Id, src.ParentId, newIndex, null, ct).ConfigureAwait(false);
+
+            AnsiConsole.MarkupLine(
+                $"[green]Duplicated[/] {path.EscapeMarkup()} {(deep ? "[grey](deep)[/] " : "")}[grey]→[/] new folder [blue]{newId}[/] [grey]({ScopeLabel(personalUser)}).[/]");
+            return ExitCodes.Success;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Duplicate failed:[/] {ex.Message.EscapeMarkup()}");
+            return ExitCodes.OperationFailed;
+        }
+    }
+
+    /// <summary>Copy a folder (subtree when <paramref name="deep"/>) under a target parent. Same-scope copy
+    /// unless a destination scope (<paramref name="toShared"/> / <paramref name="toUser"/>) differs from the
+    /// source scope (<paramref name="personalUser"/>), in which case it's a cross-scope copy on the same env.
+    /// <paramref name="dryRun"/> prints the plan without writing.</summary>
+    public static async Task<int> CopyAsync(
+        string url, InriverAuth auth, string sourcePath, string targetParentPath, bool deep,
+        bool toShared, string? toUser, bool dryRun, string? personalUser, CancellationToken ct)
+    {
+        if (toShared && !string.IsNullOrWhiteSpace(toUser))
+        {
+            AnsiConsole.MarkupLine("[red]Specify only one of[/] --to-shared [red]or[/] --to-user.");
+            return ExitCodes.UsageError;
+        }
+
+        // Destination scope: explicit --to-shared / --to-user override the source scope (--user); otherwise
+        // the destination is the same scope as the source.
+        var destUser = toShared ? null : (string.IsNullOrWhiteSpace(toUser) ? personalUser : toUser);
+        var crossScope = !string.Equals(destUser, personalUser, StringComparison.OrdinalIgnoreCase);
+
+        using var client = new InriverClient(url);
+        var rc = await auth.ConnectAsync(client).ConfigureAwait(false);
+        if (rc != ExitCodes.Success) return rc;
+        try
+        {
+            var srcSvc = Svc(client, personalUser);
+            var srcFolders = srcSvc.List();
+            if (!TryResolve(srcFolders, sourcePath, out var src))
+            {
+                AnsiConsole.MarkupLine($"[red]No source folder at path[/] {sourcePath.EscapeMarkup()} [grey]({ScopeLabel(personalUser)}).[/]");
+                return ExitCodes.UsageError;
+            }
+
+            var destSvc = crossScope ? Svc(client, destUser) : srcSvc;
+            var destFolders = crossScope ? destSvc.List() : srcFolders;
+
+            // Resolve the destination parent (empty/'/' ⇒ root).
+            Guid? destParentId = null;
+            if (!IsRootPath(targetParentPath))
+            {
+                if (!TryResolve(destFolders, targetParentPath, out var destParent))
+                {
+                    AnsiConsole.MarkupLine($"[red]No target parent folder at path[/] {targetParentPath.EscapeMarkup()} [grey]({ScopeLabel(destUser)}).[/]");
+                    return ExitCodes.UsageError;
+                }
+                destParentId = destParent.Id;
+            }
+
+            var destIndex = EndIndexUnder(destFolders, destParentId);
+
+            if (dryRun)
+            {
+                var destWhere = IsRootPath(targetParentPath) ? "(root)" : targetParentPath;
+                AnsiConsole.MarkupLine(
+                    $"[yellow]DRY-RUN[/] copy {(deep ? "[grey](deep)[/] " : "[grey](shallow)[/] ")}{sourcePath.EscapeMarkup()} " +
+                    $"[grey]({ScopeLabel(personalUser)})[/] [grey]→[/] {destWhere.EscapeMarkup()} [grey]({ScopeLabel(destUser)}) at index {destIndex}.[/]");
+                if (deep)
+                    foreach (var d in srcFolders.Where(f => f.Path == sourcePath || f.Path.StartsWith(sourcePath + "/", StringComparison.OrdinalIgnoreCase)))
+                        AnsiConsole.MarkupLine($"  {d.Path.EscapeMarkup()}{(d.IsQuery ? " [grey](query)[/]" : "")}");
+                else
+                    AnsiConsole.MarkupLine($"  {src.Path.EscapeMarkup()}{(src.IsQuery ? " [grey](query)[/]" : "")}");
+                return ExitCodes.Success;
+            }
+
+            Guid newId = crossScope
+                ? await srcSvc.CopyToServiceAsync(src.Id, destSvc, destParentId, destIndex, null, deep, ct).ConfigureAwait(false)
+                : deep
+                    ? await srcSvc.CopySubtreeAsync(src.Id, destParentId, destIndex, null, ct).ConfigureAwait(false)
+                    : await srcSvc.CopyFolderAsync(src.Id, destParentId, destIndex, null, ct).ConfigureAwait(false);
+
+            AnsiConsole.MarkupLine(
+                $"[green]Copied[/] {sourcePath.EscapeMarkup()} [grey]({ScopeLabel(personalUser)})[/] [grey]→[/] new folder [blue]{newId}[/] [grey]({ScopeLabel(destUser)}).[/]");
+            return ExitCodes.Success;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Copy failed:[/] {ex.Message.EscapeMarkup()}");
+            return ExitCodes.OperationFailed;
+        }
+    }
+
+    /// <summary>Re-parent a folder under a target parent (same scope). Moving to root is not supported
+    /// (inriver move requires a non-null parent) and returns a usage error.</summary>
+    public static async Task<int> MoveAsync(
+        string url, InriverAuth auth, string sourcePath, string targetParentPath, string? personalUser, CancellationToken ct)
+    {
+        if (IsRootPath(targetParentPath))
+        {
+            AnsiConsole.MarkupLine("[red]Cannot move a folder to the root[/] — inriver move requires a target parent folder.");
+            return ExitCodes.UsageError;
+        }
+
+        using var client = new InriverClient(url);
+        var rc = await auth.ConnectAsync(client).ConfigureAwait(false);
+        if (rc != ExitCodes.Success) return rc;
+        try
+        {
+            var svc = Svc(client, personalUser);
+            var folders = svc.List();
+            if (!TryResolve(folders, sourcePath, out var src))
+            {
+                AnsiConsole.MarkupLine($"[red]No source folder at path[/] {sourcePath.EscapeMarkup()} [grey]({ScopeLabel(personalUser)}).[/]");
+                return ExitCodes.UsageError;
+            }
+            if (!TryResolve(folders, targetParentPath, out var target))
+            {
+                AnsiConsole.MarkupLine($"[red]No target parent folder at path[/] {targetParentPath.EscapeMarkup()} [grey]({ScopeLabel(personalUser)}).[/]");
+                return ExitCodes.UsageError;
+            }
+
+            var newIndex = EndIndexUnder(folders, target.Id);
+            try
+            {
+                await svc.MoveFolderAsync(src.Id, target.Id, newIndex, ct).ConfigureAwait(false);
+            }
+            catch (NotSupportedException nse)
+            {
+                AnsiConsole.MarkupLine($"[red]Move not supported:[/] {nse.Message.EscapeMarkup()}");
+                return ExitCodes.UsageError;
+            }
+
+            AnsiConsole.MarkupLine(
+                $"[green]Moved[/] {sourcePath.EscapeMarkup()} [grey]→[/] under {targetParentPath.EscapeMarkup()} [grey]({ScopeLabel(personalUser)}).[/]");
+            return ExitCodes.Success;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Move failed:[/] {ex.Message.EscapeMarkup()}");
+            return ExitCodes.OperationFailed;
+        }
+    }
+
+    /// <summary>Empty or "/" denotes the tree root.</summary>
+    private static bool IsRootPath(string? path) =>
+        string.IsNullOrWhiteSpace(path) || path.Trim() == "/";
+
+    /// <summary>Resolve a folder by its tree path (case-insensitive, leading/trailing slashes trimmed).</summary>
+    private static bool TryResolve(IReadOnlyList<WorkAreaFolderDto> folders, string path, out WorkAreaFolderDto folder)
+    {
+        var norm = (path ?? "").Trim().Trim('/');
+        folder = folders.FirstOrDefault(f => string.Equals(f.Path, norm, StringComparison.OrdinalIgnoreCase))!;
+        return folder is not null;
+    }
+
+    /// <summary>The index to place a new sibling at the end under <paramref name="parentId"/> (null ⇒ root).</summary>
+    private static int EndIndexUnder(IReadOnlyList<WorkAreaFolderDto> folders, Guid? parentId)
+    {
+        var siblings = folders.Where(f => f.ParentId == parentId).ToList();
+        return siblings.Count == 0 ? 0 : siblings.Max(f => f.Index) + 1;
+    }
+
     private static int Report(WorkAreaApplyResult r)
     {
         AnsiConsole.MarkupLine(

@@ -1,0 +1,41 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  ModelMeister.Model -> C:\Projects\madmax\modelmeister\src\ModelMeister.Model\bin\Debug\net9.0\ModelMeister.Model.dll
+  ModelMeister.Rest -> C:\Projects\madmax\modelmeister\src\ModelMeister.Rest\bin\Debug\net9.0\ModelMeister.Rest.dll
+  ModelMeister.Loading -> C:\Projects\madmax\modelmeister\src\ModelMeister.Loading\bin\Debug\net9.0\ModelMeister.Loading.dll
+  ModelMeister.ExampleModel -> C:\Projects\madmax\modelmeister\examples\ModelMeister.ExampleModel\bin\Debug\net9.0\ModelMeister.ExampleModel.dll
+  ModelMeister.Inriver -> C:\Projects\madmax\modelmeister\src\ModelMeister.Inriver\bin\Debug\net9.0\ModelMeister.Inriver.dll
+  ModelMeister.Scaffolder -> C:\Projects\madmax\modelmeister\src\ModelMeister.Scaffolder\bin\Debug\net9.0\ModelMeister.Scaffolder.dll
+  ModelMeister.Model.Tests -> C:\Projects\madmax\modelmeister\tests\ModelMeister.Model.Tests\bin\Debug\net9.0\ModelMeister.Model.Tests.dll
+Test run for C:\Projects\madmax\modelmeister\tests\ModelMeister.Model.Tests\bin\Debug\net9.0\ModelMeister.Model.Tests.dll (.NETCoreApp,Version=v9.0)
+  ModelMeister.Inriver.Tests -> C:\Projects\madmax\modelmeister\tests\ModelMeister.Inriver.Tests\bin\Debug\net9.0\ModelMeister.Inriver.Tests.dll
+Test run for C:\Projects\madmax\modelmeister\tests\ModelMeister.Inriver.Tests\bin\Debug\net9.0\ModelMeister.Inriver.Tests.dll (.NETCoreApp,Version=v9.0)
+  ModelMeister.Excel -> C:\Projects\madmax\modelmeister\src\ModelMeister.Excel\bin\Debug\net9.0\ModelMeister.Excel.dll
+A total of 1 test files matched the specified pattern.
+A total of 1 test files matched the specified pattern.
+  ModelMeister.Scaffolder.Tests -> C:\Projects\madmax\modelmeister\tests\ModelMeister.Scaffolder.Tests\bin\Debug\net9.0\ModelMeister.Scaffolder.Tests.dll
+Test run for C:\Projects\madmax\modelmeister\tests\ModelMeister.Scaffolder.Tests\bin\Debug\net9.0\ModelMeister.Scaffolder.Tests.dll (.NETCoreApp,Version=v9.0)
+A total of 1 test files matched the specified pattern.
+  ModelMeister.Ui -> C:\Projects\madmax\modelmeister\src\ModelMeister.Ui\bin\Debug\net9.0-windows\ModelMeister.Ui.dll
+  ModelMeister.Excel.Tests -> C:\Projects\madmax\modelmeister\tests\ModelMeister.Excel.Tests\bin\Debug\net9.0\ModelMeister.Excel.Tests.dll
+Test run for C:\Projects\madmax\modelmeister\tests\ModelMeister.Excel.Tests\bin\Debug\net9.0\ModelMeister.Excel.Tests.dll (.NETCoreApp,Version=v9.0)
+A total of 1 test files matched the specified pattern.
+  ModelMeister.Ui.Tests -> C:\Projects\madmax\modelmeister\tests\ModelMeister.Ui.Tests\bin\Debug\net9.0-windows\ModelMeister.Ui.Tests.dll
+Test run for C:\Projects\madmax\modelmeister\tests\ModelMeister.Ui.Tests\bin\Debug\net9.0-windows\ModelMeister.Ui.Tests.dll (.NETCoreApp,Version=v9.0)
+Results File: C:\Projects\madmax\modelmeister\tests\ModelMeister.Inriver.Tests\TestResults\mm_results.trx
+
+Passed!  - Failed:     0, Passed:    99, Skipped:     0, Total:    99, Duration: 79 ms - ModelMeister.Inriver.Tests.dll (net9.0)
+Results File: C:\Projects\madmax\modelmeister\tests\ModelMeister.Model.Tests\TestResults\mm_results.trx
+
+Passed!  - Failed:     0, Passed:   104, Skipped:     0, Total:   104, Duration: 154 ms - ModelMeister.Model.Tests.dll (net9.0)
+Results File: C:\Projects\madmax\modelmeister\tests\ModelMeister.Scaffolder.Tests\TestResults\mm_results.trx
+
+Passed!  - Failed:     0, Passed:    39, Skipped:     0, Total:    39, Duration: 40 ms - ModelMeister.Scaffolder.Tests.dll (net9.0)
+A total of 1 test files matched the specified pattern.
+Results File: C:\Projects\madmax\modelmeister\tests\ModelMeister.Ui.Tests\TestResults\mm_results.trx
+
+Passed!  - Failed:     0, Passed:    55, Skipped:     0, Total:    55, Duration: 51 ms - ModelMeister.Ui.Tests.dll (net9.0)
+Results File: C:\Projects\madmax\modelmeister\tests\ModelMeister.Excel.Tests\TestResults\mm_results.trx
+
+Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 652 ms - ModelMeister.Excel.Tests.dll (net9.0)
+TEST_EXITCODE=0

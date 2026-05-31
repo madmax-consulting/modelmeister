@@ -799,6 +799,36 @@ public sealed class Shell
     public Task MoveWorkAreaFolderAsync(Guid id, Guid newParentId, int newIndex, string? personalUsername = null, CancellationToken ct = default) =>
         WorkAreas(ConnectedClient(), personalUsername).MoveFolderAsync(id, newParentId, newIndex, ct);
 
+    /// <summary>Shallow-copy a single work-area folder (no children) within one env+scope. The copy gets
+    /// <paramref name="newName"/> (default: source name + " (copy)"), placed under <paramref name="targetParentId"/>
+    /// at <paramref name="index"/>. Returns the new folder id.</summary>
+    public Task<Guid> CopyWorkAreaFolderAsync(
+        Guid sourceId, Guid? targetParentId, int index, string? newName = null,
+        string? personalUsername = null, CancellationToken ct = default) =>
+        WorkAreas(ConnectedClient(), personalUsername).CopyFolderAsync(sourceId, targetParentId, index, newName, ct);
+
+    /// <summary>Deep-copy a work-area subtree (root + descendants) within one env+scope. Returns the new
+    /// root folder id.</summary>
+    public Task<Guid> CopyWorkAreaSubtreeAsync(
+        Guid sourceRootId, Guid? targetParentId, int index, string? newName = null,
+        string? personalUsername = null, CancellationToken ct = default) =>
+        WorkAreas(ConnectedClient(), personalUsername).CopySubtreeAsync(sourceRootId, targetParentId, index, newName, ct);
+
+    /// <summary>Copy a work-area folder across scopes within the SAME connected env. <paramref name="sourcePersonalUsername"/>
+    /// / <paramref name="targetPersonalUsername"/> each select a scope (null ⇒ shared, non-null ⇒ that user's personal).
+    /// <paramref name="deep"/>=true copies the whole subtree. Both services ride the same connected client (no
+    /// <c>SwitchEnvAsync</c>). Returns the new root id in the target scope.</summary>
+    public Task<Guid> CopyWorkAreaAcrossScopeAsync(
+        Guid sourceId, string? sourcePersonalUsername,
+        Guid? targetParentId, string? targetPersonalUsername,
+        int index, string? newName = null, bool deep = true, CancellationToken ct = default)
+    {
+        var client = ConnectedClient();
+        var src = WorkAreas(client, sourcePersonalUsername);
+        var dst = WorkAreas(client, targetPersonalUsername);
+        return src.CopyToServiceAsync(sourceId, dst, targetParentId, index, newName, deep, ct);
+    }
+
     /// <summary>Reorder a work-area folder among its siblings (same parent).</summary>
     public Task SetWorkAreaIndexAsync(Guid id, int newIndex, string? personalUsername = null, CancellationToken ct = default) =>
         WorkAreas(ConnectedClient(), personalUsername).SetIndexAsync(id, newIndex, ct);

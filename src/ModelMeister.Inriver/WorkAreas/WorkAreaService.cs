@@ -133,8 +133,16 @@ public sealed class WorkAreaService
     public Task RenameFolderAsync(Guid id, string name, CancellationToken ct = default) =>
         _client.WriteAsync(m => _scope.Rename(m, id, name), ct);
 
-    public Task MoveFolderAsync(Guid id, Guid newParentId, int newIndex, CancellationToken ct = default) =>
-        _client.WriteAsync(m => _scope.Move(m, id, newParentId, newIndex), ct);
+    /// <summary>Re-parent a folder under <paramref name="newParentId"/> at <paramref name="newIndex"/>.
+    /// A <see langword="null"/> parent (root placement) is not supported in v1 — inriver's move requires a
+    /// non-null parent (<see cref="IWorkAreaScope.Move"/>) — and throws <see cref="NotSupportedException"/>.</summary>
+    public Task MoveFolderAsync(Guid id, Guid? newParentId, int newIndex, CancellationToken ct = default)
+    {
+        if (newParentId is not { } parentId)
+            throw new NotSupportedException(
+                "Cannot move a folder to the root; inriver move requires a parent folder. Root placement isn't supported yet.");
+        return _client.WriteAsync(m => _scope.Move(m, id, parentId, newIndex), ct);
+    }
 
     /// <summary>Set a folder's index among its siblings (reorder within the same parent).</summary>
     public Task SetIndexAsync(Guid id, int newIndex, CancellationToken ct = default) =>
@@ -159,6 +167,141 @@ public sealed class WorkAreaService
         var dto = new IriverWorkAreaFolder { Name = name, ParentId = parentId, Index = index, IsQuery = isQuery, IsSyndication = isSyndication };
         var created = await _client.WriteAsync(m => _scope.Add(m, dto), ct).ConfigureAwait(false);
         return created.Id;
+    }
+
+    // ---------------- Copy / duplicate (shallow, deep, cross-scope) ----------------
+
+    /// <summary>One folder to clone, captured from the live source subtree. Pure data — no inriver objects
+    /// beyond the live <see cref="ComplexQuery"/> we copy verbatim. Produced by <see cref="FlattenSubtree"/>
+    /// in parents-before-children order (depth then <see cref="Index"/>).</summary>
+    internal readonly record struct CopyNode(
+        Guid SourceId, Guid? SourceParentId, string Name, int Index, bool IsQuery, bool IsSyndication, ComplexQuery? Query, int Depth);
+
+    /// <summary>Flatten the subtree rooted at <paramref name="rootId"/> into <see cref="CopyNode"/>s, ordered
+    /// parents-before-children (depth ascending, then <see cref="CopyNode.Index"/>). The root has
+    /// <c>Depth == 0</c>. Returns empty when the root id isn't present.</summary>
+    internal static IReadOnlyList<CopyNode> FlattenSubtree(IReadOnlyList<IriverWorkAreaFolder> live, Guid rootId)
+    {
+        var byId = live.ToDictionary(f => f.Id);
+        if (!byId.ContainsKey(rootId)) return [];
+
+        var childrenByParent = live
+            .Where(f => f.ParentId is { } pid && byId.ContainsKey(pid))
+            .GroupBy(f => f.ParentId!.Value)
+            .ToDictionary(g => g.Key, g => g.OrderBy(f => f.Index).ToList());
+
+        var nodes = new List<CopyNode>();
+        // A malformed live tree (self-parent, or a cycle among descendants) would otherwise re-enqueue the
+        // same folders forever; the `visited` set bounds the walk to the true node count and keeps the output
+        // duplicate-free so the clone never issues bogus, repeated folder-create writes. The 100k counter
+        // stays as defence-in-depth.
+        var visited = new HashSet<Guid>();
+        var queue = new Queue<(IriverWorkAreaFolder folder, int depth)>();
+        queue.Enqueue((byId[rootId], 0));
+        var guard = 0;
+        while (queue.Count > 0 && guard++ < 100_000)
+        {
+            var (folder, depth) = queue.Dequeue();
+            if (!visited.Add(folder.Id)) continue; // already emitted — a cycle or self-parent reached it again
+            nodes.Add(new CopyNode(
+                folder.Id, folder.ParentId, folder.Name ?? "", folder.Index,
+                folder.IsQuery, folder.IsSyndication, folder.Query, depth));
+            if (childrenByParent.TryGetValue(folder.Id, out var kids))
+                foreach (var kid in kids)
+                    if (kid.Id != folder.Id && !visited.Contains(kid.Id))
+                        queue.Enqueue((kid, depth + 1));
+        }
+
+        // Stable parents-before-children ordering: BFS already yields depth-ascending; re-sort to be explicit.
+        return nodes.OrderBy(n => n.Depth).ThenBy(n => n.Index).ToList();
+    }
+
+    /// <summary>Pick a non-colliding "(copy)" name. <c>"X" -&gt; "X (copy)"</c>, then <c>"X (copy 2)"</c>,
+    /// <c>"X (copy 3)"</c>… skipping any names already in <paramref name="siblingNames"/> (case-insensitive).</summary>
+    internal static string DefaultCopyName(string baseName, IReadOnlyCollection<string> siblingNames)
+    {
+        var taken = new HashSet<string>(siblingNames, StringComparer.OrdinalIgnoreCase);
+        var first = $"{baseName} (copy)";
+        if (!taken.Contains(first)) return first;
+        for (var n = 2; ; n++)
+        {
+            var candidate = $"{baseName} (copy {n})";
+            if (!taken.Contains(candidate)) return candidate;
+        }
+    }
+
+    /// <summary>Shallow copy: clone just <paramref name="sourceId"/> (no children) under
+    /// <paramref name="newParentId"/> at <paramref name="newIndex"/>, preserving its query/flags. Returns the
+    /// new folder's id.</summary>
+    public Task<Guid> CopyFolderAsync(Guid sourceId, Guid? newParentId, int newIndex, string? newName = null, CancellationToken ct = default)
+        => CopyToServiceAsync(sourceId, this, newParentId, newIndex, newName, deep: false, ct);
+
+    /// <summary>Deep copy: clone <paramref name="sourceId"/> and its whole subtree under
+    /// <paramref name="newParentId"/> at <paramref name="newIndex"/>, preserving each node's index, query and
+    /// flags. Only the root is renamed. Returns the new root's id.</summary>
+    public Task<Guid> CopySubtreeAsync(Guid sourceId, Guid? newParentId, int newIndex, string? newName = null, CancellationToken ct = default)
+        => CopyToServiceAsync(sourceId, this, newParentId, newIndex, newName, deep: true, ct);
+
+    /// <summary>Clone the source subtree (read from <b>this</b> service) into <paramref name="destination"/>
+    /// (cross-scope: shared↔personal, personal↔personal). <paramref name="deep"/> <see langword="false"/>
+    /// copies only the root folder. Returns the new root's id in the destination.</summary>
+    public async Task<Guid> CopyToServiceAsync(
+        Guid sourceId, WorkAreaService destination, Guid? destParentId, int destIndex,
+        string? newName = null, bool deep = true, CancellationToken ct = default)
+    {
+        var raw = GetRawFolders();
+        var nodes = FlattenSubtree(raw, sourceId);
+        if (nodes.Count == 0)
+            throw new InvalidOperationException($"Work-area folder {sourceId} was not found.");
+
+        var root = nodes[0];
+        if (!deep)
+            nodes = [root];
+
+        // Name the root. When no explicit name is given AND the copy lands among the source's OWN siblings
+        // (same service, same parent as the source), de-collide with "(copy)"; otherwise keep the original.
+        string rootName;
+        if (newName is not null)
+        {
+            rootName = newName;
+        }
+        else if (ReferenceEquals(destination, this) && destParentId == root.SourceParentId)
+        {
+            var siblingNames = raw
+                .Where(f => f.ParentId == destParentId && f.Id != sourceId)
+                .Select(f => f.Name ?? "")
+                .ToList();
+            rootName = DefaultCopyName(root.Name, siblingNames);
+        }
+        else
+        {
+            rootName = root.Name;
+        }
+
+        // Walk parents-before-children, minting fresh ids and resolving each new parent via the id map.
+        var newIdBySource = new Dictionary<Guid, Guid>();
+        Guid newRootId = Guid.Empty;
+        foreach (var node in nodes)
+        {
+            ct.ThrowIfCancellationRequested();
+            var isRoot = node.SourceId == root.SourceId;
+            var name = isRoot ? rootName : node.Name;
+            var parentId = isRoot
+                ? destParentId
+                : node.SourceParentId is { } sp && newIdBySource.TryGetValue(sp, out var mapped) ? mapped : destParentId;
+            var index = isRoot ? destIndex : node.Index;
+
+            var newId = await destination
+                .AddFolderAsync(name, parentId, index, node.IsQuery, node.IsSyndication, ct)
+                .ConfigureAwait(false);
+            newIdBySource[node.SourceId] = newId;
+            if (isRoot) newRootId = newId;
+
+            if (node.IsQuery && node.Query is not null)
+                await destination.SetQueryAsync(newId, node.Query, ct).ConfigureAwait(false);
+        }
+
+        return newRootId;
     }
 
     // ---------------- Promote / apply (reconcile by path) ----------------

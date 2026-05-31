@@ -86,6 +86,26 @@ internal static class DialogHost
         return ok ? vm : null;
     }
 
+    /// <summary>Show the folder-picker chooser for Copy-to / Move-to / bulk destination selection.
+    /// Presents a read-only mirror of <paramref name="tree"/> (with the <paramref name="exclude"/> subtree
+    /// omitted so a folder can't be moved into itself) plus a "(root)" option, and — when
+    /// <paramref name="allowScopeSwitch"/> — a Shared/Personal scope selector backed by <paramref name="users"/>.
+    /// Returns a <see cref="FolderPickResult"/> on Choose, else <c>null</c> (cancelled).</summary>
+    public static async Task<FolderPickResult?> PickFolderAsync(
+        string title,
+        System.Collections.Generic.IEnumerable<ModelMeister.Ui.ViewModels.WorkAreaNode> tree,
+        ModelMeister.Ui.ViewModels.WorkAreaNode? exclude,
+        bool allowScopeSwitch,
+        System.Collections.Generic.IEnumerable<ModelMeister.Inriver.Users.UserSummary>? users,
+        string? currentUser)
+    {
+        var vm = new FolderPickerViewModel(title, tree, exclude, allowScopeSwitch, users, currentUser);
+        var ok = await ShowDialogAsync<FolderPickerDialog>(vm, dlg => vm.Closed += () => dlg.Close(vm.Result == true)).ConfigureAwait(true);
+        if (!ok) return null;
+        var targetUsername = (allowScopeSwitch && !vm.ToShared) ? vm.TargetUser?.Username : null;
+        return new FolderPickResult(vm.SelectedTarget?.Id, targetUsername);
+    }
+
     /// <summary>Show the work-area saved-query builder for <paramref name="folderName"/>, seeded with
     /// <paramref name="existingQueryJson"/> (null for a brand-new query) and validated against
     /// <paramref name="meta"/>. Returns the populated VM on Save (read <c>ResultJson</c>), else <c>null</c>.</summary>
@@ -223,3 +243,10 @@ internal static class DialogHost
             ? d.MainWindow
             : null;
 }
+
+/// <summary>
+/// Outcome of <see cref="DialogHost.PickFolderAsync"/>. <see cref="TargetParentId"/> is the chosen parent
+/// folder id (<c>null</c> = place at the root). <see cref="TargetPersonalUsername"/> is the destination
+/// personal-scope user (<c>null</c> = the Shared scope).
+/// </summary>
+public sealed record FolderPickResult(Guid? TargetParentId, string? TargetPersonalUsername);

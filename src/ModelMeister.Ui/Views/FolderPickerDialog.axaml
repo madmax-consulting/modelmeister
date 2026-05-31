@@ -1,0 +1,87 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ModelMeister.Ui.ViewModels"
+        xmlns:users="using:ModelMeister.Inriver.Users"
+        x:Class="ModelMeister.Ui.Views.FolderPickerDialog"
+        x:Name="Root"
+        x:DataType="vm:FolderPickerViewModel"
+        Title="{Binding Title}"
+        Width="520" Height="560"
+        MinWidth="420" MinHeight="380"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface0}"
+        FontFamily="{StaticResource UiFont}">
+
+  <DockPanel Margin="0">
+    <!-- Header -->
+    <StackPanel DockPanel.Dock="Top" Margin="24,20,24,8" Spacing="2">
+      <TextBlock Text="DESTINATION" Classes="eyebrow" />
+      <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Pick the folder to place into, or choose the root."
+                 Classes="muted" FontSize="12" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <!-- Buttons -->
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource Surface0}" Padding="24,12">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+        <Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
+        <Button Content="Choose" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+      </StackPanel>
+    </Border>
+
+    <!-- Scope selector (cross-scope copy) -->
+    <Border DockPanel.Dock="Top" Margin="24,4,24,4" Padding="12,10"
+            Background="{DynamicResource Surface1}" CornerRadius="8"
+            IsVisible="{Binding AllowScopeSwitch}">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Scope" Classes="label" />
+        <StackPanel Orientation="Horizontal" Spacing="16">
+          <RadioButton Content="Shared" GroupName="Scope" IsChecked="{Binding ToShared, Mode=TwoWay}" />
+          <RadioButton Content="Personal" GroupName="Scope" IsChecked="{Binding ToPersonal, Mode=TwoWay}" />
+        </StackPanel>
+        <ComboBox MinWidth="220" IsVisible="{Binding ShowUserPicker}"
+                  ItemsSource="{Binding Users}" SelectedItem="{Binding TargetUser, Mode=TwoWay}"
+                  PlaceholderText="Pick a user…">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="users:UserSummary">
+              <TextBlock Text="{Binding Username}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+    </Border>
+
+    <!-- Folder tree -->
+    <Border Margin="24,4,24,4" Classes="card flush" Padding="0">
+      <DockPanel>
+        <Button DockPanel.Dock="Top" Classes="ghost" Margin="8,8,8,4" HorizontalAlignment="Left"
+                Command="{Binding SelectRootCommand}"
+                ToolTip.Tip="Place at the top level">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Path Data="{DynamicResource IcoHome}" Width="13" Height="13" Stretch="Uniform"
+                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                  StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+            <TextBlock Text="(root — top level)" />
+          </StackPanel>
+        </Button>
+
+        <TreeView Name="DestTree" ItemsSource="{Binding Roots}" BorderThickness="0"
+                  SelectedItem="{Binding SelectedRow, Mode=TwoWay}">
+          <TreeView.DataTemplates>
+            <TreeDataTemplate ItemsSource="{Binding Children}" DataType="vm:FolderPickerRow">
+              <Grid ColumnDefinitions="Auto,*" Margin="0,1">
+                <Path Grid.Column="0" Width="13" Height="13" Stretch="Uniform"
+                      Data="{DynamicResource IcoFolder}"
+                      Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent"
+                      VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+              </Grid>
+            </TreeDataTemplate>
+          </TreeView.DataTemplates>
+        </TreeView>
+      </DockPanel>
+    </Border>
+
+  </DockPanel>
+</Window>

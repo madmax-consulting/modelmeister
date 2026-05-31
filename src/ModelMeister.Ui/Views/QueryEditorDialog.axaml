@@ -6,26 +6,71 @@
         x:Name="Root"
         x:DataType="vm:QueryEditorViewModel"
         Title="{Binding Title}"
-        Width="760" Height="660"
-        MinWidth="560" MinHeight="420"
+        Width="820" Height="720"
+        MinWidth="600" MinHeight="460"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Surface0}"
         FontFamily="{StaticResource UiFont}">
 
   <Window.Resources>
-    <!-- One field-criterion row: field picker · operator · value · remove -->
-    <DataTemplate x:Key="DataRow" x:DataType="vm:CriterionRowViewModel">
-      <Grid ColumnDefinitions="*,Auto,*,Auto" Margin="0,0,0,6">
-        <AutoCompleteBox Grid.Column="0" Margin="0,0,8,0" Text="{Binding FieldTypeId, Mode=TwoWay}" Watermark="field type id"
-                         FilterMode="ContainsOrdinal"
-                         ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).AvailableFields}" />
-        <ComboBox Grid.Column="1" Margin="0,0,8,0" MinWidth="150" SelectedItem="{Binding Operator, Mode=TwoWay}"
-                  ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).Operators}" />
-        <TextBox Grid.Column="2" Margin="0,0,8,0" Text="{Binding Value, Mode=TwoWay}" Watermark="value" />
-        <Button Grid.Column="3" Content="✕" ToolTip.Tip="Remove criterion" Classes="ghost"
-                Command="{Binding #Root.((vm:QueryEditorViewModel)DataContext).RemoveDataCommand}"
-                CommandParameter="{Binding}" />
-      </Grid>
+    <!-- A field-criterion row: field picker · operator · typed value · advanced · remove.
+         Bound inside a group; the remove command is the row's owning group (RemoveCriterion). -->
+    <DataTemplate x:Key="CriterionRow" x:DataType="vm:CriterionRowViewModel">
+      <StackPanel Margin="0,0,0,6" Spacing="3">
+        <Grid ColumnDefinitions="*,Auto,*,Auto,Auto">
+          <AutoCompleteBox Grid.Column="0" Margin="0,0,8,0" Text="{Binding FieldTypeId, Mode=TwoWay}" Watermark="field type id"
+                           FilterMode="ContainsOrdinal"
+                           ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).ScopedFields}" />
+          <ComboBox Grid.Column="1" Margin="0,0,8,0" MinWidth="150" SelectedItem="{Binding Operator, Mode=TwoWay}"
+                    ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).Operators}" />
+          <!-- Typed value editors: only the one matching ValueKind is visible. -->
+          <Panel Grid.Column="2" Margin="0,0,8,0">
+            <TextBox Text="{Binding Value, Mode=TwoWay}" Watermark="value"
+                     IsVisible="{Binding ValueKind, Converter={x:Static svc:QueryValueKindIs.Text}}" />
+            <CheckBox Content="true" IsChecked="{Binding BoolValue, Mode=TwoWay}"
+                      IsVisible="{Binding ValueKind, Converter={x:Static svc:QueryValueKindIs.Bool}}" />
+            <NumericUpDown Value="{Binding NumberValue, Mode=TwoWay}" ShowButtonSpinner="False" Watermark="number"
+                           IsVisible="{Binding ValueKind, Converter={x:Static svc:QueryValueKindIs.Number}}" />
+            <DatePicker SelectedDate="{Binding DateValue, Mode=TwoWay}"
+                        IsVisible="{Binding ValueKind, Converter={x:Static svc:QueryValueKindIs.Date}}" />
+          </Panel>
+          <ToggleButton Grid.Column="3" Margin="0,0,4,0" Content="⋯" ToolTip.Tip="Per-criterion language / interval" Classes="ghost"
+                        x:Name="AdvToggle" />
+          <Button Grid.Column="4" Content="✕" ToolTip.Tip="Remove criterion" Classes="ghost"
+                  Command="{Binding $parent[ItemsControl].((vm:GroupRowViewModel)DataContext).RemoveCriterionCommand}"
+                  CommandParameter="{Binding}" />
+        </Grid>
+        <!-- Advanced (per-row Language / Interval) -->
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,2" IsVisible="{Binding #AdvToggle.IsChecked}">
+          <TextBlock Grid.Column="0" Text="Language" Classes="muted" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <TextBox Grid.Column="1" Text="{Binding Language, Mode=TwoWay}" Watermark="(default)" Margin="0,0,12,0" />
+          <CheckBox Grid.Column="2" Content="Interval" IsChecked="{Binding Interval, Mode=TwoWay}" />
+        </Grid>
+      </StackPanel>
+    </DataTemplate>
+
+    <!-- A recursive criteria group: join · criteria · nested sub-groups · add buttons. References itself. -->
+    <DataTemplate x:Key="GroupRow" x:DataType="vm:GroupRowViewModel">
+      <Border BorderBrush="{DynamicResource Surface2}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+            <TextBlock Grid.Column="0" Text="Match" Classes="muted" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <ComboBox Grid.Column="1" MinWidth="90" SelectedItem="{Binding Join, Mode=TwoWay}"
+                      ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).Joins}" />
+            <Button Grid.Column="3" Content="Remove group" Classes="ghost" IsVisible="{Binding IsRemovable}"
+                    Command="{Binding $parent[ItemsControl].((vm:GroupRowViewModel)DataContext).RemoveGroupCommand}"
+                    CommandParameter="{Binding}" />
+          </Grid>
+
+          <ItemsControl ItemsSource="{Binding Criteria}" ItemTemplate="{StaticResource CriterionRow}" />
+          <ItemsControl ItemsSource="{Binding SubGroups}" ItemTemplate="{StaticResource GroupRow}" />
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="+ Add criterion" Classes="ghost" Command="{Binding AddCriterionCommand}" />
+            <Button Content="+ Add group" Classes="ghost" Command="{Binding AddGroupCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
     </DataTemplate>
   </Window.Resources>
 
@@ -40,9 +85,23 @@
 
     <!-- Buttons -->
     <Border DockPanel.Dock="Bottom" Background="{DynamicResource Surface0}" Padding="28,12">
-      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-        <Button Content="Abort" Command="{Binding AbortCommand}" IsCancel="True" />
-        <Button Content="Save query" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+      <Grid ColumnDefinitions="*,Auto">
+        <Button Grid.Column="0" Content="Preview match count" Classes="ghost" HorizontalAlignment="Left"
+                Command="{Binding PreviewCommand}" IsVisible="{Binding CanPreview}" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+          <Button Content="Abort" Command="{Binding AbortCommand}" IsCancel="True" />
+          <Button Content="Save query" Command="{Binding ConfirmCommand}" Classes="primary" IsDefault="True" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Summary + preview -->
+    <Border DockPanel.Dock="Bottom" Margin="28,0,28,4" Padding="12,8"
+            Background="{DynamicResource Surface1}" CornerRadius="8">
+      <StackPanel Spacing="3">
+        <TextBlock Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding PreviewResult}" Classes="muted" FontSize="12"
+                   IsVisible="{Binding PreviewResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
     </Border>
 
@@ -59,129 +118,140 @@
     <ScrollViewer>
       <StackPanel Margin="28,8,28,8" Spacing="18">
 
-        <!-- Scope -->
-        <StackPanel Spacing="8">
-          <Grid ColumnDefinitions="*,160">
-            <StackPanel Grid.Column="0" Margin="0,0,12,0" Spacing="4">
-              <TextBlock Text="Entity type" Classes="label" />
-              <AutoCompleteBox Text="{Binding EntityTypeId, Mode=TwoWay}" Watermark="(any)"
-                               FilterMode="ContainsOrdinal" ItemsSource="{Binding AvailableEntityTypes}" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="4">
-              <TextBlock Text="Channel id" Classes="label" />
-              <TextBox Text="{Binding ChannelText, Mode=TwoWay}" Watermark="(none)" />
-            </StackPanel>
-          </Grid>
+        <!-- Raw JSON toggle -->
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Text="Edit raw query JSON" Classes="label" VerticalAlignment="Center" />
+          <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowRawJson, Mode=TwoWay}" />
+        </Grid>
+
+        <!-- Raw JSON editor -->
+        <StackPanel Spacing="6" IsVisible="{Binding ShowRawJson}">
+          <TextBox Text="{Binding RawJson, Mode=TwoWay}" AcceptsReturn="True" AcceptsTab="True"
+                   FontFamily="Consolas, monospace" MinHeight="320" TextWrapping="NoWrap"
+                   ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+          <TextBlock Text="{Binding RawJsonError}" Foreground="{DynamicResource Warn}" FontSize="12" TextWrapping="Wrap"
+                     IsVisible="{Binding RawJsonError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock Text="Turn the toggle off to apply your JSON edits back into the visual builder."
+                     Classes="subtle" FontSize="12" />
         </StackPanel>
 
-        <!-- Data criteria -->
-        <StackPanel Spacing="8">
-          <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Grid.Column="0" Text="Field criteria" Classes="label" VerticalAlignment="Center" />
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <TextBlock Text="Match" Classes="muted" FontSize="12" VerticalAlignment="Center" />
-              <ComboBox MinWidth="90" SelectedItem="{Binding DataJoin, Mode=TwoWay}" ItemsSource="{Binding Joins}" />
-            </StackPanel>
-          </Grid>
-          <TextBlock Text="No field criteria yet — every entity of the chosen type matches."
-                     Classes="subtle" FontSize="12"
-                     IsVisible="{Binding DataCriteria.Count, Converter={x:Static svc:Eq.IsZero}}" />
-          <ItemsControl ItemsSource="{Binding DataCriteria}" ItemTemplate="{StaticResource DataRow}" />
-          <Button Content="+ Add criterion" Classes="ghost" HorizontalAlignment="Left" Command="{Binding AddDataCriterionCommand}" />
-        </StackPanel>
+        <!-- Visual builder -->
+        <StackPanel Spacing="18" IsVisible="{Binding !ShowRawJson}">
 
-        <!-- System criteria -->
-        <StackPanel Spacing="8">
-          <TextBlock Text="System criteria" Classes="label" />
-          <ItemsControl ItemsSource="{Binding SystemCriteria}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:SystemRowViewModel">
-                <Grid ColumnDefinitions="*,Auto,*,Auto" Margin="0,0,0,6">
-                  <ComboBox Grid.Column="0" Margin="0,0,8,0" HorizontalAlignment="Stretch" SelectedItem="{Binding Field, Mode=TwoWay}"
-                            ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).SystemFields}" />
-                  <ComboBox Grid.Column="1" MinWidth="150" SelectedItem="{Binding Operator, Mode=TwoWay}"
-                            ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).Operators}" />
-                  <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}" Watermark="value" />
-                  <Button Grid.Column="3" Content="✕" ToolTip.Tip="Remove criterion" Classes="ghost"
-                          Command="{Binding #Root.((vm:QueryEditorViewModel)DataContext).RemoveSystemCommand}"
-                          CommandParameter="{Binding}" />
-                </Grid>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <Button Content="+ Add system criterion" Classes="ghost" HorizontalAlignment="Left" Command="{Binding AddSystemCriterionCommand}" />
-        </StackPanel>
-
-        <!-- Link query -->
-        <StackPanel Spacing="8">
-          <CheckBox Content="Include a linked-entity query" IsChecked="{Binding IncludeLink, Mode=TwoWay}" />
-          <StackPanel Spacing="8" IsVisible="{Binding IncludeLink}" Margin="0,0,0,0">
+          <!-- Scope -->
+          <StackPanel Spacing="8">
             <Grid ColumnDefinitions="*,160">
               <StackPanel Grid.Column="0" Margin="0,0,12,0" Spacing="4">
-                <TextBlock Text="Link type" Classes="label" />
-                <AutoCompleteBox Text="{Binding LinkTypeId, Mode=TwoWay}" Watermark="link type id"
-                                 FilterMode="ContainsOrdinal" ItemsSource="{Binding AvailableLinkTypes}" />
-              </StackPanel>
-              <StackPanel Grid.Column="1" Spacing="4">
-                <TextBlock Text="Direction" Classes="label" />
-                <ComboBox HorizontalAlignment="Stretch" SelectedItem="{Binding LinkDirection, Mode=TwoWay}" ItemsSource="{Binding Directions}" />
-              </StackPanel>
-            </Grid>
-            <Grid ColumnDefinitions="*,*">
-              <StackPanel Grid.Column="0" Margin="0,0,12,0" Spacing="4">
-                <TextBlock Text="Source entity type" Classes="label" />
-                <AutoCompleteBox Text="{Binding LinkSourceEntityTypeId, Mode=TwoWay}" Watermark="(any)"
+                <TextBlock Text="Entity type" Classes="label" />
+                <AutoCompleteBox Text="{Binding EntityTypeId, Mode=TwoWay}" Watermark="(any)"
                                  FilterMode="ContainsOrdinal" ItemsSource="{Binding AvailableEntityTypes}" />
               </StackPanel>
               <StackPanel Grid.Column="1" Spacing="4">
-                <TextBlock Text="Target entity type" Classes="label" />
-                <AutoCompleteBox Text="{Binding LinkTargetEntityTypeId, Mode=TwoWay}" Watermark="(any)"
-                                 FilterMode="ContainsOrdinal" ItemsSource="{Binding AvailableEntityTypes}" />
+                <TextBlock Text="Channel id" Classes="label" />
+                <TextBox Text="{Binding ChannelText, Mode=TwoWay}" Watermark="(none)" />
               </StackPanel>
             </Grid>
-
-            <TextBlock Text="Source criteria" Classes="muted" FontSize="12" />
-            <ItemsControl ItemsSource="{Binding LinkSourceCriteria}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:CriterionRowViewModel">
-                  <Grid ColumnDefinitions="*,Auto,*,Auto" Margin="0,0,0,6">
-                    <AutoCompleteBox Grid.Column="0" Text="{Binding FieldTypeId, Mode=TwoWay}" Watermark="field type id"
-                                     FilterMode="ContainsOrdinal"
-                                     ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).AvailableFields}" />
-                    <ComboBox Grid.Column="1" MinWidth="150" SelectedItem="{Binding Operator, Mode=TwoWay}"
-                              ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).Operators}" />
-                    <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}" Watermark="value" />
-                    <Button Grid.Column="3" Content="✕" ToolTip.Tip="Remove criterion" Classes="ghost"
-                            Command="{Binding #Root.((vm:QueryEditorViewModel)DataContext).RemoveLinkSourceCommand}"
-                            CommandParameter="{Binding}" />
-                  </Grid>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <Button Content="+ Add source criterion" Classes="ghost" HorizontalAlignment="Left" Command="{Binding AddLinkSourceCriterionCommand}" />
-
-            <TextBlock Text="Target criteria" Classes="muted" FontSize="12" />
-            <ItemsControl ItemsSource="{Binding LinkTargetCriteria}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:CriterionRowViewModel">
-                  <Grid ColumnDefinitions="*,Auto,*,Auto" Margin="0,0,0,6">
-                    <AutoCompleteBox Grid.Column="0" Text="{Binding FieldTypeId, Mode=TwoWay}" Watermark="field type id"
-                                     FilterMode="ContainsOrdinal"
-                                     ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).AvailableFields}" />
-                    <ComboBox Grid.Column="1" MinWidth="150" SelectedItem="{Binding Operator, Mode=TwoWay}"
-                              ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).Operators}" />
-                    <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}" Watermark="value" />
-                    <Button Grid.Column="3" Content="✕" ToolTip.Tip="Remove criterion" Classes="ghost"
-                            Command="{Binding #Root.((vm:QueryEditorViewModel)DataContext).RemoveLinkTargetCommand}"
-                            CommandParameter="{Binding}" />
-                  </Grid>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <Button Content="+ Add target criterion" Classes="ghost" HorizontalAlignment="Left" Command="{Binding AddLinkTargetCriterionCommand}" />
           </StackPanel>
-        </StackPanel>
 
+          <!-- Data criteria (recursive groups) -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Field criteria" Classes="label" />
+            <ContentControl Content="{Binding DataRoot}" ContentTemplate="{StaticResource GroupRow}" />
+          </StackPanel>
+
+          <!-- System criteria -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="System criteria" Classes="label" />
+            <ItemsControl ItemsSource="{Binding SystemCriteria}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SystemRowViewModel">
+                  <Grid ColumnDefinitions="*,Auto,*,Auto" Margin="0,0,0,6">
+                    <ComboBox Grid.Column="0" Margin="0,0,8,0" HorizontalAlignment="Stretch" SelectedItem="{Binding Field, Mode=TwoWay}"
+                              ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).SystemFields}" />
+                    <ComboBox Grid.Column="1" MinWidth="150" SelectedItem="{Binding Operator, Mode=TwoWay}"
+                              ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).Operators}" />
+                    <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}" Watermark="value" />
+                    <Button Grid.Column="3" Content="✕" ToolTip.Tip="Remove criterion" Classes="ghost"
+                            Command="{Binding #Root.((vm:QueryEditorViewModel)DataContext).RemoveSystemCommand}"
+                            CommandParameter="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button Content="+ Add system criterion" Classes="ghost" HorizontalAlignment="Left" Command="{Binding AddSystemCriterionCommand}" />
+          </StackPanel>
+
+          <!-- Link query -->
+          <StackPanel Spacing="8">
+            <CheckBox Content="Include a linked-entity query" IsChecked="{Binding IncludeLink, Mode=TwoWay}" />
+            <StackPanel Spacing="8" IsVisible="{Binding IncludeLink}">
+              <Grid ColumnDefinitions="*,160">
+                <StackPanel Grid.Column="0" Margin="0,0,12,0" Spacing="4">
+                  <TextBlock Text="Link type" Classes="label" />
+                  <AutoCompleteBox Text="{Binding LinkTypeId, Mode=TwoWay}" Watermark="link type id"
+                                   FilterMode="ContainsOrdinal" ItemsSource="{Binding AvailableLinkTypes}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4">
+                  <TextBlock Text="Direction" Classes="label" />
+                  <ComboBox HorizontalAlignment="Stretch" SelectedItem="{Binding LinkDirection, Mode=TwoWay}" ItemsSource="{Binding Directions}" />
+                </StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,*">
+                <StackPanel Grid.Column="0" Margin="0,0,12,0" Spacing="4">
+                  <TextBlock Text="Source entity type" Classes="label" />
+                  <AutoCompleteBox Text="{Binding LinkSourceEntityTypeId, Mode=TwoWay}" Watermark="(any)"
+                                   FilterMode="ContainsOrdinal" ItemsSource="{Binding AvailableEntityTypes}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4">
+                  <TextBlock Text="Target entity type" Classes="label" />
+                  <AutoCompleteBox Text="{Binding LinkTargetEntityTypeId, Mode=TwoWay}" Watermark="(any)"
+                                   FilterMode="ContainsOrdinal" ItemsSource="{Binding AvailableEntityTypes}" />
+                </StackPanel>
+              </Grid>
+
+              <TextBlock Text="Source criteria" Classes="muted" FontSize="12" />
+              <ItemsControl ItemsSource="{Binding LinkSourceCriteria}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:CriterionRowViewModel">
+                    <Grid ColumnDefinitions="*,Auto,*,Auto" Margin="0,0,0,6">
+                      <AutoCompleteBox Grid.Column="0" Text="{Binding FieldTypeId, Mode=TwoWay}" Watermark="field type id"
+                                       FilterMode="ContainsOrdinal"
+                                       ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).AvailableFields}" />
+                      <ComboBox Grid.Column="1" MinWidth="150" SelectedItem="{Binding Operator, Mode=TwoWay}"
+                                ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).Operators}" />
+                      <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}" Watermark="value" />
+                      <Button Grid.Column="3" Content="✕" ToolTip.Tip="Remove criterion" Classes="ghost"
+                              Command="{Binding #Root.((vm:QueryEditorViewModel)DataContext).RemoveLinkSourceCommand}"
+                              CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Button Content="+ Add source criterion" Classes="ghost" HorizontalAlignment="Left" Command="{Binding AddLinkSourceCriterionCommand}" />
+
+              <TextBlock Text="Target criteria" Classes="muted" FontSize="12" />
+              <ItemsControl ItemsSource="{Binding LinkTargetCriteria}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:CriterionRowViewModel">
+                    <Grid ColumnDefinitions="*,Auto,*,Auto" Margin="0,0,0,6">
+                      <AutoCompleteBox Grid.Column="0" Text="{Binding FieldTypeId, Mode=TwoWay}" Watermark="field type id"
+                                       FilterMode="ContainsOrdinal"
+                                       ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).AvailableFields}" />
+                      <ComboBox Grid.Column="1" MinWidth="150" SelectedItem="{Binding Operator, Mode=TwoWay}"
+                                ItemsSource="{Binding #Root.((vm:QueryEditorViewModel)DataContext).Operators}" />
+                      <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}" Watermark="value" />
+                      <Button Grid.Column="3" Content="✕" ToolTip.Tip="Remove criterion" Classes="ghost"
+                              Command="{Binding #Root.((vm:QueryEditorViewModel)DataContext).RemoveLinkTargetCommand}"
+                              CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Button Content="+ Add target criterion" Classes="ghost" HorizontalAlignment="Left" Command="{Binding AddLinkTargetCriterionCommand}" />
+            </StackPanel>
+          </StackPanel>
+
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </DockPanel>

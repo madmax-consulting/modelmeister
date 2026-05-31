@@ -812,10 +812,90 @@ static Command BuildWorkAreas()
     promoteCmd.WithExamples(
         ("Promote folders test → prod", "modelmeister workareas promote --from-url $TEST --url $PROD --from-api-key $TEST_KEY --api-key $PROD_KEY"));
 
+    // ---- workareas duplicate
+    var duplicateCmd = new Command("duplicate", "Duplicate a folder in place (under its own parent), with a \"(copy)\" name.");
+    var connD = new ConnectionOptions();
+    var dPath = new Argument<string>("path", "Folder path to duplicate (parent-chain of names, '/'-joined).");
+    var dDeep = new Option<bool>("--deep", () => false, "Duplicate the whole subtree (default: just the folder).");
+    var userD = new Option<string?>("--user", "Operate on this user's personal folders instead of shared.");
+    connD.AddTo(duplicateCmd);
+    duplicateCmd.AddArgument(dPath);
+    duplicateCmd.AddOption(dDeep);
+    duplicateCmd.AddOption(userD);
+    duplicateCmd.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await WorkAreasCommand.DuplicateAsync(
+            ctx.ParseResult.GetValueForOption(connD.Url)!, connD.ToAuth(ctx),
+            ctx.ParseResult.GetValueForArgument(dPath),
+            ctx.ParseResult.GetValueForOption(dDeep),
+            ctx.ParseResult.GetValueForOption(userD),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    duplicateCmd.WithExamples(
+        ("Duplicate one folder", "modelmeister workareas duplicate \"Marketing/Launch 2026\" --url $URL"),
+        ("Duplicate a whole subtree", "modelmeister workareas duplicate Marketing --deep --url $URL"));
+
+    // ---- workareas copy
+    var copyCmd = new Command("copy", "Copy a folder (optionally deep) under a target parent — same scope or cross-scope.");
+    var connC = new ConnectionOptions();
+    var cSrc = new Argument<string>("sourcePath", "Source folder path.");
+    var cDst = new Argument<string>("targetParentPath", "Destination parent path ('' or '/' for the tree root).");
+    var cDeep = new Option<bool>("--deep", () => false, "Copy the whole subtree (default: just the folder).");
+    var cToShared = new Option<bool>("--to-shared", () => false, "Copy into the shared scope (cross-scope when source is personal).");
+    var cToUser = new Option<string?>("--to-user", "Copy into this user's personal scope (cross-scope).");
+    var cDry = new Option<bool>("--dry-run", () => false, "Print the plan without writing.");
+    var userC = new Option<string?>("--user", "Source scope: this user's personal folders instead of shared.");
+    connC.AddTo(copyCmd);
+    copyCmd.AddArgument(cSrc);
+    copyCmd.AddArgument(cDst);
+    foreach (var o in new Option[] { cDeep, cToShared, cToUser, cDry, userC }) copyCmd.AddOption(o);
+    copyCmd.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await WorkAreasCommand.CopyAsync(
+            ctx.ParseResult.GetValueForOption(connC.Url)!, connC.ToAuth(ctx),
+            ctx.ParseResult.GetValueForArgument(cSrc),
+            ctx.ParseResult.GetValueForArgument(cDst),
+            ctx.ParseResult.GetValueForOption(cDeep),
+            ctx.ParseResult.GetValueForOption(cToShared),
+            ctx.ParseResult.GetValueForOption(cToUser),
+            ctx.ParseResult.GetValueForOption(cDry),
+            ctx.ParseResult.GetValueForOption(userC),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    copyCmd.WithExamples(
+        ("Copy a subtree under another folder", "modelmeister workareas copy Marketing Campaigns --deep --url $URL"),
+        ("Copy shared → a user's personal", "modelmeister workareas copy Marketing \"\" --to-user alice --url $URL"),
+        ("Preview without writing", "modelmeister workareas copy Marketing Campaigns --deep --dry-run --url $URL"));
+
+    // ---- workareas move
+    var moveCmd = new Command("move", "Re-parent a folder under a target parent (same scope).");
+    var connM = new ConnectionOptions();
+    var mSrc = new Argument<string>("sourcePath", "Source folder path.");
+    var mDst = new Argument<string>("targetParentPath", "Destination parent path (root is not supported).");
+    var userM = new Option<string?>("--user", "Operate on this user's personal folders instead of shared.");
+    connM.AddTo(moveCmd);
+    moveCmd.AddArgument(mSrc);
+    moveCmd.AddArgument(mDst);
+    moveCmd.AddOption(userM);
+    moveCmd.SetHandler(async ctx =>
+    {
+        Environment.ExitCode = await WorkAreasCommand.MoveAsync(
+            ctx.ParseResult.GetValueForOption(connM.Url)!, connM.ToAuth(ctx),
+            ctx.ParseResult.GetValueForArgument(mSrc),
+            ctx.ParseResult.GetValueForArgument(mDst),
+            ctx.ParseResult.GetValueForOption(userM),
+            ctx.GetCancellationToken()).ConfigureAwait(false);
+    });
+    moveCmd.WithExamples(
+        ("Re-parent a folder", "modelmeister workareas move \"Marketing/Launch 2026\" Campaigns --url $URL"));
+
     cmd.AddCommand(listCmd);
     cmd.AddCommand(exportCmd);
     cmd.AddCommand(importCmd);
     cmd.AddCommand(promoteCmd);
+    cmd.AddCommand(duplicateCmd);
+    cmd.AddCommand(copyCmd);
+    cmd.AddCommand(moveCmd);
     return cmd;
 }
 

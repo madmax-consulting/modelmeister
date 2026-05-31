@@ -192,6 +192,11 @@
           <StreamGeometry x:Key="IcoGear">M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 Z M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22 M4.5 4.5 L6.7 6.7 M17.3 17.3 L19.5 19.5 M4.5 19.5 L6.7 17.3 M17.3 6.7 L19.5 4.5</StreamGeometry>
           <StreamGeometry x:Key="IcoHome">M3 12 L12 3 L21 12 M5 10 V21 H10 V14 H14 V21 H19 V10</StreamGeometry>
           <StreamGeometry x:Key="IcoBackup">M3 5 H21 V9 H3 Z M5 9 V20 H19 V9 M9 13 H15</StreamGeometry>
+          <StreamGeometry x:Key="IcoFolderOpen">M3 7 H9 L11 9 H21 V11 H5 L3 19 H1 L3 9 Z M3 19 H19 L21 11</StreamGeometry>
+          <StreamGeometry x:Key="IcoDuplicate">M9 9 H19 V19 H9 Z M5 15 V5 H15 V7 M5 5 H7</StreamGeometry>
+          <StreamGeometry x:Key="IcoCut">M6 4 A2.5 2.5 0 1 1 6 9 A2.5 2.5 0 1 1 6 4 Z M6 15 A2.5 2.5 0 1 1 6 20 A2.5 2.5 0 1 1 6 15 Z M8 7.5 L20 18 M8 16.5 L20 6</StreamGeometry>
+          <StreamGeometry x:Key="IcoPaste">M9 3 H15 V6 H9 Z M7 5 H5 V21 H19 V5 H17 M9 11 H15 M9 15 H15</StreamGeometry>
+          <StreamGeometry x:Key="IcoSyndication">M12 4 A8 8 0 1 1 12 20 A8 8 0 1 1 12 4 Z M12 4 C9.5 6 9.5 18 12 20 M12 4 C14.5 6 14.5 18 12 20 M4.5 9 H19.5 M4.5 15 H19.5</StreamGeometry>
 
         </ResourceDictionary>
 
@@ -362,6 +367,11 @@
           <StreamGeometry x:Key="IcoGear">M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 Z M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22 M4.5 4.5 L6.7 6.7 M17.3 17.3 L19.5 19.5 M4.5 19.5 L6.7 17.3 M17.3 6.7 L19.5 4.5</StreamGeometry>
           <StreamGeometry x:Key="IcoHome">M3 12 L12 3 L21 12 M5 10 V21 H10 V14 H14 V21 H19 V10</StreamGeometry>
           <StreamGeometry x:Key="IcoBackup">M3 5 H21 V9 H3 Z M5 9 V20 H19 V9 M9 13 H15</StreamGeometry>
+          <StreamGeometry x:Key="IcoFolderOpen">M3 7 H9 L11 9 H21 V11 H5 L3 19 H1 L3 9 Z M3 19 H19 L21 11</StreamGeometry>
+          <StreamGeometry x:Key="IcoDuplicate">M9 9 H19 V19 H9 Z M5 15 V5 H15 V7 M5 5 H7</StreamGeometry>
+          <StreamGeometry x:Key="IcoCut">M6 4 A2.5 2.5 0 1 1 6 9 A2.5 2.5 0 1 1 6 4 Z M6 15 A2.5 2.5 0 1 1 6 20 A2.5 2.5 0 1 1 6 15 Z M8 7.5 L20 18 M8 16.5 L20 6</StreamGeometry>
+          <StreamGeometry x:Key="IcoPaste">M9 3 H15 V6 H9 Z M7 5 H5 V21 H19 V5 H17 M9 11 H15 M9 15 H15</StreamGeometry>
+          <StreamGeometry x:Key="IcoSyndication">M12 4 A8 8 0 1 1 12 20 A8 8 0 1 1 12 4 Z M12 4 C9.5 6 9.5 18 12 20 M12 4 C14.5 6 14.5 18 12 20 M4.5 9 H19.5 M4.5 15 H19.5</StreamGeometry>
 
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>

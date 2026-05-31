@@ -2,19 +2,29 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:ModelMeister.Ui.ViewModels"
              xmlns:svc="using:ModelMeister.Ui.Services"
+             xmlns:conv="using:ModelMeister.Ui.Converters"
              xmlns:c="using:ModelMeister.Ui.Controls"
              xmlns:users="using:ModelMeister.Inriver.Users"
              x:Class="ModelMeister.Ui.Views.WorkAreaView"
              x:DataType="vm:WorkAreaViewModel"
              x:Name="PageRoot">
 
+  <UserControl.Resources>
+    <conv:ResourceKeyToGeometryConverter x:Key="IconLookup" />
+  </UserControl.Resources>
+
   <UserControl.KeyBindings>
     <KeyBinding Gesture="F2" Command="{Binding RenameCommand}" />
-    <KeyBinding Gesture="Delete" Command="{Binding DeleteCommand}" />
+    <KeyBinding Gesture="Delete" Command="{Binding DeleteSelectedCommand}" />
     <KeyBinding Gesture="Alt+Up" Command="{Binding MoveUpCommand}" />
     <KeyBinding Gesture="Alt+Down" Command="{Binding MoveDownCommand}" />
     <KeyBinding Gesture="Alt+Right" Command="{Binding IndentCommand}" />
     <KeyBinding Gesture="Alt+Left" Command="{Binding OutdentCommand}" />
+    <KeyBinding Gesture="Ctrl+D" Command="{Binding DuplicateSubtreeCommand}" />
+    <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}" />
+    <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyNodeCommand}" />
+    <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding ClearClipboardCommand}" />
   </UserControl.KeyBindings>
 
   <c:PageShell Eyebrow="{Binding WorkAreaEyebrow}"
@@ -33,6 +43,54 @@
           </ComboBox.ItemTemplate>
         </ComboBox>
         <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" IsVisible="{Binding ShowUserPicker}" />
+
+        <!-- Search box with clear button -->
+        <Border Background="{DynamicResource Surface1}" BorderBrush="{DynamicResource Border}"
+                BorderThickness="1" CornerRadius="6" Padding="2" VerticalAlignment="Center">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Path Grid.Column="0" Data="{DynamicResource IcoSearch}" Width="12" Height="12" Stretch="Uniform"
+                  Stroke="{DynamicResource TextDim}" StrokeThickness="1.6"
+                  StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent"
+                  VerticalAlignment="Center" Margin="6,0,4,0" />
+            <TextBox Grid.Column="1" Name="SearchBox" Width="160" Text="{Binding FilterText, Mode=TwoWay}"
+                     Watermark="Search folders…" BorderThickness="0" Background="Transparent"
+                     VerticalAlignment="Center" Padding="0,2" />
+            <Button Grid.Column="2" Classes="ghost icon" Padding="3" Margin="0,0,2,0"
+                    ToolTip.Tip="Clear search" Command="{Binding ClearFilterCommand}"
+                    IsVisible="{Binding HasFilter}">
+              <Path Data="{DynamicResource IcoX}" Width="10" Height="10" Stretch="Uniform"
+                    Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                    StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+            </Button>
+          </Grid>
+        </Border>
+
+        <!-- Persistent clipboard chip: shows what is armed (move/copy) with an inline Clear; Esc also clears. -->
+        <Border Background="{DynamicResource AccentSoft}" BorderBrush="{DynamicResource Accent}"
+                BorderThickness="1" CornerRadius="6" Padding="6,2" VerticalAlignment="Center"
+                IsVisible="{Binding HasClipboard}">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <Path Data="{DynamicResource IcoPaste}" Width="11" Height="11" Stretch="Uniform"
+                  Stroke="{DynamicResource Accent}" StrokeThickness="1.5" Fill="Transparent"
+                  VerticalAlignment="Center" />
+            <TextBlock Text="{Binding ClipboardSummary}" FontSize="11" FontWeight="SemiBold"
+                       Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+            <Button Classes="ghost icon" Padding="2" ToolTip.Tip="Clear clipboard (Esc)"
+                    Command="{Binding ClearClipboardCommand}">
+              <Path Data="{DynamicResource IcoX}" Width="9" Height="9" Stretch="Uniform"
+                    Stroke="{DynamicResource Accent}" StrokeThickness="1.6"
+                    StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+            </Button>
+          </StackPanel>
+        </Border>
+        <Button Classes="ghost icon" ToolTip.Tip="Paste (Ctrl+V)"
+                IsVisible="{Binding HasClipboard}"
+                Command="{Binding PasteCommand}" CommandParameter="{Binding Selected}">
+          <Path Data="{DynamicResource IcoPaste}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+        </Button>
+
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
         <Button Classes="ghost icon" ToolTip.Tip="New top-level folder"
                 Command="{Binding NewFolderCommand}">
           <Path Data="{DynamicResource IcoPlus}" Width="13" Height="13" Stretch="Uniform"
@@ -43,6 +101,19 @@
                 Command="{Binding NewQueryFolderCommand}">
           <Path Data="{DynamicResource IcoSearch}" Width="13" Height="13" Stretch="Uniform"
                 Stroke="{DynamicResource TextSec}" StrokeThickness="1.7"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
+        <Button Classes="ghost icon" ToolTip.Tip="Expand all"
+                Command="{Binding ExpandAllCommand}">
+          <Path Data="{DynamicResource IcoChevDown}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
+                StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+        </Button>
+        <Button Classes="ghost icon" ToolTip.Tip="Collapse all"
+                Command="{Binding CollapseAllCommand}">
+          <Path Data="{DynamicResource IcoChevRight}" Width="13" Height="13" Stretch="Uniform"
+                Stroke="{DynamicResource TextSec}" StrokeThickness="1.8"
                 StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
         </Button>
         <Border Width="1" Margin="4,4" Background="{DynamicResource BorderFaint}" />
@@ -73,6 +144,39 @@
                         Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
                 </Button>
                 <Border Width="1" Margin="3,3" Background="{DynamicResource BorderFaint}" />
+                <Button Classes="ghost icon" ToolTip.Tip="Duplicate subtree (Ctrl+D)"
+                        Command="{Binding DuplicateSubtreeCommand}">
+                  <Path Data="{DynamicResource IcoDuplicate}" Width="13" Height="13" Stretch="Uniform"
+                        Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                </Button>
+                <Button Classes="ghost icon" ToolTip.Tip="Copy to…"
+                        Command="{Binding CopyToCommand}">
+                  <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                        Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                </Button>
+                <Button Classes="ghost icon" ToolTip.Tip="Move to…"
+                        Command="{Binding MoveToCommand}">
+                  <Path Data="{DynamicResource IcoArrowRight}" Width="13" Height="13" Stretch="Uniform"
+                        Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                        StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+                </Button>
+                <!-- Bulk entry points: visible only when more than one folder is selected. -->
+                <Border Width="1" Margin="3,3" Background="{DynamicResource BorderFaint}"
+                        IsVisible="{Binding HasMultiSelection}" />
+                <Button Classes="ghost icon" ToolTip.Tip="Copy selected to…"
+                        IsVisible="{Binding HasMultiSelection}"
+                        Command="{Binding CopySelectedToCommand}">
+                  <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                        Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                </Button>
+                <Button Classes="ghost icon" ToolTip.Tip="Move selected to…"
+                        IsVisible="{Binding HasMultiSelection}"
+                        Command="{Binding MoveSelectedToCommand}">
+                  <Path Data="{DynamicResource IcoArrowRight}" Width="13" Height="13" Stretch="Uniform"
+                        Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                        StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+                </Button>
+                <Border Width="1" Margin="3,3" Background="{DynamicResource BorderFaint}" />
                 <Button Classes="ghost icon" ToolTip.Tip="Move up (Alt+Up)"
                         Command="{Binding MoveUpCommand}">
                   <Path Data="{DynamicResource IcoChevUp}" Width="12" Height="12" Stretch="Uniform"
@@ -87,7 +191,7 @@
                 </Button>
                 <Border Width="1" Margin="3,3" Background="{DynamicResource BorderFaint}" />
                 <Button Classes="ghost icon" ToolTip.Tip="Delete (Del)"
-                        Command="{Binding DeleteCommand}">
+                        Command="{Binding DeleteSelectedCommand}">
                   <Path Data="{DynamicResource IcoTrash}" Width="13" Height="13" Stretch="Uniform"
                         Stroke="{DynamicResource Danger}" StrokeThickness="1.6"
                         StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
@@ -97,7 +201,7 @@
           </Border>
 
           <Grid>
-            <!-- Empty state -->
+            <!-- Empty state (no folders at all) -->
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                         Spacing="6" Margin="0,40"
                         IsVisible="{Binding Tree.Count, Converter={x:Static svc:Eq.IsZero}}">
@@ -108,36 +212,149 @@
               <TextBlock Text="Connect to an environment, then add a folder with the + above."
                          Classes="subtle" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="240"
                          TextAlignment="Center" />
+              <Button Content="Create folder" Classes="primary" HorizontalAlignment="Center"
+                      Margin="0,4,0,0" Command="{Binding NewFolderCommand}" />
+            </StackPanel>
+
+            <!-- Filtered-empty state (folders exist but none match) -->
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Spacing="6" Margin="0,40"
+                        IsVisible="{Binding HasNoFilterMatches}">
+              <Path Data="{DynamicResource IcoSearch}" Width="24" Height="24" Stretch="Uniform"
+                    Stroke="{DynamicResource TextDim}" StrokeThickness="1.4" Fill="Transparent"
+                    StrokeJoin="Round" StrokeLineCap="Round" HorizontalAlignment="Center" />
+              <TextBlock FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center"
+                         Text="{Binding FilterText, StringFormat='No folders match \'{0}\''}" />
+              <Button Content="Clear filter" Classes="ghost" HorizontalAlignment="Center"
+                      Command="{Binding ClearFilterCommand}" />
             </StackPanel>
 
             <TreeView Name="FolderTree" ItemsSource="{Binding Tree}" BorderThickness="0"
-                      SelectedItem="{Binding Selected, Mode=TwoWay}">
+                      SelectionMode="Multiple"
+                      svc:TreeSelectionBehavior.Nodes="{Binding SelectedNodes}"
+                      SelectedItem="{Binding Selected, Mode=TwoWay}"
+                      DragDrop.AllowDrop="True">
+              <TreeView.Styles>
+                <Style Selector="TreeViewItem" x:DataType="vm:WorkAreaNode">
+                  <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                  <Setter Property="IsVisible" Value="{Binding IsVisible}" />
+                </Style>
+              </TreeView.Styles>
               <TreeView.DataTemplates>
                 <TreeDataTemplate ItemsSource="{Binding Children}" DataType="vm:WorkAreaNode">
-                  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,1">
+                  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,1"
+                        Opacity="{Binding IsCut, Converter={x:Static svc:Eq.OpacityFor}}">
                     <Grid.ContextMenu>
                       <ContextMenu>
                         <MenuItem Header="New sub-folder"
-                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).NewSubfolderCommand}" />
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).NewSubfolderCommand}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoFolder}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
                         <MenuItem Header="New query folder"
-                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).NewQueryFolderCommand}" />
-                        <MenuItem Header="Edit query…"
-                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).EditQueryCommand}" />
-                        <MenuItem Header="Rename"
-                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).RenameCommand}" />
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).NewQueryFolderCommand}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoSearch}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Define / Edit query…"
+                                  IsEnabled="{Binding IsQuery}"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).EditQueryCommand}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoEdit}" Width="12" Height="12" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
                         <Separator />
-                        <MenuItem Header="Move up"
+                        <MenuItem Header="Rename" InputGesture="F2"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).RenameCommand}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoEdit}" Width="12" Height="12" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.6" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Duplicate" InputGesture="Ctrl+D"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).DuplicateSubtreeCommand}"
+                                  CommandParameter="{Binding}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoDuplicate}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Duplicate (folder only)"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).DuplicateFolderCommand}"
+                                  CommandParameter="{Binding}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Copy to…"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).CopyToCommand}"
+                                  CommandParameter="{Binding}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Move to…"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).MoveToCommand}"
+                                  CommandParameter="{Binding}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoArrowRight}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                                  StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <Separator />
+                        <MenuItem Header="Cut" InputGesture="Ctrl+X"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).CutCommand}"
+                                  CommandParameter="{Binding}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoCut}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Copy" InputGesture="Ctrl+C"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).CopyNodeCommand}"
+                                  CommandParameter="{Binding}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).PasteMenuHeader}"
+                                  InputGesture="Ctrl+V"
+                                  IsEnabled="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).HasClipboard}"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).PasteCommand}"
+                                  CommandParameter="{Binding}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoPaste}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <Separator />
+                        <MenuItem Header="Move up" InputGesture="Alt+Up"
                                   Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).MoveUpCommand}" />
-                        <MenuItem Header="Move down"
+                        <MenuItem Header="Move down" InputGesture="Alt+Down"
                                   Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).MoveDownCommand}" />
-                        <MenuItem Header="Indent (nest under previous)"
+                        <MenuItem Header="Indent (nest under previous)" InputGesture="Alt+Right"
                                   Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).IndentCommand}" />
-                        <MenuItem Header="Outdent (move to grandparent)"
+                        <MenuItem Header="Outdent (move to grandparent)" InputGesture="Alt+Left"
                                   Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).OutdentCommand}" />
                         <Separator />
                         <MenuItem Header="Toggle syndication"
                                   IsVisible="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).ShowSyndicationToggle}"
-                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).ToggleSyndicationCommand}" />
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).ToggleSyndicationCommand}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoSyndication}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <Separator />
                         <MenuItem Header="Copy path"
                                   Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).CopyPathCommand}"
                                   CommandParameter="{Binding}" />
@@ -146,16 +363,41 @@
                                   Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).CopyQueryCommand}"
                                   CommandParameter="{Binding}" />
                         <Separator />
-                        <MenuItem Header="Delete"
+                        <MenuItem Header="Delete" InputGesture="Delete"
                                   Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).DeleteCommand}" />
+                        <Separator IsVisible="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).HasMultiSelection}" />
+                        <MenuItem Header="Move selected to…"
+                                  IsVisible="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).HasMultiSelection}"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).MoveSelectedToCommand}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoArrowRight}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.6"
+                                  StrokeJoin="Round" StrokeLineCap="Round" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Copy selected to…"
+                                  IsVisible="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).HasMultiSelection}"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).CopySelectedToCommand}">
+                          <MenuItem.Icon>
+                            <Path Data="{DynamicResource IcoCopy}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent" />
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Export selected…"
+                                  IsVisible="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).HasMultiSelection}"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).ExportSelectedCommand}" />
+                        <MenuItem Header="Delete selected"
+                                  IsVisible="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).HasMultiSelection}"
+                                  Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).DeleteSelectedCommand}" />
                       </ContextMenu>
                     </Grid.ContextMenu>
                     <Path Grid.Column="0" Width="13" Height="13" Stretch="Uniform"
-                          Data="{DynamicResource IcoFolder}"
+                          Data="{Binding IconKey, Converter={StaticResource IconLookup}}"
                           Stroke="{DynamicResource TextSec}" StrokeThickness="1.5" Fill="Transparent"
                           VerticalAlignment="Center" Margin="0,0,8,0" />
                     <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis" />
+                               TextTrimming="CharacterEllipsis"
+                               TextDecorations="{Binding IsCut, Converter={x:Static svc:Eq.StrikeIfTrue}}" />
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="8,0,4,0">
                       <Border Classes="pill" Padding="6,1"
                               Background="{DynamicResource BorderFaint}"
@@ -197,8 +439,26 @@
                 <TextBlock Text="FOLDER" Classes="eyebrow" />
                 <TextBlock Text="{Binding Selected.Name}" FontSize="18" FontWeight="Bold"
                            TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Selected.Path}" Classes="dim mono" FontSize="11"
-                           TextWrapping="Wrap" />
+                <!-- Breadcrumb -->
+                <ItemsControl ItemsSource="{Binding SelectedBreadcrumb}" Margin="0,2,0,0">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:WorkAreaNode">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="/" Foreground="{DynamicResource TextDim}" FontSize="11"
+                                   VerticalAlignment="Center" />
+                        <Button Classes="link" Padding="2,0" FontSize="11"
+                                Content="{Binding Name}"
+                                Command="{Binding #PageRoot.((vm:WorkAreaViewModel)DataContext).SelectBreadcrumbCommand}"
+                                CommandParameter="{Binding}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
                 <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
                   <Border Classes="pill" Padding="7,1"
                           Background="{DynamicResource AccentSoft}"
